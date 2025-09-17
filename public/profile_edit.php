@@ -13,12 +13,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $updateData = [
         'name' => $_POST['name'],
         'disability' => $_POST['disability'],
-        // do not update education here anymore
+        // education intentionally not updated here
     ];
 
+    // If employer, accept employer details
+    if ($user->role === 'employer') {
+        // Company name (optional here; admin can still review)
+        if (isset($_POST['company_name'])) {
+            $updateData['company_name'] = trim($_POST['company_name']);
+        }
+
+        // Business email (optional but validate if provided)
+        if (isset($_POST['business_email']) && $_POST['business_email'] !== '') {
+            $bizEmail = trim($_POST['business_email']);
+            if (filter_var($bizEmail, FILTER_VALIDATE_EMAIL)) {
+                $updateData['business_email'] = $bizEmail;
+            } else {
+                $errors[] = 'Please enter a valid business email address.';
+            }
+        } else {
+            // Allow clearing it explicitly
+            if (isset($_POST['business_email'])) $updateData['business_email'] = '';
+        }
+
+        // Business permit / registration number (optional, allow clear)
+        if (isset($_POST['business_permit_number'])) {
+            $updateData['business_permit_number'] = trim($_POST['business_permit_number']);
+        }
+
+        // Employer verification document (optional upload)
+        if (!empty($_FILES['employer_doc']['name'])) {
+            $allowed = [
+                'application/pdf' => 'pdf',
+                'image/jpeg' => 'jpg',
+                'image/png'  => 'png',
+                'image/webp' => 'webp'
+            ];
+            $mime = $_FILES['employer_doc']['type'] ?? '';
+            if (isset($allowed[$mime])) {
+                $ext = $allowed[$mime];
+                $docName = 'uploads/employers/' . uniqid('empdoc_') . '.' . $ext;
+                if (!is_dir('../uploads/employers')) {
+                    @mkdir('../uploads/employers', 0775, true);
+                }
+                if (move_uploaded_file($_FILES['employer_doc']['tmp_name'], '../' . $docName)) {
+                    $updateData['employer_doc'] = $docName;
+                } else {
+                    $errors[] = 'Failed to upload employer document.';
+                }
+            } else {
+                $errors[] = 'Employer document must be a PDF or image (JPG/PNG/WEBP).';
+            }
+        }
+    }
+
+    // Resume upload (PDF)
     if (!empty($_FILES['resume']['name'])) {
         if ($_FILES['resume']['type'] === 'application/pdf') {
             $resumeName = 'uploads/resumes/' . uniqid('res_') . '.pdf';
+            if (!is_dir('../uploads/resumes')) {
+                @mkdir('../uploads/resumes', 0775, true);
+            }
             if (move_uploaded_file($_FILES['resume']['tmp_name'], '../' . $resumeName)) {
                 $updateData['resume'] = $resumeName;
             } else {
@@ -29,11 +84,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Video intro upload
     if (!empty($_FILES['video_intro']['name'])) {
         $allowed = ['video/mp4','video/webm','video/ogg'];
-        if (in_array($_FILES['video_intro']['type'], $allowed)) {
+        if (in_array($_FILES['video_intro']['type'], $allowed, true)) {
             $ext = pathinfo($_FILES['video_intro']['name'], PATHINFO_EXTENSION);
             $videoName = 'uploads/videos/' . uniqid('vid_') . '.' . $ext;
+            if (!is_dir('../uploads/videos')) {
+                @mkdir('../uploads/videos', 0775, true);
+            }
             if (move_uploaded_file($_FILES['video_intro']['tmp_name'], '../' . $videoName)) {
                 $updateData['video_intro'] = $videoName;
             } else {
@@ -78,6 +137,34 @@ include '../includes/nav.php';
             <label class="form-label">Disability</label>
             <input name="disability" class="form-control form-control-lg" value="<?php echo Helpers::sanitizeOutput($user->disability); ?>">
           </div>
+
+          <?php if ($user->role === 'employer'): ?>
+            <div class="col-12">
+              <hr>
+              <h3 class="h6 fw-semibold mb-2"><i class="bi bi-building me-2"></i>Employer Details</h3>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Company Name</label>
+              <input name="company_name" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->company_name); ?>" placeholder="Your company name">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Business Email (optional)</label>
+              <input type="email" name="business_email" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->business_email); ?>" placeholder="hr@company.com">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Business Permit / Registration No. (optional)</label>
+              <input name="business_permit_number" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->business_permit_number); ?>" placeholder="e.g., SEC/DTI/Mayor’s permit">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Verification Document (PDF/JPG/PNG/WEBP)</label>
+              <input type="file" name="employer_doc" class="form-control" accept=".pdf,image/*">
+              <?php if (!empty($user->employer_doc)): ?>
+                <small>Current: <a target="_blank" href="../<?php echo htmlspecialchars($user->employer_doc); ?>">View document</a></small>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
+
           <div class="col-md-6">
             <label class="form-label">Resume (PDF)</label>
             <input type="file" name="resume" class="form-control" accept="application/pdf">
@@ -92,6 +179,7 @@ include '../includes/nav.php';
               <small>Current: <a target="_blank" href="../<?php echo htmlspecialchars($user->video_intro); ?>">Watch</a></small>
             <?php endif; ?>
           </div>
+
           <div class="col-12 d-grid">
             <button class="btn btn-primary btn-lg"><i class="bi bi-save me-1"></i>Save Changes</button>
           </div>
@@ -107,6 +195,15 @@ include '../includes/nav.php';
         <ul class="list-unstyled small mb-0">
           <li class="mb-1"><i class="bi bi-person me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->name); ?></li>
           <li class="mb-1"><i class="bi bi-heart-pulse me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->disability ?: 'Not specified'); ?></li>
+
+          <?php if ($user->role === 'employer'): ?>
+            <li class="mb-1"><i class="bi bi-building me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->company_name ?: '(no company)'); ?></li>
+            <li class="mb-1"><i class="bi bi-envelope-paper me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->business_email ?: '(no business email)'); ?></li>
+            <li class="mb-1"><i class="bi bi-file-earmark-text me-2 text-muted"></i>Permit No.: <?php echo Helpers::sanitizeOutput($user->business_permit_number ?: '(none)'); ?></li>
+            <?php if (!empty($user->employer_doc)): ?>
+              <li class="mb-1"><i class="bi bi-paperclip me-2 text-muted"></i><a target="_blank" href="../<?php echo htmlspecialchars($user->employer_doc); ?>">View verification</a></li>
+            <?php endif; ?>
+          <?php endif; ?>
         </ul>
       </div>
     </div>

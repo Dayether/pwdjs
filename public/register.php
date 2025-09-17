@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $company_website = trim($_POST['company_website'] ?? '');
     $company_email   = trim($_POST['company_email'] ?? '');
     $company_phone   = trim($_POST['company_phone'] ?? '');
+    // Added back: Business permit / registration number
+    $business_permit_number = trim($_POST['business_permit_number'] ?? '');
 
     // Name normalization (server-side guarantee)
     $displayName = Name::normalizeDisplayName($name_raw);
@@ -65,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($company_website !== '' && !filter_var($company_website, FILTER_VALIDATE_URL)) {
             $errors[] = 'Please enter a valid company website URL (including http:// or https://).';
         }
+        // business_permit_number optional; no extra validation enforced here
         // company_phone optional
     }
 
@@ -89,6 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($company_email !== '')   { $cols[] = 'company_email';   $vals[] = $company_email; }
                 if ($company_phone !== '')   { $cols[] = 'company_phone';   $vals[] = $company_phone; }
                 if ($company_website !== '') { $cols[] = 'company_website'; $vals[] = $company_website; }
+                // Added back: business_permit_number if provided
+                if ($business_permit_number !== '') { $cols[] = 'business_permit_number'; $vals[] = $business_permit_number; }
                 // If your schema has employer_status, set default Pending
                 $cols[] = 'employer_status'; $vals[] = 'Pending';
             }
@@ -213,6 +218,13 @@ $disSel  = $_POST['disability'] ?? '';
               <input name="company_phone" id="company_phone" class="form-control"
                      value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>"
                      placeholder="+63 900 000 0000">
+            </div>
+            <!-- Added back: Business permit / registration number -->
+            <div class="col-md-6">
+              <label class="form-label">Business permit / registration no. (optional)</label>
+              <input name="business_permit_number" id="business_permit_number" class="form-control"
+                     value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>"
+                     placeholder="e.g., SEC/DTI/Mayor’s permit no.">
             </div>
             <div class="col-12 text-muted small">
               Employer accounts are reviewed; status starts as Pending until approved.
@@ -342,7 +354,7 @@ $disSel  = $_POST['disability'] ?? '';
   const roleSel = document.getElementById('role_select');
   const block = document.getElementById('employer_fields');
   const name   = document.getElementById('company_name');
-  const cemail = document.getElementById('company_email');
+  const cemail = document.getElementByElementById ? document.getElementById('company_email') : document.querySelector('#company_email');
   const cweb   = document.getElementById('company_website');
   const cphone = document.getElementById('company_phone');
 

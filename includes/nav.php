@@ -12,6 +12,10 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
 }
 ?>
 <a class="visually-hidden-focusable position-absolute top-0 start-0 m-2" href="#main-content">Skip to main content</a>
+
+<!-- Page wrapper to enable sticky footer -->
+<div class="d-flex flex-column min-vh-100">
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center fw-semibold" href="index.php">
@@ -53,11 +57,24 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
           <li class="nav-item"><a class="nav-link" href="register.php">Register</a></li>
           <li class="nav-item ms-lg-2"><a class="btn btn-outline-light btn-sm" href="login.php"><i class="bi bi-box-arrow-in-right me-1"></i>Login</a></li>
         <?php else: ?>
-          <li class="nav-item d-flex align-items-center">
-            <span class="navbar-text small me-2 text-white-50"><i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+          <!-- Profile is clickable for easier access -->
+          <li class="nav-item me-2">
+            <a class="btn btn-outline-light btn-sm" href="profile_edit.php">
+              <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
+            </a>
           </li>
           <li class="nav-item">
-            <a class="btn btn-outline-light btn-sm" href="logout.php"><i class="bi bi-box-arrow-right me-1"></i>Logout</a>
+            <!-- Logout with confirmation -->
+            <a
+              class="btn btn-outline-light btn-sm"
+              href="logout.php"
+              data-confirm-title="Log out"
+              data-confirm="Are you sure you want to log out?"
+              data-confirm-yes="Log out"
+              data-confirm-no="Stay logged in"
+            >
+              <i class="bi bi-box-arrow-right me-1"></i>Logout
+            </a>
           </li>
         <?php endif; ?>
       </ul>
@@ -65,7 +82,8 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
   </div>
 </nav>
 
-<div class="container my-4" id="main-content">
+<!-- Make main content grow to push footer down -->
+<div class="container my-4 flex-grow-1" id="main-content">
   <?php foreach ($flashes as $msg): ?>
     <div class="alert alert-info alert-dismissible fade show auto-dismiss shadow-sm" role="alert">
       <i class="bi bi-info-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
