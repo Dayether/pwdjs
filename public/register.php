@@ -3,6 +3,7 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/Name.php';
+require_once '../classes/User.php';
 
 $errors = [];
 
@@ -18,15 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dis_sel      = $_POST['disability'] ?? '';
     $dis_other    = trim($_POST['disability_other'] ?? '');
 
-    // Employer-only fields (they will be disabled when not employer, so may be absent)
+    // Employer-only fields
     $company_name    = trim($_POST['company_name'] ?? '');
+    $business_email  = trim($_POST['business_email'] ?? '');
     $company_website = trim($_POST['company_website'] ?? '');
-    $company_email   = trim($_POST['company_email'] ?? '');
     $company_phone   = trim($_POST['company_phone'] ?? '');
-    // Added back: Business permit / registration number
     $business_permit_number = trim($_POST['business_permit_number'] ?? '');
 
-    // Name normalization (server-side guarantee)
+    // Name normalization
     $displayName = Name::normalizeDisplayName($name_raw);
     if ($displayName === '') {
         $errors[] = 'Please enter your name as "First M. Surname" (middle initial optional).';
@@ -58,75 +58,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $disability = $dis_sel;
     }
 
-    // Employer validations (only if user chose Employer)
+    // Employer validations (only if Employer)
     if ($role === 'employer') {
         if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
-        if ($company_email !== '' && !filter_var($company_email, FILTER_VALIDATE_EMAIL)) {
+        if ($business_email !== '' && !filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Please enter a valid company email address.';
         }
         if ($company_website !== '' && !filter_var($company_website, FILTER_VALIDATE_URL)) {
             $errors[] = 'Please enter a valid company website URL (including http:// or https://).';
         }
-        // business_permit_number optional; no extra validation enforced here
         // company_phone optional
+        // business_permit_number optional
     }
 
     if (!$errors) {
-        $ok = false;
+        $ok = User::register([
+            'name' => $displayName,
+            'email' => $email,
+            'password' => $password,
+            'role' => $role,
+            'disability' => $disability ?: null,
 
-        // Direct insert with graceful fallback if some columns don't exist
-        try {
-            $pdo = Database::getConnection();
-            $user_id = Helpers::generateSmartId('USR');
-            $hash = password_hash($password, PASSWORD_DEFAULT);
-
-            // Build dynamic column list based on provided (optional) values
-            $cols = ['user_id','name','email','password_hash','role'];
-            $vals = [$user_id, $displayName, $email, $hash, $role];
-
-            if ($disability !== '') { $cols[] = 'disability'; $vals[] = $disability; }
-
-            if ($role === 'employer') {
-                // company_name required
-                $cols[] = 'company_name'; $vals[] = $company_name;
-                if ($company_email !== '')   { $cols[] = 'company_email';   $vals[] = $company_email; }
-                if ($company_phone !== '')   { $cols[] = 'company_phone';   $vals[] = $company_phone; }
-                if ($company_website !== '') { $cols[] = 'company_website'; $vals[] = $company_website; }
-                // Added back: business_permit_number if provided
-                if ($business_permit_number !== '') { $cols[] = 'business_permit_number'; $vals[] = $business_permit_number; }
-                // If your schema has employer_status, set default Pending
-                $cols[] = 'employer_status'; $vals[] = 'Pending';
-            }
-
-            $placeholders = implode(', ', array_fill(0, count($cols), '?'));
-            $colList = implode(', ', $cols);
-            $sql = "INSERT INTO users ($colList) VALUES ($placeholders)";
-            $stmt = $pdo->prepare($sql);
-            $ok = $stmt->execute($vals);
-        } catch (PDOException $e) {
-            // Constraint violation (e.g., duplicate email)
-            if (($e->getCode() ?? '') === '23000') {
-                $ok = false;
-                $errors[] = 'That email is already registered.';
-            } else {
-                // If optional columns (e.g., disability/company_*) don't exist, retry minimal insert
-                try {
-                    $pdo = $pdo ?? Database::getConnection();
-                    $stmt = $pdo->prepare("INSERT INTO users (user_id, name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)");
-                    $ok = $stmt->execute([Helpers::generateSmartId('USR'), $displayName, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
-                } catch (Throwable $e2) {
-                    $ok = false;
-                }
-            }
-        } catch (Throwable $e) {
-            $ok = false;
-        }
+            // Employer fields
+            'company_name' => $role === 'employer' ? $company_name : '',
+            'business_email' => $role === 'employer' ? $business_email : '',
+            'company_website' => $role === 'employer' ? $company_website : '',
+            'company_phone' => $role === 'employer' ? $company_phone : '',
+            'business_permit_number' => $role === 'employer' ? $business_permit_number : '',
+        ]);
 
         if ($ok) {
             Helpers::flash('msg', 'Registration successful. Please log in.');
             Helpers::redirect('login.php');
-        } else if (!$errors) {
-            $errors[] = 'Failed to create account. Please try again.';
+        } else {
+            $errors[] = 'Failed to create account. The email may already be registered.';
         }
     }
 }
@@ -203,8 +168,8 @@ $disSel  = $_POST['disability'] ?? '';
             </div>
             <div class="col-md-6">
               <label class="form-label">Company email (optional)</label>
-              <input type="email" name="company_email" id="company_email" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['company_email'] ?? ''); ?>"
+              <input type="email" name="business_email" id="business_email" class="form-control"
+                     value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>"
                      placeholder="hr@company.com">
             </div>
             <div class="col-md-6">
@@ -219,7 +184,6 @@ $disSel  = $_POST['disability'] ?? '';
                      value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>"
                      placeholder="+63 900 000 0000">
             </div>
-            <!-- Added back: Business permit / registration number -->
             <div class="col-md-6">
               <label class="form-label">Business permit / registration no. (optional)</label>
               <input name="business_permit_number" id="business_permit_number" class="form-control"
@@ -354,7 +318,7 @@ $disSel  = $_POST['disability'] ?? '';
   const roleSel = document.getElementById('role_select');
   const block = document.getElementById('employer_fields');
   const name   = document.getElementById('company_name');
-  const cemail = document.getElementByElementById ? document.getElementById('company_email') : document.querySelector('#company_email');
+  const cemail = document.getElementById('business_email');
   const cweb   = document.getElementById('company_website');
   const cphone = document.getElementById('company_phone');
 

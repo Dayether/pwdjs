@@ -24,6 +24,23 @@ if (Helpers::isJobSeeker()) {
     Helpers::redirect('employer_dashboard.php');
 }
 
+// Map job_id => job status (Open, Suspended, Closed)
+$jobStatusMap = [];
+try {
+    if (!empty($apps)) {
+        $jobIds = array_values(array_unique(array_map(fn($a) => $a['job_id'], $apps)));
+        $placeholders = implode(',', array_fill(0, count($jobIds), '?'));
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT job_id, status FROM jobs WHERE job_id IN ($placeholders)");
+        $stmt->execute($jobIds);
+        foreach ($stmt->fetchAll() as $row) {
+            $jobStatusMap[$row['job_id']] = $row['status'] ?? 'Open';
+        }
+    }
+} catch (Throwable $e) {
+    $jobStatusMap = [];
+}
+
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
@@ -38,7 +55,19 @@ include '../includes/nav.php';
         <tbody>
           <?php foreach ($apps as $a): ?>
             <tr>
-              <td><a class="link-primary" href="job_view.php?job_id=<?php echo urlencode($a['job_id']); ?>"><?php echo Helpers::sanitizeOutput($a['title']); ?></a></td>
+              <td>
+                <a class="link-primary" href="job_view.php?job_id=<?php echo urlencode($a['job_id']); ?>">
+                  <?php echo Helpers::sanitizeOutput($a['title']); ?>
+                </a>
+                <?php
+                  $jStatus = $jobStatusMap[$a['job_id']] ?? 'Open';
+                  if (in_array($jStatus, ['Suspended','Closed'], true)):
+                ?>
+                  <div class="small text-danger mt-1">
+                    Note: This job is currently <?php echo htmlspecialchars($jStatus); ?>.
+                  </div>
+                <?php endif; ?>
+              </td>
               <td><?php echo Helpers::sanitizeOutput($a['status']); ?></td>
               <td><span class="badge text-bg-primary"><?php echo number_format($a['match_score'],2); ?></span></td>
               <td><span class="text-muted small"><?php echo date('M j, Y', strtotime($a['created_at'])); ?></span></td>

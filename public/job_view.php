@@ -58,9 +58,6 @@ include '../includes/nav.php';
             <div class="text-muted small">
               <?php echo Helpers::sanitizeOutput($employer->company_name ?? ''); ?>
               · <a href="employer_jobs.php?employer_id=<?php echo urlencode($employer->user_id); ?>">View all jobs</a>
-              <?php if ($viewerIsAdmin && $employerStatus !== 'Approved'): ?>
-                <span class="badge text-bg-warning ms-2">Employer: <?php echo htmlspecialchars($employerStatus); ?></span>
-              <?php endif; ?>
             </div>
           </div>
           <div class="d-flex align-items-center gap-2">
@@ -73,11 +70,19 @@ include '../includes/nav.php';
           </div>
         </div>
 
+        <?php if (in_array($job->status, ['Suspended','Closed'], true)): ?>
+          <div class="alert alert-danger mt-3 mb-0">
+            This job is currently <?php echo htmlspecialchars($job->status); ?> and may not accept new applications.
+          </div>
+        <?php endif; ?>
+
         <div class="mt-3 d-flex flex-wrap gap-2">
           <span class="badge text-bg-light border"><i class="bi bi-house-door me-1"></i>Work From Home</span>
           <span class="badge text-bg-light border"><i class="bi bi-briefcase me-1"></i><?php echo Helpers::sanitizeOutput($employmentType); ?></span>
           <span class="badge text-bg-light border"><i class="bi bi-geo-alt me-1"></i>Original office:
             <?php
+              $loc = trim($origCity + ($origCity && $origRegion ? ', ' : '') + $origRegion);
+              // Using concatenation with '.' to avoid PHP warning
               $loc = trim($origCity . ($origCity && $origRegion ? ', ' : '') . $origRegion);
               echo Helpers::sanitizeOutput($loc);
             ?>
@@ -153,12 +158,19 @@ include '../includes/nav.php';
       <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
           <h3 class="h6 fw-semibold mb-2">Apply for this job</h3>
+          <?php if (in_array($job->status, ['Suspended','Closed'], true)): ?>
+            <div class="alert alert-warning">
+              This job is not accepting new applications at the moment.
+            </div>
+          <?php endif; ?>
           <p class="text-muted small">Provide your relevant experience, education, and select the matching skills.</p>
           <?php if (!$isLoggedIn): ?>
             <a class="btn btn-outline-secondary w-100" href="login.php">Login to Apply</a>
           <?php else: ?>
             <div class="d-grid gap-2">
-              <a class="btn btn-success" href="job_apply.php?job_id=<?php echo urlencode($job->job_id); ?>"><i class="bi bi-send me-1"></i>Start Application</a>
+              <a class="btn btn-success <?php echo in_array($job->status, ['Suspended','Closed'], true) ? 'disabled' : ''; ?>" href="<?php echo in_array($job->status, ['Suspended','Closed'], true) ? '#' : 'job_apply.php?job_id='.urlencode($job->job_id); ?>">
+                <i class="bi bi-send me-1"></i>Start Application
+              </a>
               <a class="btn btn-outline-danger" href="job_report.php?job_id=<?php echo urlencode($job->job_id); ?>"><i class="bi bi-flag me-1"></i>Report this job</a>
             </div>
           <?php endif; ?>

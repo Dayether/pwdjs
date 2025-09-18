@@ -90,14 +90,30 @@ include '../includes/nav.php';
             <div class="small text-muted"><?php echo Helpers::sanitizeOutput($emp['email']); ?></div>
           </div>
 
-        <div class="col-md-6">
-          <div class="text-muted small">Registered</div>
-          <div class="fw-medium"><?php echo !empty($emp['created_at']) ? date('M j, Y H:i', strtotime($emp['created_at'])) : '(unknown)'; ?></div>
-        </div>
-        <div class="col-md-6">
-          <div class="text-muted small">Jobs Posted</div>
-          <div class="fw-medium"><?php echo (int)($emp['job_count'] ?? 0); ?></div>
-        </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Company Website</div>
+            <div class="fw-medium">
+              <?php if (!empty($emp['company_website'])): ?>
+                <a target="_blank" rel="noopener" href="<?php echo htmlspecialchars($emp['company_website']); ?>">Visit website</a>
+              <?php else: ?>
+                (none)
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="text-muted small">Company Phone</div>
+            <div class="fw-medium"><?php echo Helpers::sanitizeOutput($emp['company_phone'] ?: '(none)'); ?></div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="text-muted small">Registered</div>
+            <div class="fw-medium"><?php echo !empty($emp['created_at']) ? date('M j, Y H:i', strtotime($emp['created_at'])) : '(unknown)'; ?></div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Jobs Posted</div>
+            <div class="fw-medium"><?php echo (int)($emp['job_count'] ?? 0); ?></div>
+          </div>
         </div>
 
         <div class="mt-3">

@@ -24,9 +24,19 @@ if ($status !== 'Approved') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
+    // Collect standardized skills + custom additions
     $skillsSelected = $_POST['required_skills'] ?? [];
     if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
-    $skillsCsv = implode(', ', array_map('trim', $skillsSelected));
+
+    $additionalSkills = trim($_POST['additional_skills'] ?? '');
+    $extras = [];
+    if ($additionalSkills !== '') {
+        $extras = array_filter(array_map('trim', explode(',', $additionalSkills)), fn($s) => $s !== '');
+    }
+
+    // Merge and normalize unique skill tokens
+    $skillsAll = array_unique(array_map('trim', array_merge($skillsSelected, $extras)));
+    $skillsCsv = implode(', ', $skillsAll);
 
     $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
     if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
@@ -68,6 +78,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
+<style>
+/* Bold labels and thicker borders for required inputs/boxes */
+label.required, .form-label.required { font-weight: 700; }
+.form-control[required], .form-select[required], textarea[required] {
+  border-width: 2px !important;
+}
+.required .asterisk::after {
+  content: " *";
+  color: #dc3545; /* bootstrap danger */
+  font-weight: 700;
+}
+</style>
+
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -87,6 +110,7 @@ include '../includes/nav.php';
     <?php if ($status !== 'Approved'): ?>
       <div class="alert alert-warning">
         Once your employer account is approved by an admin, you’ll be able to create job posts here.
+        If you believe this is a mistake, please <a class="alert-link" href="support.php">contact support</a>.
       </div>
     <?php else: ?>
       <div class="alert alert-info">
@@ -94,7 +118,7 @@ include '../includes/nav.php';
       </div>
       <form method="post" class="row g-3">
         <div class="col-12">
-          <label class="form-label">Title</label>
+          <label class="form-label required"><span class="asterisk">Title</span></label>
           <input name="title" class="form-control form-control-lg" required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" placeholder="e.g., Junior Software Developer">
         </div>
 
@@ -140,7 +164,7 @@ include '../includes/nav.php';
         </div>
 
         <div class="col-md-8">
-          <label class="form-label">Required Skills</label>
+          <label class="form-label">Required Skills (choose any)</label>
           <select name="required_skills[]" class="form-select" multiple size="8">
             <?php foreach ($allowedSkills as $s): ?>
               <option value="<?php echo htmlspecialchars($s); ?>" <?php if (!empty($_POST['required_skills']) && in_array($s, (array)$_POST['required_skills'])) echo 'selected'; ?>>
@@ -148,7 +172,11 @@ include '../includes/nav.php';
               </option>
             <?php endforeach; ?>
           </select>
-          <small class="text-muted">Use standardized skills for better matching.</small>
+          <small class="text-muted d-block">Use standardized skills for better matching.</small>
+
+          <label class="form-label mt-3">Additional skills (comma-separated)</label>
+          <input name="additional_skills" class="form-control" placeholder="e.g., Excel, QuickBooks, Zendesk" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>">
+          <small class="text-muted">Add any job-specific skills not in the list. We’ll include these in matching.</small>
         </div>
 
         <div class="col-md-4">
@@ -180,7 +208,7 @@ include '../includes/nav.php';
         </div>
 
         <div class="col-12">
-          <label class="form-label">Description</label>
+          <label class="form-label required"><span class="asterisk">Description</span></label>
           <textarea name="description" class="form-control" rows="8" required placeholder="Job summary, responsibilities, qualifications. Include accommodations for PWD applicants."><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
         </div>
 

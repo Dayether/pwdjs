@@ -12,31 +12,37 @@ $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $updateData = [
         'name' => $_POST['name'],
-        'disability' => $_POST['disability'],
-        // education intentionally not updated here
+        'disability' => $_POST['disability'] ?? null,
     ];
 
     // If employer, accept employer details
     if ($user->role === 'employer') {
-        // Company name (optional here; admin can still review)
         if (isset($_POST['company_name'])) {
             $updateData['company_name'] = trim($_POST['company_name']);
         }
 
-        // Business email (optional but validate if provided)
-        if (isset($_POST['business_email']) && $_POST['business_email'] !== '') {
+        if (isset($_POST['business_email'])) {
             $bizEmail = trim($_POST['business_email']);
-            if (filter_var($bizEmail, FILTER_VALIDATE_EMAIL)) {
+            if ($bizEmail === '' || filter_var($bizEmail, FILTER_VALIDATE_EMAIL)) {
                 $updateData['business_email'] = $bizEmail;
             } else {
                 $errors[] = 'Please enter a valid business email address.';
             }
-        } else {
-            // Allow clearing it explicitly
-            if (isset($_POST['business_email'])) $updateData['business_email'] = '';
         }
 
-        // Business permit / registration number (optional, allow clear)
+        if (isset($_POST['company_website'])) {
+            $cweb = trim($_POST['company_website']);
+            if ($cweb === '' || filter_var($cweb, FILTER_VALIDATE_URL)) {
+                $updateData['company_website'] = $cweb;
+            } else {
+                $errors[] = 'Please enter a valid company website URL (including http:// or https://).';
+            }
+        }
+
+        if (isset($_POST['company_phone'])) {
+            $updateData['company_phone'] = trim($_POST['company_phone']);
+        }
+
         if (isset($_POST['business_permit_number'])) {
             $updateData['business_permit_number'] = trim($_POST['business_permit_number']);
         }
@@ -152,6 +158,16 @@ include '../includes/nav.php';
               <label class="form-label">Business Email (optional)</label>
               <input type="email" name="business_email" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->business_email); ?>" placeholder="hr@company.com">
             </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Company website (optional)</label>
+              <input type="url" name="company_website" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->company_website); ?>" placeholder="https://example.com">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Company phone (optional)</label>
+              <input name="company_phone" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->company_phone); ?>" placeholder="+63 900 000 0000">
+            </div>
+
             <div class="col-md-6">
               <label class="form-label">Business Permit / Registration No. (optional)</label>
               <input name="business_permit_number" class="form-control" value="<?php echo Helpers::sanitizeOutput($user->business_permit_number); ?>" placeholder="e.g., SEC/DTI/Mayor’s permit">
@@ -199,6 +215,12 @@ include '../includes/nav.php';
           <?php if ($user->role === 'employer'): ?>
             <li class="mb-1"><i class="bi bi-building me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->company_name ?: '(no company)'); ?></li>
             <li class="mb-1"><i class="bi bi-envelope-paper me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->business_email ?: '(no business email)'); ?></li>
+            <?php if (!empty($user->company_website)): ?>
+              <li class="mb-1"><i class="bi bi-globe me-2 text-muted"></i><a target="_blank" href="<?php echo htmlspecialchars($user->company_website); ?>">Website</a></li>
+            <?php endif; ?>
+            <?php if (!empty($user->company_phone)): ?>
+              <li class="mb-1"><i class="bi bi-telephone me-2 text-muted"></i><?php echo Helpers::sanitizeOutput($user->company_phone); ?></li>
+            <?php endif; ?>
             <li class="mb-1"><i class="bi bi-file-earmark-text me-2 text-muted"></i>Permit No.: <?php echo Helpers::sanitizeOutput($user->business_permit_number ?: '(none)'); ?></li>
             <?php if (!empty($user->employer_doc)): ?>
               <li class="mb-1"><i class="bi bi-paperclip me-2 text-muted"></i><a target="_blank" href="../<?php echo htmlspecialchars($user->employer_doc); ?>">View verification</a></li>

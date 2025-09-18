@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/Taxonomy.php';
+require_once __DIR__ . '/Job.php';
 
 class User {
     public string $user_id;
@@ -120,8 +121,21 @@ class User {
         $pdo = Database::getConnection();
         $allowed = ['Pending','Approved','Suspended','Rejected'];
         if (!in_array($status, $allowed, true)) return false;
+
         $stmt = $pdo->prepare("UPDATE users SET employer_status = :st WHERE user_id = :uid AND role = 'employer'");
-        return $stmt->execute([':st'=>$status, ':uid'=>$user_id]);
+        $ok = $stmt->execute([':st'=>$status, ':uid'=>$user_id]);
+
+        // Propagate to jobs
+        if ($ok) {
+            if ($status === 'Approved') {
+                // Re-open only those previously Suspended by the system
+                Job::setStatusByEmployer($user_id, 'Open', 'Suspended');
+            } elseif ($status === 'Suspended' || $status === 'Rejected') {
+                // Suspend all jobs under this employer
+                Job::setStatusByEmployer($user_id, 'Suspended');
+            }
+        }
+        return $ok;
     }
 
     public static function updateProfile(string $user_id, array $data): bool {

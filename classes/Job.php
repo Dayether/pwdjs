@@ -24,6 +24,7 @@ class Job {
     public ?int $salary_max = null;
     public string $salary_period = 'monthly';
 
+    public string $status = 'Open'; // Open, Suspended, Closed
     public string $created_at = '';
 
     public function __construct(array $row = []) {
@@ -46,6 +47,7 @@ class Job {
         $this->salary_max      = array_key_exists('salary_max', $row) ? (is_null($row['salary_max']) ? null : (int)$row['salary_max']) : null;
         $this->salary_period   = $row['salary_period'] ?? 'monthly';
 
+        $this->status          = $row['status'] ?? 'Open';
         $this->created_at      = $row['created_at'] ?? '';
     }
 
@@ -62,7 +64,7 @@ class Job {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("
             SELECT job_id, title, created_at, location_city, location_region,
-                   remote_option, employment_type, salary_currency, salary_min, salary_max, salary_period
+                   remote_option, employment_type, salary_currency, salary_min, salary_max, salary_period, status
             FROM jobs
             WHERE employer_id = ?
             ORDER BY created_at DESC
@@ -79,6 +81,7 @@ class Job {
         if ($reqEdu === null) $reqEdu = '';
 
         $remote = 'Work From Home';
+        $status = 'Open';
 
         $stmt = $pdo->prepare("
             INSERT INTO jobs (
@@ -86,13 +89,15 @@ class Job {
               required_experience, required_education, required_skills_input, accessibility_tags,
               location_city, location_region,
               remote_option, employment_type,
-              salary_currency, salary_min, salary_max, salary_period
+              salary_currency, salary_min, salary_max, salary_period,
+              status
             ) VALUES (
               :job_id, :employer_id, :title, :description,
               :required_experience, :required_education, :required_skills_input, :accessibility_tags,
               :location_city, :location_region,
               :remote_option, :employment_type,
-              :salary_currency, :salary_min, :salary_max, :salary_period
+              :salary_currency, :salary_min, :salary_max, :salary_period,
+              :status
             )
         ");
 
@@ -113,6 +118,7 @@ class Job {
             ':salary_min'           => ($data['salary_min'] ?? null) !== '' ? $data['salary_min'] : null,
             ':salary_max'           => ($data['salary_max'] ?? null) !== '' ? $data['salary_max'] : null,
             ':salary_period'        => $data['salary_period'] ?? 'monthly',
+            ':status'               => $status,
         ]);
 
         if ($ok) {
@@ -220,5 +226,29 @@ class Job {
             if ($pdo->inTransaction()) $pdo->rollBack();
             return false;
         }
+    }
+
+    public static function setStatus(string $job_id, string $status): bool {
+        $allowed = ['Open','Suspended','Closed'];
+        if (!in_array($status, $allowed, true)) return false;
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("UPDATE jobs SET status = :st WHERE job_id = :id LIMIT 1");
+        return $stmt->execute([':st'=>$status, ':id'=>$job_id]);
+    }
+
+    // Bulk: set all jobs for an employer to a status.
+    // If $onlyCurrentStatus is provided, only rows with that current status will be updated.
+    public static function setStatusByEmployer(string $employer_id, string $status, ?string $onlyCurrentStatus = null): int {
+        $allowed = ['Open','Suspended','Closed'];
+        if (!in_array($status, $allowed, true)) return 0;
+        $pdo = Database::getConnection();
+        if ($onlyCurrentStatus) {
+            $stmt = $pdo->prepare("UPDATE jobs SET status = :st WHERE employer_id = :eid AND status = :cur");
+            $stmt->execute([':st'=>$status, ':eid'=>$employer_id, ':cur'=>$onlyCurrentStatus]);
+        } else {
+            $stmt = $pdo->prepare("UPDATE jobs SET status = :st WHERE employer_id = :eid");
+            $stmt->execute([':st'=>$status, ':eid'=>$employer_id]);
+        }
+        return $stmt->rowCount();
     }
 }
