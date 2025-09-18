@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/Taxonomy.php';
 require_once __DIR__ . '/Job.php';
 
@@ -17,6 +18,8 @@ class User {
     // Employer fields
     public string $company_name;
     public string $business_email;
+    public ?string $company_website;     // NEW
+    public ?string $company_phone;       // NEW
     public string $business_permit_number;
     public string $employer_status; // Pending, Approved, Suspended, Rejected
     public ?string $employer_doc;
@@ -35,6 +38,8 @@ class User {
 
         $this->company_name = $data['company_name'] ?? '';
         $this->business_email = $data['business_email'] ?? '';
+        $this->company_website = $data['company_website'] ?? null;   // NEW
+        $this->company_phone   = $data['company_phone']   ?? null;   // NEW
         $this->business_permit_number = $data['business_permit_number'] ?? '';
         $this->employer_status = $data['employer_status'] ?? 'Pending';
         $this->employer_doc = $data['employer_doc'] ?? null;
@@ -72,6 +77,8 @@ class User {
             $empDoc = $input['employer_doc'] ?? null; // path if uploaded
         }
 
+        // Note: company_website and company_phone are optional and can be NULL by default,
+        // so we don't need to include them in INSERT.
         $stmt = $pdo->prepare("INSERT INTO users
             (user_id, name, email, password, role, experience, education, disability, resume, video_intro,
              company_name, business_email, business_permit_number, employer_status, employer_doc)
@@ -112,6 +119,7 @@ class User {
     public static function findById(string $user_id): ?User {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ?");
+               // SELECT * will include company_website and company_phone if they exist
         $stmt->execute([$user_id]);
         $row = $stmt->fetch();
         return $row ? new User($row) : null;
@@ -125,7 +133,7 @@ class User {
         $stmt = $pdo->prepare("UPDATE users SET employer_status = :st WHERE user_id = :uid AND role = 'employer'");
         $ok = $stmt->execute([':st'=>$status, ':uid'=>$user_id]);
 
-        // Propagate to jobs
+        // Propagate to jobs (requires jobs.status column)
         if ($ok) {
             if ($status === 'Approved') {
                 // Re-open only those previously Suspended by the system
@@ -151,6 +159,8 @@ class User {
         // Allow employers to update company info if provided
         if (isset($data['company_name'])) $fields['company_name'] = $data['company_name'];
         if (isset($data['business_email'])) $fields['business_email'] = $data['business_email'];
+        if (isset($data['company_website'])) $fields['company_website'] = $data['company_website']; // NEW
+        if (isset($data['company_phone']))   $fields['company_phone']   = $data['company_phone'];   // NEW
         if (isset($data['business_permit_number'])) $fields['business_permit_number'] = $data['business_permit_number'];
         if (isset($data['employer_doc'])) $fields['employer_doc'] = $data['employer_doc'];
 
