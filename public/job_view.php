@@ -6,6 +6,7 @@ require_once '../classes/Job.php';
 require_once '../classes/Skill.php';
 require_once '../classes/Taxonomy.php';
 require_once '../classes/User.php';
+require_once '../classes/Application.php'; // ADDED (dagdag lang)
 
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);
@@ -20,6 +21,31 @@ if (!$job) {
 $currentUserId = $_SESSION['user_id'] ?? null;
 $isOwner = $currentUserId && Helpers::isEmployer() && $job->employer_id === $currentUserId;
 
+// ADDED BLOCK: Fetch applicants if owner
+$applicants = [];
+if ($isOwner) {
+    try {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("
+            SELECT a.application_id,
+                   a.user_id,
+                   a.status,
+                   a.match_score,
+                   a.relevant_experience,
+                   a.application_education,
+                   a.created_at,
+                   u.name
+            FROM applications a
+            JOIN users u ON u.user_id = a.user_id
+            WHERE a.job_id = ?
+            ORDER BY a.match_score DESC, a.created_at ASC
+        ");
+        $stmt->execute([$job->job_id]);
+        $applicants = $stmt->fetchAll();
+    } catch (Throwable $e) {
+        $applicants = [];
+    }
+}
 /* General (soft) skills fixed list */
 $generalSkills = [
     '70+ WPM Typing',
@@ -73,7 +99,7 @@ if ($isOwner && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_mode'] ??
     $skillsCsv = implode(', ', $merged);
 
     $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-    if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
+       if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
 
     $title       = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -127,6 +153,31 @@ if ($isOwner && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_mode'] ??
                     $generalSelected[] = $sn;
                 } else {
                     $requiredSkills[] = $sn;
+                }
+            }
+
+            // REFRESH applicants after update if needed (optional, added)
+            if ($isOwner) {
+                try {
+                    $pdo = Database::getConnection();
+                    $stmt = $pdo->prepare("
+                        SELECT a.application_id,
+                               a.user_id,
+                               a.status,
+                               a.match_score,
+                               a.relevant_experience,
+                               a.application_education,
+                               a.created_at,
+                               u.name
+                        FROM applications a
+                        JOIN users u ON u.user_id = a.user_id
+                        WHERE a.job_id = ?
+                        ORDER BY a.match_score DESC, a.created_at ASC
+                    ");
+                    $stmt->execute([$job->job_id]);
+                    $applicants = $stmt->fetchAll();
+                } catch (Throwable $e) {
+                    // ignore
                 }
             }
         } else {
@@ -367,6 +418,99 @@ include '../includes/nav.php';
       </div>
     </div>
     <?php endif; ?>
+
+    <?php if ($isOwner): ?>
+    <!-- ADDED Applicants Section -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h3 class="h6 fw-semibold mb-3">
+          <i class="bi bi-people-fill me-2"></i>Applicants (<?php echo number_format(count($applicants)); ?>)
+        </h3>
+        <?php if (!$applicants): ?>
+          <div class="text-muted small">No applicants yet.</div>
+        <?php else: ?>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width:160px;">Applicant</th>
+                  <th>Match</th>
+                  <th>Relevant Exp (yrs)</th>
+                  <th>Education</th>
+                  <th>Status</th>
+                  <th>Applied</th>
+                  <th style="width:130px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($applicants as $a): 
+                  $match = (float)$a['match_score'];
+                  $status = $a['status'];
+                  $badgeCls = $status === 'Pending' ? 'secondary' : ($status === 'Approved' ? 'success' : 'danger');
+                  $edu = $a['application_education'] ?: '—';
+                ?>
+                  <tr>
+                    <td>
+                      <div class="fw-semibold"><?php echo Helpers::sanitizeOutput($a['name']); ?></div>
+                      <div class="small text-muted">
+                        <a class="text-decoration-none" 
+                           href="job_seeker_profile.php?user_id=<?php echo urlencode($a['user_id']); ?>" target="_blank">
+                          View profile <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center" style="min-width:90px;">
+                        <div class="progress flex-grow-1 me-2" style="height:6px;">
+                          <div class="progress-bar bg-primary"
+                               role="progressbar"
+                               style="width: <?php echo max(0,min(100,$match)); ?>%;"
+                               aria-valuenow="<?php echo (int)$match; ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <span class="badge text-bg-primary"><?php echo number_format($match,2); ?></span>
+                      </div>
+                    </td>
+                    <td><?php echo (int)$a['relevant_experience']; ?></td>
+                    <td><?php echo Helpers::sanitizeOutput($edu); ?></td>
+                    <td>
+                      <span class="badge text-bg-<?php echo $badgeCls; ?>">
+                        <?php echo htmlspecialchars($status); ?>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="small text-muted">
+                        <?php echo date('M j, Y', strtotime($a['created_at'])); ?>
+                      </span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <?php if ($status !== 'Approved'): ?>
+                          <a class="btn btn-outline-success"
+                             href="applications.php?action=approve&application_id=<?php echo urlencode($a['application_id']); ?>"
+                             onclick="return confirm('Approve this application?');"
+                             title="Approve">
+                            <i class="bi bi-check2-circle"></i>
+                          </a>
+                        <?php endif; ?>
+                        <?php if ($status !== 'Declined'): ?>
+                          <a class="btn btn-outline-danger"
+                             href="applications.php?action=decline&application_id=<?php echo urlencode($a['application_id']); ?>"
+                             onclick="return confirm('Decline this application?');"
+                             title="Decline">
+                            <i class="bi bi-x-circle"></i>
+                          </a>
+                        <?php endif; ?>
+                      </div>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
 
   <div class="col-lg-4">
@@ -378,7 +522,7 @@ include '../includes/nav.php';
             <strong><?php echo htmlspecialchars($employer->company_name ?: $employer->name); ?></strong><br>
             <span class="text-muted"><?php echo htmlspecialchars($employer->email); ?></span>
           </div>
-          <a class="btn btn-outline-secondary btn-sm" href="employer_dashboard.php">My Jobs</a>
+            <a class="btn btn-outline-secondary btn-sm" href="employer_dashboard.php">My Jobs</a>
         <?php else: ?>
           <p class="text-muted small mb-0">Employer details not available.</p>
         <?php endif; ?>
