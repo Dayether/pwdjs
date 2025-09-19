@@ -1,126 +1,153 @@
 <?php
-class Taxonomy {
-    // Canonical lists
-    public static function educationLevels(): array {
+/**
+ * Taxonomy helper class.
+ * Central place for enumerations / canonicalization.
+ */
+class Taxonomy
+{
+    /**
+     * Return array of standardized education levels (display values).
+     * Order IMPORTANT (ascending).
+     */
+    public static function educationLevels(): array
+    {
         return [
-            'Any',
+            'Elementary',
             'High School',
-            'Vocational/Technical',
+            'Senior High School',
+            'Vocational',
             'Associate',
-            'Bachelor’s',
-            'Master’s',
-            'Doctorate',
+            'College',
+            'Bachelor',
+            'Post Graduate',
+            'Masteral',
+            'Doctorate'
         ];
     }
 
-    public static function employmentTypes(): array {
-        return ['Full time','Part time','Contract','Temporary','Internship'];
+    /**
+     * Internal map (lowercased => canonical display) so flexible inputs still match.
+     */
+    private static function educationCanonicalMap(): array
+    {
+        $map = [];
+        foreach (self::educationLevels() as $lvl) {
+            $map[mb_strtolower($lvl)] = $lvl;
+        }
+
+        // Extra synonyms / aliases
+        $map['masters']        = 'Masteral';
+        $map['master']         = 'Masteral';
+        $map['masters degree'] = 'Masteral';
+        $map['bachelor degree'] = 'Bachelor';
+        $map['college graduate'] = 'College';
+        $map['postgraduate']   = 'Post Graduate';
+        $map['post graduate']  = 'Post Graduate';
+        $map['hs']             = 'High School';
+        $map['shs']            = 'Senior High School';
+        $map['elementary school'] = 'Elementary';
+        $map['phd']            = 'Doctorate';
+        $map['doctorate degree'] = 'Doctorate';
+
+        return $map;
     }
 
-    // Kept for compatibility, but the public site enforces WFH
-    public static function remoteOptions(): array {
-        return ['On-site','Hybrid','Work From Home'];
+    /**
+     * Canonicalize a user / form input for education level.
+     * Returns canonical string OR null if cannot map.
+     * Empty string => treated as "Any" in job requirement context.
+     */
+    public static function canonicalizeEducation(?string $input): ?string
+    {
+        if ($input === null) return null;
+        $trim = trim($input);
+        if ($trim === '') return '';
+        $lk = mb_strtolower($trim);
+        $map = self::educationCanonicalMap();
+        return $map[$lk] ?? null;
     }
 
-    public static function accessibilityTags(): array {
+    /**
+     * Ranking map for education comparison in scoring.
+     * Higher number => higher education.
+     * Keys are LOWERCASE canonical values.
+     */
+    public static function educationRankMap(): array
+    {
+        $levels = self::educationLevels();
+        $rank = [];
+        $i = 1;
+        foreach ($levels as $lvl) {
+            $rank[mb_strtolower($lvl)] = $i++;
+        }
+        // Ensure aliases map to same rank
+        $rank['masters'] = $rank['masteral'] ?? ($rank['masteral'] = $rank['masteral'] ?? $i);
+        $rank['master']  = $rank['masteral'];
+        $rank['postgraduate'] = $rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? 0)));
+        if (isset($rank['post graduate'])) {
+            $rank['postgraduate'] = $rank['post graduate'];
+        }
+        $rank['phd'] = $rank['doctorate'] ?? ($rank['doctorate'] = $rank['doctorate'] ?? $i);
+        return $rank;
+    }
+
+    /**
+     * Employment types list.
+     */
+    public static function employmentTypes(): array
+    {
+        return [
+            'Full time',
+            'Part time',
+            'Contract',
+            'Freelance',
+            'Internship',
+            'Temporary'
+        ];
+    }
+
+    /**
+     * Accessibility tags list (extend freely).
+     */
+    public static function accessibilityTags(): array
+    {
         return [
             'PWD-Friendly',
-            'Wheelchair Accessible',
             'Screen Reader Friendly',
             'Flexible Hours',
+            'Wheelchair Accessible',
             'Assistive Tech Provided',
             'Internet Allowance',
             'Asynchronous',
-            'Work From Home', // legacy tag safety
+            'Work From Home'
         ];
     }
 
-    public static function allowedSkills(): array {
+    /**
+     * (Legacy placeholder if you had an allowedSkills list earlier.)
+     * Keeping for backward compatibility – can be trimmed if unused.
+     */
+    public static function allowedSkills(): array
+    {
         return [
-            'Customer Support','JavaScript','PHP','Python','C#','Java',
-            'SQL','HTML/CSS','React','Laravel','Django','Git',
+            'PHP','JavaScript','Python','Java','C#','C++','SQL',
+            'HTML/CSS','React','Laravel','Git','Django'
         ];
     }
 
-    // Helpers used by Application.php, Job.php, Skill.php
-
-    // Normalize education to canonical level or null (null means Any/Unknown)
-    public static function canonicalizeEducation(?string $input): ?string {
-        if ($input === null) return null;
-        $s = trim(mb_strtolower($input));
-        if ($s === '' || $s === 'any' || $s === 'n/a' || $s === 'na') return null;
-
-        $has = fn($needle) => mb_strpos($s, $needle) !== false;
-
-        if ($has('phd') || $has('doctor') || $has('doctoral')) return 'Doctorate';
-        if ($has('master') || $has("master's") || $has('msc') || $has('ms ') || $has('ma ')) return 'Master’s';
-        if ($has('bachelor') || $has("bachelor's") || $has('bs ') || $has('ba ') || $has('bsc') || $has('b.a') || $has('b.s')) return 'Bachelor’s';
-        if ($has('associate') || $has('aas') || $has('a.a') || $has('a.s')) return 'Associate';
-        if ($has('vocational') || $has('technical') || $has('voc-tech') || $has('tesda')) return 'Vocational/Technical';
-        if ($has('high school') || $has('highschool') || $has('shs') || $has('k-12') || $has('k12')) return 'High School';
-
-        $canonals = [
-            'doctorate' => 'Doctorate',
-            'masters'   => 'Master’s',
-            "master's"  => 'Master’s',
-            'bachelors' => 'Bachelor’s',
-            "bachelor's"=> 'Bachelor’s',
-            'associate' => 'Associate',
-            'vocational/technical' => 'Vocational/Technical',
-            'vocational technical' => 'Vocational/Technical',
-            'technical-vocational' => 'Vocational/Technical',
-            'high school' => 'High School',
+    /**
+     * OPTIONAL general (soft) skills centralization.
+     * Currently logic in pages defines them; kept here for future re-use.
+     */
+    public static function generalSkills(): array
+    {
+        return [
+            '70+ WPM Typing',
+            'Flexible Schedule',
+            'Team Player',
+            'Professional Attitude',
+            'Strong Communication',
+            'Adaptable / Quick Learner'
         ];
-        if (isset($canonals[$s])) return $canonals[$s];
-
-        return null;
-    }
-
-    // Higher number = more advanced
-    public static function educationRank(?string $canonicalLevel): int {
-        if ($canonicalLevel === null || $canonicalLevel === '' || mb_strtolower($canonicalLevel) === 'any') return 0;
-        static $rank = [
-            'High School'          => 1,
-            'Vocational/Technical' => 2,
-            'Associate'            => 3,
-            'Bachelor’s'           => 4,
-            'Master’s'             => 5,
-            'Doctorate'            => 6,
-        ];
-        return $rank[$canonicalLevel] ?? 0;
-    }
-
-    // Normalize/filter skills to the allowed set
-    public static function canonicalizeSkills(array $names): array {
-        $allowed = self::allowedSkills();
-        $map = [];
-        foreach ($allowed as $a) { $map[mb_strtolower($a)] = $a; }
-
-        $syn = [
-            'js' => 'javascript',
-            'node' => 'javascript',
-            'node.js' => 'javascript',
-            'nodejs' => 'javascript',
-            'reactjs' => 'react',
-            'react.js' => 'react',
-            'html' => 'html/css',
-            'css'  => 'html/css',
-        ];
-
-        $out = [];
-        $seen = [];
-        foreach ($names as $n) {
-            $n = trim((string)$n);
-            if ($n === '') continue;
-            $k = mb_strtolower($n);
-            if (isset($syn[$k])) $k = $syn[$k];
-            if (!isset($map[$k])) continue;
-            $canon = $map[$k];
-            if (!isset($seen[$canon])) {
-                $out[] = $canon;
-                $seen[$canon] = true;
-            }
-        }
-        return $out;
     }
 }
