@@ -9,6 +9,24 @@ $prefillEmail = $_SESSION['email'] ?? '';
 $errors = [];
 $success = false;
 
+// Build safe back URL (same pattern as job_view)
+function resolve_back_url(string $fallback = 'index.php'): string {
+    $raw = $_GET['return'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
+    if (!$raw) return $fallback;
+    $p = parse_url($raw);
+    // Reject if external (has scheme or host) or contains ..
+    if (isset($p['scheme']) || isset($p['host'])) return $fallback;
+    $path = $p['path'] ?? '';
+    if ($path === '' || strpos($path, '..') !== false) return $fallback;
+    $url = ltrim($path, '/');
+    if (!empty($p['query'])) $url .= '?' . $p['query'];
+    return $url;
+}
+$backUrl = resolve_back_url('index.php');
+
+// Optional preselect subject via query (?subject=Account%20Suspension)
+$incomingSubject = trim($_GET['subject'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name    = trim($_POST['name'] ?? '');
     $email   = trim($_POST['email'] ?? '');
@@ -39,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = true;
             $prefillName  = $name;
             $prefillEmail = $email;
-            $subject = $message = '';
+            $incomingSubject = ''; // clear selected subject after success
         } catch (Throwable $e) {
             $errors[] = 'Unable to submit your request right now.';
         }
@@ -51,6 +69,14 @@ include '../includes/nav.php';
 ?>
 <div class="row justify-content-center">
   <div class="col-lg-9 col-xl-7">
+
+    <!-- Back button -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+    </div>
+
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
         <h2 class="h4 fw-semibold mb-3"><i class="bi bi-life-preserver me-2"></i>Contact Support</h2>
@@ -59,9 +85,9 @@ include '../includes/nav.php';
         </p>
 
         <?php if ($success): ?>
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <div class="alert alert-success alert-dismissible fade show auto-dismiss" role="alert">
             <i class="bi bi-check-circle me-2"></i>Your support request has been submitted. We will reach out via email.
-            <button type="button" class="btn btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         <?php endif; ?>
 
@@ -75,22 +101,47 @@ include '../includes/nav.php';
         <form method="post" class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Name</label>
-            <input name="name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? $prefillName); ?>">
+            <input name="name" class="form-control" required value="<?php echo htmlspecialchars($prefillName); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
-            <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? $prefillEmail); ?>">
+            <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($prefillEmail); ?>">
           </div>
+
           <div class="col-12">
             <label class="form-label">Subject</label>
-            <input name="subject" type="text" maxlength="150" class="form-control" required value="<?php echo htmlspecialchars($_POST['subject'] ?? ($subject ?? '')); ?>">
+            <?php
+              $subjects = [
+                'General Inquiry',
+                'Account Suspension',
+                'Employer Verification',
+                'Bug / Technical Issue',
+                'Feature Request',
+                'Other'
+              ];
+              $selectedSubject = $success ? '' : ($incomingSubject ?: ($_POST['subject'] ?? ''));
+            ?>
+            <select name="subject" class="form-select" required>
+              <option value="" disabled <?php echo $selectedSubject===''?'selected':''; ?>>Select a subject</option>
+              <?php foreach ($subjects as $s): ?>
+                <option value="<?php echo htmlspecialchars($s); ?>" <?php if ($selectedSubject === $s) echo 'selected'; ?>>
+                  <?php echo htmlspecialchars($s); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
           </div>
+
           <div class="col-12">
             <label class="form-label">Message</label>
-            <textarea name="message" rows="6" class="form-control" required><?php echo htmlspecialchars($_POST['message'] ?? ($message ?? '')); ?></textarea>
+            <textarea name="message" rows="6" class="form-control" required><?php
+              echo htmlspecialchars($_POST['message'] ?? ($success ? '' : ''));
+            ?></textarea>
           </div>
+
           <div class="col-12 d-grid">
-            <button class="btn btn-primary btn-lg"><i class="bi bi-envelope-paper me-1"></i>Submit Request</button>
+            <button class="btn btn-primary">
+              <i class="bi bi-envelope-paper me-1"></i>Submit Request
+            </button>
           </div>
         </form>
 
@@ -102,4 +153,11 @@ include '../includes/nav.php';
     </div>
   </div>
 </div>
+
 <?php include '../includes/footer.php'; ?>
+<script>
+// Optional: auto-dismiss success
+document.querySelectorAll('.alert.auto-dismiss').forEach(function(el){
+  setTimeout(()=>{ try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e){} }, 4500);
+});
+</script>

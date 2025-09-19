@@ -42,6 +42,7 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="admin_employers.php">Employers</a></li>
               <li><a class="dropdown-item" href="admin_reports.php">Reports</a></li>
+              <li><a class="dropdown-item" href="admin_support_tickets.php">Support Tickets</a></li>
             </ul>
           </li>
         <?php endif; ?>
@@ -53,18 +54,21 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
             <a class="btn btn-primary btn-sm" href="jobs_create.php"><i class="bi bi-plus-lg me-1"></i>Post a Job</a>
           </li>
         <?php endif; ?>
+
         <?php if (empty($_SESSION['user_id'])): ?>
           <li class="nav-item"><a class="nav-link" href="register.php">Register</a></li>
-          <li class="nav-item ms-lg-2"><a class="btn btn-outline-light btn-sm" href="login.php"><i class="bi bi-box-arrow-in-right me-1"></i>Login</a></li>
+          <li class="nav-item ms-lg-2">
+            <a class="btn btn-outline-light btn-sm" href="login.php">
+              <i class="bi bi-box-arrow-in-right me-1"></i>Login
+            </a>
+          </li>
         <?php else: ?>
-          <!-- Profile is clickable for easier access -->
           <li class="nav-item me-2">
             <a class="btn btn-outline-light btn-sm" href="profile_edit.php">
               <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
             </a>
           </li>
           <li class="nav-item">
-            <!-- Logout with confirmation -->
             <a
               class="btn btn-outline-light btn-sm"
               href="logout.php"
@@ -82,11 +86,18 @@ if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer') {
   </div>
 </nav>
 
-<!-- Make main content grow to push footer down -->
-<div class="container my-4 flex-grow-1" id="main-content">
-  <?php foreach ($flashes as $msg): ?>
-    <div class="alert alert-info alert-dismissible fade show auto-dismiss shadow-sm" role="alert">
-      <i class="bi bi-info-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  <?php endforeach; ?>
+<?php
+// Global flash toasts/alerts (if you want to convert to Bootstrap 5 toast UI later).
+if (!empty($flashes)) {
+  echo '<div class="container mt-3">';
+  foreach ($flashes as $f) {
+    $type = htmlspecialchars($f['type'] ?? 'info');
+    $msg  = $f['message'] ?? '';
+    echo '<div class="alert alert-' . $type . ' alert-dismissible fade show auto-dismiss" role="alert">'
+       . '<i class="bi bi-info-circle me-2"></i>' . $msg
+       . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
+       . '</div>';
+  }
+  echo '</div>';
+}
+?>
