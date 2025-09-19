@@ -121,12 +121,9 @@ class Job {
         ]);
 
         if ($ok) {
-            if (method_exists('Helpers', 'parseSkillInput') && method_exists('Skill', 'assignSkillsToJob')) {
-                $skillsRaw = Helpers::parseSkillInput($data['required_skills_input'] ?? '');
-                Skill::assignSkillsToJob($job_id, $skillsRaw);
-            }
+            $skillsRaw = Helpers::parseSkillInput($data['required_skills_input'] ?? '');
+            Skill::assignSkillsToJob($job_id, $skillsRaw);
         }
-
         return $ok;
     }
 
@@ -178,12 +175,9 @@ class Job {
         ]);
 
         if ($ok) {
-            if (method_exists('Helpers', 'parseSkillInput') && method_exists('Skill', 'assignSkillsToJob')) {
-                $skillsRaw = Helpers::parseSkillInput($data['required_skills_input'] ?? '');
-                Skill::assignSkillsToJob($job_id, $skillsRaw);
-            }
+            $skillsRaw = Helpers::parseSkillInput($data['required_skills_input'] ?? '');
+            Skill::assignSkillsToJob($job_id, $skillsRaw);
         }
-
         return $ok;
     }
 
@@ -197,21 +191,15 @@ class Job {
         $pdo = Database::getConnection();
         try {
             $pdo->beginTransaction();
-
-            $stmt = $pdo->prepare("DELETE FROM applications WHERE job_id = ?");
-            $stmt->execute([$job_id]);
-
+            $pdo->prepare("DELETE FROM applications WHERE job_id = ?")->execute([$job_id]);
             try {
-                $stmt = $pdo->prepare("DELETE FROM job_skills WHERE job_id = ?");
-                $stmt->execute([$job_id]);
+                $pdo->prepare("DELETE FROM job_skills WHERE job_id = ?")->execute([$job_id]);
             } catch (PDOException $e) {
                 if ($e->getCode() !== '42S02') throw $e;
             }
-
             $stmt = $pdo->prepare("DELETE FROM jobs WHERE job_id = ? LIMIT 1");
             $stmt->execute([$job_id]);
             $deleted = $stmt->rowCount() > 0;
-
             $pdo->commit();
             return $deleted;
         } catch (Throwable $e) {

@@ -1,5 +1,10 @@
 <?php
+require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/Helpers.php';
+require_once __DIR__ . '/Skill.php';
 require_once __DIR__ . '/Taxonomy.php';
+require_once __DIR__ . '/Job.php';
+require_once __DIR__ . '/User.php';
 
 class Application {
     public string $application_id;
@@ -22,22 +27,24 @@ class Application {
         $this->created_at = $data['created_at'] ?? '';
     }
 
-    // Create application with per-application details
+    // Create application including per-application details and compute match score
     public static function createWithDetails(User $user, Job $job, int $relevantYears, array $selectedSkillIds, ?string $applicationEducation): bool {
         $pdo = Database::getConnection();
 
-        // prevent duplicates
+        // Prevent duplicates
         $check = $pdo->prepare("SELECT application_id FROM applications WHERE user_id = ? AND job_id = ?");
         $check->execute([$user->user_id, $job->job_id]);
         if ($check->fetch()) return false;
 
+        // Canonicalize education
         $appEduCanon = Taxonomy::canonicalizeEducation($applicationEducation ?? '');
         if ($appEduCanon === null) $appEduCanon = ''; // unknown -> blank
 
         $match = self::calculateMatchScoreFromInput($job, $relevantYears, $selectedSkillIds, $appEduCanon);
 
         $application_id = Helpers::generateSmartId('APP');
-        $stmt = $pdo->prepare("INSERT INTO applications (application_id, user_id, job_id, status, match_score, relevant_experience, application_education)
+        $stmt = $pdo->prepare("INSERT INTO applications 
+            (application_id, user_id, job_id, status, match_score, relevant_experience, application_education)
             VALUES (:application_id, :user_id, :job_id, 'Pending', :match_score, :relevant_experience, :application_education)");
         $ok = $stmt->execute([
             ':application_id' => $application_id,
@@ -70,66 +77,74 @@ class Application {
         return $stmt->fetchAll();
     }
 
-    public static function updateStatus(string $application_id, string $status, string $employer_id): bool {
-        $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT a.application_id FROM applications a
-            JOIN jobs j ON a.job_id = j.job_id
-            WHERE a.application_id = :app AND j.employer_id = :emp");
-        $stmt->execute([':app'=>$application_id, ':emp'=>$employer_id]);
-        if (!$stmt->fetch()) return false;
-
-        $upd = $pdo->prepare("UPDATE applications SET status = :status WHERE application_id = :app");
-        return $upd->execute([':status'=>$status, ':app'=>$application_id]);
-    }
-
     /**
-     * Matching algorithm weights:
-     * - Relevant experience: 50%
-     * - Skills match: 40%
-     * - Education: 10% (meets or exceeds required level)
+     * New scoring system:
+     *  - Experience: 40%
+     *  - Skills (general + required combined): 40%
+     *  - Education: 20%
+     *
+     * Experience:
+     *  If job required_experience == 0 => full 40
+     *  Else min(candidateYears, requiredYears)/requiredYears * 40 (capped at 40)
+     *
+     * Skills:
+     *  Let totalJobSkills = count(all job skills). If zero => full 40.
+     *  Let matched = number of selected skill IDs that are in job's skill IDs (dedupe).
+     *  skillsScore = (matched / totalJobSkills) * 40 (capped).
+     *
+     * Education:
+     *  Map levels to numeric rank. If job required_education blank => full 20.
+     *  If candidateRank >= requiredRank => full 20 else proportional = (candidateRank / requiredRank) * 20.
      */
-    public static function calculateMatchScoreFromInput(Job $job, int $relevantYears, array $selectedSkillIds, ?string $applicationEducation): float {
-        $score = 0.0;
-
-        // Experience (50%)
-        $expWeight = 50.0;
-        if ($job->required_experience <= 0) {
-            $score += $expWeight;
+    public static function calculateMatchScoreFromInput(Job $job, int $relevantYears, array $selectedSkillIds, string $appEducationCanon): float {
+        // EXPERIENCE
+        $expRequirement = max(0, (int)$job->required_experience);
+        if ($expRequirement <= 0) {
+            $expScore = 40.0;
         } else {
-            $ratio = max(0.0, min(1.0, $relevantYears / $job->required_experience));
-            $score += $ratio * $expWeight;
+            $ratio = min($relevantYears, $expRequirement) / max(1, $expRequirement);
+            $expScore = 40.0 * $ratio;
         }
 
-        // Skills (40%)
-        $skillsWeight = 40.0;
+        // SKILLS
         $jobSkillIds = Skill::getJobSkillIds($job->job_id);
-        $jobSkillIds = array_values(array_unique(array_map('strval', $jobSkillIds)));
-        $selected = array_values(array_unique(array_map('strval', $selectedSkillIds)));
-        if (count($jobSkillIds) > 0) {
-            $matchCount = count(array_intersect($selected, $jobSkillIds));
-            $score += ($matchCount / count($jobSkillIds)) * $skillsWeight;
+        $jobSkillCount = count($jobSkillIds);
+        if ($jobSkillCount === 0) {
+            $skillScore = 40.0;
         } else {
-            $score += $skillsWeight;
+            $jobSet = array_flip($jobSkillIds);
+            $matched = 0;
+            $seen = [];
+            foreach ($selectedSkillIds as $sid) {
+                $sid = trim((string)$sid);
+                if ($sid === '' || isset($seen[$sid])) continue;
+                $seen[$sid] = true;
+                if (isset($jobSet[$sid])) $matched++;
+            }
+            $skillScore = 40.0 * ($matched / $jobSkillCount);
         }
 
-        // Education (10%) - meets or exceeds required
-        $eduWeight = 10.0;
-        $jobEdu = Taxonomy::canonicalizeEducation($job->required_education ?? '');
-        if ($jobEdu === '' || $jobEdu === null) {
-            $score += $eduWeight; // Any
+        // EDUCATION
+        $eduMap = Taxonomy::educationRankMap(); // returns [canonLower => rankInt]
+        $requiredCanon = Taxonomy::canonicalizeEducation($job->required_education ?? '');
+        if ($requiredCanon === null) $requiredCanon = ''; // treat unknown as none
+        if ($requiredCanon === '') {
+            $eduScore = 20.0;
         } else {
-            $appRank = Taxonomy::educationRank($applicationEducation);
-            $reqRank = Taxonomy::educationRank($jobEdu);
-            if ($appRank >= $reqRank && $appRank >= 0) {
-                $score += $eduWeight;
+            $requiredRank = $eduMap[mb_strtolower($requiredCanon)] ?? 0;
+            $candidateRank = $eduMap[mb_strtolower($appEducationCanon)] ?? 0;
+            if ($candidateRank >= $requiredRank && $requiredRank > 0) {
+                $eduScore = 20.0;
+            } elseif ($requiredRank > 0) {
+                $eduScore = 20.0 * ($candidateRank / $requiredRank);
             } else {
-                // optional partial credit if one step below requirement:
-                if ($appRank === $reqRank - 1) {
-                    $score += $eduWeight * 0.5;
-                }
+                $eduScore = 20.0;
             }
         }
 
-        return round($score, 2);
+        $total = $expScore + $skillScore + $eduScore;
+        if ($total < 0) $total = 0;
+        if ($total > 100) $total = 100;
+        return round($total, 2);
     }
 }

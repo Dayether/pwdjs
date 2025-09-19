@@ -24,13 +24,16 @@ $eduLevels       = Taxonomy::educationLevels();
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Predefined skills
     $skillsSelected = $_POST['required_skills'] ?? [];
     if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
     $skillsSelected = array_filter(array_map('trim', $skillsSelected));
 
+    // Custom skills (comma separated)
     $additionalSkillsRaw = trim($_POST['additional_skills'] ?? '');
     $extraTokens = $additionalSkillsRaw !== '' ? Helpers::parseSkillInput($additionalSkillsRaw) : [];
 
+    // Merge (case-insensitive unique)
     $merged = [];
     foreach (array_merge($skillsSelected, $extraTokens) as $s) {
         if ($s === '') continue;
@@ -39,9 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $skillsCsv = implode(', ', $merged);
 
+    // Accessibility tags
     $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
     if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
 
+    // Other fields (unchanged structure)
     $title       = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $reqExp      = (int)($_POST['required_experience'] ?? 0);
@@ -49,18 +54,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $locCity     = trim($_POST['location_city'] ?? '');
     $locRegion   = trim($_POST['location_region'] ?? '');
     $employment  = $_POST['employment_type'] ?? 'Full time';
-    $period      = $_POST['salary_period'] ?? 'monthly';
-    $cur         = strtoupper(trim($_POST['salary_currency'] ?? 'PHP'));
-    $smin        = ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null;
-    $smax        = ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null;
+    $salary_currency = strtoupper(trim($_POST['salary_currency'] ?? 'PHP'));
+    $salary_min  = ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null;
+    $salary_max  = ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null;
+    $salary_period = in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true)
+        ? $_POST['salary_period'] : 'monthly';
 
     if ($title === '') $errors[] = 'Title required';
     if ($description === '') $errors[] = 'Description required';
-    if ($smin !== null && $smax !== null && $smin > $smax) {
+    if ($salary_min !== null && $salary_max !== null && $salary_min > $salary_max) {
         $errors[] = 'Salary min cannot be greater than salary max.';
     }
     if (!in_array($employment, $employmentTypes, true)) $employment = 'Full time';
-    if (!in_array($period, ['monthly','yearly','hourly'], true)) $period = 'monthly';
 
     $data = [
         'title' => $title,
@@ -68,15 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'required_skills_input' => $skillsCsv,
         'required_experience' => $reqExp,
         'required_education' => $reqEduRaw,
-        'accessibility_tags' => implode(',', array_map('trim', $tagsSelected)),
+        'accessibility_tags' => implode(',', array_map('trim',$tagsSelected)),
         'location_city' => $locCity,
         'location_region' => $locRegion,
         'remote_option' => 'Work From Home',
         'employment_type' => $employment,
-        'salary_currency' => $cur ?: 'PHP',
-        'salary_min' => $smin,
-        'salary_max' => $smax,
-        'salary_period' => $period,
+        'salary_currency' => $salary_currency ?: 'PHP',
+        'salary_min' => $salary_min,
+        'salary_max' => $salary_max,
+        'salary_period' => $salary_period
     ];
 
     if (!$errors) {
@@ -89,14 +94,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$job = Job::findById($job_id); // refresh after possible update
+$job = Job::findById($job_id);
+
+// Split existing skills between predefined + custom
 $rawTokens = array_filter(array_map('trim', explode(',', $job->required_skills_input ?? '')));
-$allowedSetLower = array_map('mb_strtolower', $allowedSkills);
+$allowedLower = array_map('mb_strtolower', $allowedSkills);
 $selectedAllowed = [];
-$customSkills    = [];
+$customSkills = [];
 foreach ($rawTokens as $tok) {
     if ($tok === '') continue;
-    if (in_array(mb_strtolower($tok), $allowedSetLower, true)) {
+    if (in_array(mb_strtolower($tok), $allowedLower, true)) {
         $selectedAllowed[] = $tok;
     } else {
         $customSkills[] = $tok;
@@ -112,22 +119,16 @@ include '../includes/nav.php';
     <h2 class="h5 fw-semibold mb-3"><i class="bi bi-pencil-square me-2"></i>Edit Job</h2>
 
     <?php foreach ($errors as $e): ?>
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($e); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
+      <div class="alert alert-danger"><?php echo htmlspecialchars($e); ?></div>
     <?php endforeach; ?>
 
     <?php if ($msg = ($_SESSION['flash']['msg'] ?? null)): ?>
-      <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
+      <div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div>
     <?php endif; ?>
 
     <form method="post" class="row g-3">
       <div class="col-12">
-        <label class="form-label fw-semibold">Title<span class="text-danger">*</span></label>
+        <label class="form-label fw-semibold">Title</label>
         <input name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>">
       </div>
 
@@ -150,32 +151,29 @@ include '../includes/nav.php';
         </div>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Salary currency</label>
         <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($job->salary_currency); ?>">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Salary min</label>
         <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_min ?? ''); ?>">
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Salary max</label>
         <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_max ?? ''); ?>">
       </div>
-
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Salary period</label>
         <select name="salary_period" class="form-select">
           <?php foreach (['monthly','yearly','hourly'] as $p): ?>
-            <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>>
-              <?php echo ucfirst($p); ?>
-            </option>
+            <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
           <?php endforeach; ?>
         </select>
       </div>
 
       <div class="col-md-8">
-        <label class="form-label">Required Skills (Predefined)</label>
+        <label class="form-label">Required Skills (predefined)</label>
         <div class="row">
           <?php foreach ($allowedSkills as $skill):
             $checked = in_array($skill, $selectedAllowed, true) ? 'checked' : ''; ?>
@@ -193,11 +191,13 @@ include '../includes/nav.php';
             </div>
           <?php endforeach; ?>
         </div>
-        <small class="text-muted d-block mt-1">Check any standardized skills.</small>
+        <small class="text-muted d-block mt-1">Check any that apply.</small>
 
-        <label class="form-label mt-3">Additional / Custom Skills (comma separated)</label>
-        <input type="text" name="additional_skills" class="form-control" value="<?php echo htmlspecialchars($customSkillsCsv); ?>" placeholder="e.g., Figma, Accessibility Auditing">
-        <small class="text-muted">These remain exactly as entered and appear to applicants.</small>
+        <label class="form-label mt-3">Custom / Additional Skills (comma separated)</label>
+        <input type="text" name="additional_skills" class="form-control"
+               value="<?php echo htmlspecialchars($customSkillsCsv); ?>"
+               placeholder="e.g., Figma, Accessibility Auditing">
+        <small class="text-muted">These will also show to applicants.</small>
       </div>
 
       <div class="col-md-4">
@@ -222,9 +222,7 @@ include '../includes/nav.php';
         ?>
         <?php foreach ($accessTags as $tag): ?>
           <div class="form-check form-check-inline">
-            <input class="form-check-input"
-                   name="accessibility_tags[]"
-                   type="checkbox"
+            <input class="form-check-input" name="accessibility_tags[]" type="checkbox"
                    value="<?php echo htmlspecialchars($tag); ?>"
                    <?php echo in_array($tag, $currentTags, true) ? 'checked' : ''; ?>>
             <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
@@ -233,7 +231,7 @@ include '../includes/nav.php';
       </div>
 
       <div class="col-12">
-        <label class="form-label fw-semibold">Description<span class="text-danger">*</span></label>
+        <label class="form-label fw-semibold">Description</label>
         <textarea name="description" class="form-control" rows="8" required><?php echo htmlspecialchars($job->description); ?></textarea>
       </div>
 

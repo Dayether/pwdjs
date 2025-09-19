@@ -10,8 +10,17 @@ require_once '../classes/User.php';
 Helpers::requireLogin();
 if (!Helpers::isEmployer()) Helpers::redirect('index.php');
 
+/* General (soft) skills fixed list */
+$generalSkills = [
+    '70+ WPM Typing',
+    'Flexible Schedule',
+    'Team Player',
+    'Professional Attitude',
+    'Strong Communication',
+    'Adaptable / Quick Learner'
+];
+
 $eduLevels       = Taxonomy::educationLevels();
-$allowedSkills   = Taxonomy::allowedSkills();
 $employmentTypes = Taxonomy::employmentTypes();
 $accessTags      = Taxonomy::accessibilityTags();
 
@@ -24,18 +33,15 @@ if ($status !== 'Approved') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
-    // Predefined selected
-    $skillsSelected = $_POST['required_skills'] ?? [];
-    if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
-    $skillsSelected = array_filter(array_map('trim', $skillsSelected));
+    $selectedGeneral = $_POST['required_skills'] ?? [];
+    if (!is_array($selectedGeneral)) $selectedGeneral = [$selectedGeneral];
+    $selectedGeneral = array_filter(array_map('trim', $selectedGeneral));
 
-    // Custom
-    $additionalSkillsRaw = trim($_POST['additional_skills'] ?? '');
-    $extraTokens = $additionalSkillsRaw !== '' ? Helpers::parseSkillInput($additionalSkillsRaw) : [];
+    $requiredCustomRaw = trim($_POST['additional_skills'] ?? '');
+    $requiredCustomList = $requiredCustomRaw !== '' ? Helpers::parseSkillInput($requiredCustomRaw) : [];
 
-    // Merge unique (case-insensitive)
     $merged = [];
-    foreach (array_merge($skillsSelected, $extraTokens) as $s) {
+    foreach (array_merge($selectedGeneral, $requiredCustomList) as $s) {
         if ($s === '') continue;
         $k = mb_strtolower($s);
         if (!isset($merged[$k])) $merged[$k] = $s;
@@ -99,13 +105,9 @@ include '../includes/nav.php';
 
     <?php if ($status !== 'Approved'): ?>
       <div class="alert alert-warning">
-        Once your employer account is approved by an admin, you’ll be able to create job posts here.
+        Once your employer account is approved you may post jobs.
       </div>
     <?php else: ?>
-      <div class="alert alert-info">
-        This platform is Work From Home only. Your job will be published as 100% remote.
-      </div>
-
       <form method="post" class="row g-3">
         <div class="col-12">
           <label class="form-label fw-semibold">Title<span class="text-danger">*</span></label>
@@ -133,7 +135,7 @@ include '../includes/nav.php';
 
         <div class="col-md-4">
           <label class="form-label">Salary currency</label>
-            <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? 'PHP'); ?>">
+          <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? 'PHP'); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Salary min</label>
@@ -156,19 +158,28 @@ include '../includes/nav.php';
         </div>
 
         <div class="col-md-8">
-          <label class="form-label">Required Skills (select any)</label>
-          <select name="required_skills[]" class="form-select" multiple size="8">
-            <?php foreach ($allowedSkills as $s): ?>
-              <option value="<?php echo htmlspecialchars($s); ?>" <?php if (!empty($_POST['required_skills']) && in_array($s, (array)$_POST['required_skills'])) echo 'selected'; ?>>
-                <?php echo htmlspecialchars($s); ?>
-              </option>
+          <label class="form-label">General Skills</label>
+          <div class="row">
+            <?php foreach ($generalSkills as $gs):
+              $checked = (!empty($_POST['required_skills']) && in_array($gs, (array)$_POST['required_skills'], true)) ? 'checked' : ''; ?>
+              <div class="col-sm-6 col-lg-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox"
+                         id="genskill_<?php echo md5($gs); ?>"
+                         name="required_skills[]"
+                         value="<?php echo htmlspecialchars($gs); ?>" <?php echo $checked; ?>>
+                  <label class="form-check-label small" for="genskill_<?php echo md5($gs); ?>">
+                    <?php echo htmlspecialchars($gs); ?>
+                  </label>
+                </div>
+              </div>
             <?php endforeach; ?>
-          </select>
-          <small class="text-muted d-block">Hold CTRL (Windows) or CMD (Mac) to multi-select.</small>
+          </div>
+          <small class="text-muted d-block mt-1">Select general / soft capabilities.</small>
 
-          <label class="form-label mt-3">Additional custom skills (comma separated)</label>
-          <input name="additional_skills" class="form-control" placeholder="e.g., Figma, Documentation Auditing" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>">
-          <small class="text-muted">Custom skills will also appear to applicants.</small>
+          <label class="form-label mt-3">Required Skills (comma separated)</label>
+            <input name="additional_skills" class="form-control" placeholder="e.g., Calendar Management, Data Entry, Customer Support" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>">
+          <small class="text-muted">Specific technical or role-focused requirements.</small>
         </div>
 
         <div class="col-md-4">
@@ -187,11 +198,10 @@ include '../includes/nav.php';
 
         <div class="col-12">
           <label class="form-label d-block">Accessibility Tags</label>
-          <?php foreach ($accessTags as $tag): ?>
-            <?php
-              $isPosted = isset($_POST['accessibility_tags']);
-              $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags']) : ($tag === 'PWD-Friendly');
-            ?>
+          <?php foreach ($accessTags as $tag):
+            $isPosted = isset($_POST['accessibility_tags']);
+            $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags'], true) : ($tag === 'PWD-Friendly');
+          ?>
             <div class="form-check form-check-inline">
               <input class="form-check-input" name="accessibility_tags[]" type="checkbox" value="<?php echo htmlspecialchars($tag); ?>" <?php echo $checked ? 'checked' : ''; ?>>
               <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
