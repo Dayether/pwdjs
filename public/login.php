@@ -26,14 +26,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user->role === 'employer') {
                 $status = $user->employer_status ?: 'Pending';
                 if ($status !== 'Approved') {
+                    $supportLink = '<a href="support_contact.php" class="alert-link">contact support</a>';
                     if ($status === 'Pending') {
                         $errors[] = 'Your employer account is pending approval. You cannot log in yet. Please wait for an admin to approve your account.';
                     } elseif ($status === 'Suspended') {
-                        $errors[] = 'Your employer account is suspended. Please contact support.';
+                        $errors[] = 'Your employer account is suspended. Please ' . $supportLink . '.';
                     } elseif ($status === 'Rejected') {
-                        $errors[] = 'Your employer verification was rejected. Please contact support.';
+                        $errors[] = 'Your employer verification was rejected. Please ' . $supportLink . '.';
                     } else {
-                        $errors[] = 'Your employer account is not approved. Please contact support.';
+                        $errors[] = 'Your employer account is not approved. Please ' . $supportLink . '.';
                     }
                 }
             }
@@ -70,7 +71,7 @@ include '../includes/nav.php';
 
         <?php foreach ($errors as $e): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($e); ?>
+            <i class="bi bi-exclamation-triangle me-2"></i><?php echo $e; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         <?php endforeach; ?>
@@ -92,6 +93,13 @@ include '../includes/nav.php';
         <div class="text-muted small mt-3">
           Don’t have an account? <a href="register.php">Register</a>
         </div>
+
+        <div class="mt-3">
+          <div class="alert alert-info py-2 px-3 mb-0 small">
+            Need help with your employer account? <a href="support_contact.php" class="alert-link">Contact Support</a>.
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

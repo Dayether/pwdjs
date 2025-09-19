@@ -5,12 +5,27 @@
       <span class="text-white-75">PWD Employment & Skills Portal</span> ·
       <span>&copy; <?php echo date('Y'); ?></span>
     </div>
-    <div class="small">
+    <div class="small d-flex flex-wrap align-items-center">
       <a class="link-light link-underline-opacity-0 me-3" href="index.php">Find Jobs</a>
-      <?php if (!empty($_SESSION['user_id']) && $_SESSION['role']==='employer'): ?>
+      <?php if (!empty($_SESSION['user_id']) && $_SESSION['role'] === 'employer'): ?>
         <a class="link-light link-underline-opacity-0 me-3" href="jobs_create.php">Post a Job</a>
       <?php endif; ?>
-      <a class="link-light link-underline-opacity-0" href="profile_edit.php">Profile</a>
+      <a class="link-light link-underline-opacity-0 me-3" href="profile_edit.php">Profile</a>
+
+      <?php if (!empty($_SESSION['user_id'])): ?>
+        <a class="link-light link-underline-opacity-0 d-inline-flex align-items-center" href="support_contact.php">
+          <i class="bi bi-life-preserver me-1"></i>Support
+        </a>
+      <?php endif; ?>
+      <?php
+      /*
+        Kung gusto mong visible ang Support kahit hindi naka-login:
+        Palitan mo ng:
+        <a class="link-light link-underline-opacity-0 d-inline-flex align-items-center" href="support_contact.php">
+          <i class="bi bi-life-preserver me-1"></i>Support
+        </a>
+      */
+      ?>
     </div>
   </div>
 </footer>
@@ -62,13 +77,9 @@ document.querySelectorAll('.alert.auto-dismiss').forEach(function(el) {
   document.addEventListener('click', function(e){
     const trigger = e.target.closest('[data-confirm]');
     if (!trigger) return;
-
-    // Only act on enabled, visible elements
     if (trigger.disabled) return;
-
     e.preventDefault();
 
-    // Read attributes
     const title = trigger.getAttribute('data-confirm-title') || 'Please confirm';
     const message = trigger.getAttribute('data-confirm') || trigger.getAttribute('data-confirm-message') || 'Are you sure?';
     const yesText = trigger.getAttribute('data-confirm-yes') || 'Yes';
@@ -76,16 +87,12 @@ document.querySelectorAll('.alert.auto-dismiss').forEach(function(el) {
     const method = trigger.getAttribute('data-method') || (trigger.tagName === 'BUTTON' ? 'submit' : 'get');
     const href = trigger.getAttribute('href') || trigger.getAttribute('data-href') || '';
 
-    // Populate modal
     if (titleEl) titleEl.textContent = title;
     if (msgEl) msgEl.textContent = message;
     if (yesBtn) yesBtn.textContent = yesText;
     if (noBtn) noBtn.textContent = noText;
 
-    // Store action
     pending = { trigger, method, href };
-
-    // Show modal
     modal.show();
   });
 
@@ -109,7 +116,6 @@ document.querySelectorAll('.alert.auto-dismiss').forEach(function(el) {
         form.submit();
         return;
       }
-      // Default: GET navigation
       if (href) window.location.href = href;
     });
   }

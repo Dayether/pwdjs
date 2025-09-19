@@ -14,7 +14,6 @@ class Job {
     public ?string $required_skills_input = null;
     public ?string $accessibility_tags = null;
 
-    // New fields
     public string $location_city = '';
     public string $location_region = '';
     public string $remote_option = 'Work From Home';
@@ -131,7 +130,6 @@ class Job {
         return $ok;
     }
 
-    // Corrected signature to match call site: Job::update($job_id, $data, $employer_id)
     public static function update(string $job_id, array $data, string $employer_id): bool {
         $pdo = Database::getConnection();
 
@@ -189,33 +187,27 @@ class Job {
         return $ok;
     }
 
-    // Owner-scoped delete
     public static function delete(string $job_id, string $employer_id): bool {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM jobs WHERE job_id = ? AND employer_id = ? LIMIT 1");
         return $stmt->execute([$job_id, $employer_id]);
     }
 
-    // Admin-only delete: remove related rows and then the job (no employer constraint)
     public static function adminDelete(string $job_id): bool {
         $pdo = Database::getConnection();
         try {
             $pdo->beginTransaction();
 
-            // Delete applications tied to this job
             $stmt = $pdo->prepare("DELETE FROM applications WHERE job_id = ?");
             $stmt->execute([$job_id]);
 
-            // Delete job_skills mapping if your schema uses it
             try {
                 $stmt = $pdo->prepare("DELETE FROM job_skills WHERE job_id = ?");
                 $stmt->execute([$job_id]);
             } catch (PDOException $e) {
-                // 42S02 = base table or view not found; ignore if mapping table doesn't exist
                 if ($e->getCode() !== '42S02') throw $e;
             }
 
-            // Finally, delete the job
             $stmt = $pdo->prepare("DELETE FROM jobs WHERE job_id = ? LIMIT 1");
             $stmt->execute([$job_id]);
             $deleted = $stmt->rowCount() > 0;
@@ -236,8 +228,6 @@ class Job {
         return $stmt->execute([':st'=>$status, ':id'=>$job_id]);
     }
 
-    // Bulk: set all jobs for an employer to a status.
-    // If $onlyCurrentStatus is provided, only rows with that current status will be updated.
     public static function setStatusByEmployer(string $employer_id, string $status, ?string $onlyCurrentStatus = null): int {
         $allowed = ['Open','Suspended','Closed'];
         if (!in_array($status, $allowed, true)) return 0;

@@ -3,105 +3,109 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/Job.php';
-require_once '../classes/Taxonomy.php';
 require_once '../classes/Skill.php';
+require_once '../classes/Taxonomy.php';
 require_once '../classes/User.php';
 
 Helpers::requireLogin();
 if (!Helpers::isEmployer()) Helpers::redirect('index.php');
 
-$employmentTypes = Taxonomy::employmentTypes();
-$eduLevels = Taxonomy::educationLevels();
-$allowedSkills = Taxonomy::allowedSkills();
-
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);
 if (!$job || $job->employer_id !== $_SESSION['user_id']) {
-  Helpers::redirect('employer_dashboard.php');
+    Helpers::redirect('employer_dashboard.php');
 }
+
+$allowedSkills   = Taxonomy::allowedSkills();
+$employmentTypes = Taxonomy::employmentTypes();
+$accessTags      = Taxonomy::accessibilityTags();
+$eduLevels       = Taxonomy::educationLevels();
 
 $errors = [];
-if (isset($_GET['delete']) && $_GET['delete'] == '1') {
-  if (Job::delete($job_id, $_SESSION['user_id'])) {
-    Helpers::flash('msg','Job deleted.');
-  }
-  Helpers::redirect('employer_dashboard.php');
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  // Read POST safely
-  $title       = trim($_POST['title'] ?? '');
-  $description = trim($_POST['description'] ?? '');
-  $reqExp      = (int)($_POST['required_experience'] ?? 0);
-  $reqEduRaw   = trim($_POST['required_education'] ?? '');
-  $employment  = $_POST['employment_type'] ?? 'Full time';
-  $locCity     = trim($_POST['location_city'] ?? '');
-  $locRegion   = trim($_POST['location_region'] ?? '');
-  $cur         = strtoupper(trim($_POST['salary_currency'] ?? 'PHP'));
-  $smin        = (isset($_POST['salary_min']) && $_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null;
-  $smax        = (isset($_POST['salary_max']) && $_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null;
-  $period      = $_POST['salary_period'] ?? 'monthly';
+    $skillsSelected = $_POST['required_skills'] ?? [];
+    if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
+    $skillsSelected = array_filter(array_map('trim', $skillsSelected));
 
-  $skillsSelected = $_POST['required_skills'] ?? [];
-  if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
-  $skillsCsv = implode(', ', array_map('trim', $skillsSelected));
+    $additionalSkillsRaw = trim($_POST['additional_skills'] ?? '');
+    $extraTokens = $additionalSkillsRaw !== '' ? Helpers::parseSkillInput($additionalSkillsRaw) : [];
 
-  $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-  if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
-
-  // Validate
-  if ($title === '') $errors[] = 'Title required';
-  if ($description === '') $errors[] = 'Description required';
-  if ($smin !== null && $smax !== null && $smin > $smax) {
-    $errors[] = 'Salary min cannot be greater than salary max.';
-  }
-  if (!in_array($employment, $employmentTypes, true)) $employment = 'Full time';
-  if (!in_array($period, ['monthly','yearly','hourly'], true)) $period = 'monthly';
-
-  // Payload
-  $data = [
-    'title' => $title,
-    'description' => $description,
-    'required_skills_input' => $skillsCsv,
-    'required_experience' => $reqExp,
-    'required_education' => $reqEduRaw,
-    'accessibility_tags' => implode(',', array_map('trim', $tagsSelected)),
-    'location_city' => $locCity,
-    'location_region' => $locRegion,
-    'remote_option' => 'Work From Home',
-    'employment_type' => $employment,
-    'salary_currency' => $cur ?: 'PHP',
-    'salary_min' => $smin,
-    'salary_max' => $smax,
-    'salary_period' => $period,
-  ];
-
-  if (!$errors) {
-    // Correct order: (job_id, data, employer_id)
-    if (Job::update($job_id, $data, $_SESSION['user_id'])) {
-      Helpers::flash('msg','Job updated.');
-      Helpers::redirect('jobs_edit.php?job_id=' . urlencode($job_id));
-    } else {
-      $errors[] = 'Update failed.';
+    $merged = [];
+    foreach (array_merge($skillsSelected, $extraTokens) as $s) {
+        if ($s === '') continue;
+        $k = mb_strtolower($s);
+        if (!isset($merged[$k])) $merged[$k] = $s;
     }
-  }
+    $skillsCsv = implode(', ', $merged);
+
+    $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
+    if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
+
+    $title       = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $reqExp      = (int)($_POST['required_experience'] ?? 0);
+    $reqEduRaw   = trim($_POST['required_education'] ?? '');
+    $locCity     = trim($_POST['location_city'] ?? '');
+    $locRegion   = trim($_POST['location_region'] ?? '');
+    $employment  = $_POST['employment_type'] ?? 'Full time';
+    $period      = $_POST['salary_period'] ?? 'monthly';
+    $cur         = strtoupper(trim($_POST['salary_currency'] ?? 'PHP'));
+    $smin        = ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null;
+    $smax        = ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null;
+
+    if ($title === '') $errors[] = 'Title required';
+    if ($description === '') $errors[] = 'Description required';
+    if ($smin !== null && $smax !== null && $smin > $smax) {
+        $errors[] = 'Salary min cannot be greater than salary max.';
+    }
+    if (!in_array($employment, $employmentTypes, true)) $employment = 'Full time';
+    if (!in_array($period, ['monthly','yearly','hourly'], true)) $period = 'monthly';
+
+    $data = [
+        'title' => $title,
+        'description' => $description,
+        'required_skills_input' => $skillsCsv,
+        'required_experience' => $reqExp,
+        'required_education' => $reqEduRaw,
+        'accessibility_tags' => implode(',', array_map('trim', $tagsSelected)),
+        'location_city' => $locCity,
+        'location_region' => $locRegion,
+        'remote_option' => 'Work From Home',
+        'employment_type' => $employment,
+        'salary_currency' => $cur ?: 'PHP',
+        'salary_min' => $smin,
+        'salary_max' => $smax,
+        'salary_period' => $period,
+    ];
+
+    if (!$errors) {
+        if (Job::update($job_id, $data, $_SESSION['user_id'])) {
+            Helpers::flash('msg','Job updated.');
+            Helpers::redirect('jobs_edit.php?job_id=' . urlencode($job_id));
+        } else {
+            $errors[] = 'Update failed.';
+        }
+    }
 }
+
+$job = Job::findById($job_id); // refresh after possible update
+$rawTokens = array_filter(array_map('trim', explode(',', $job->required_skills_input ?? '')));
+$allowedSetLower = array_map('mb_strtolower', $allowedSkills);
+$selectedAllowed = [];
+$customSkills    = [];
+foreach ($rawTokens as $tok) {
+    if ($tok === '') continue;
+    if (in_array(mb_strtolower($tok), $allowedSetLower, true)) {
+        $selectedAllowed[] = $tok;
+    } else {
+        $customSkills[] = $tok;
+    }
+}
+$customSkillsCsv = implode(', ', $customSkills);
 
 include '../includes/header.php';
 include '../includes/nav.php';
-
-// Form defaults from DB (null-safe)
-$employmentType = $job->employment_type ?? 'Full time';
-$city  = $job->location_city   ?? '';
-$region= $job->location_region ?? '';
-$cur   = $job->salary_currency ?? 'PHP';
-$smin  = property_exists($job, 'salary_min') ? $job->salary_min : null;
-$smax  = property_exists($job, 'salary_max') ? $job->salary_max : null;
-$period= $job->salary_period   ?? 'monthly';
-
-$selectedSkills = array_map('trim', explode(',', $job->required_skills_input ?? ''));
-$selectedTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
-if (!in_array('PWD-Friendly', $selectedTags, true)) $selectedTags[] = 'PWD-Friendly';
 ?>
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
@@ -114,46 +118,56 @@ if (!in_array('PWD-Friendly', $selectedTags, true)) $selectedTags[] = 'PWD-Frien
       </div>
     <?php endforeach; ?>
 
-    <form id="job-edit" method="post" class="row g-3">
+    <?php if ($msg = ($_SESSION['flash']['msg'] ?? null)): ?>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
+
+    <form method="post" class="row g-3">
       <div class="col-12">
-        <label class="form-label">Title</label>
-        <input name="title" class="form-control form-control-lg" required value="<?php echo Helpers::sanitizeOutput($job->title); ?>">
+        <label class="form-label fw-semibold">Title<span class="text-danger">*</span></label>
+        <input name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>">
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Employment type</label>
         <select name="employment_type" class="form-select">
           <?php foreach ($employmentTypes as $t): ?>
-            <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($employmentType === $t) echo 'selected'; ?>><?php echo htmlspecialchars($t); ?></option>
+            <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($job->employment_type === $t) echo 'selected'; ?>>
+              <?php echo htmlspecialchars($t); ?>
+            </option>
           <?php endforeach; ?>
         </select>
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Original office location (optional)</label>
+        <label class="form-label">Office Location (optional)</label>
         <div class="d-flex gap-2">
-          <input name="location_city" class="form-control" value="<?php echo Helpers::sanitizeOutput($city); ?>" placeholder="City">
-          <input name="location_region" class="form-control" value="<?php echo Helpers::sanitizeOutput($region); ?>" placeholder="Region/Province">
+          <input name="location_city" class="form-control" placeholder="City" value="<?php echo htmlspecialchars($job->location_city); ?>">
+          <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($job->location_region); ?>">
         </div>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Salary currency</label>
-        <input name="salary_currency" class="form-control" value="<?php echo Helpers::sanitizeOutput($cur); ?>">
+        <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($job->salary_currency); ?>">
       </div>
       <div class="col-md-4">
         <label class="form-label">Salary min</label>
-        <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($smin ?? ''); ?>">
+        <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_min ?? ''); ?>">
       </div>
       <div class="col-md-4">
         <label class="form-label">Salary max</label>
-        <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($smax ?? ''); ?>">
+        <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_max ?? ''); ?>">
       </div>
+
       <div class="col-md-4">
         <label class="form-label">Salary period</label>
         <select name="salary_period" class="form-select">
           <?php foreach (['monthly','yearly','hourly'] as $p): ?>
-            <option value="<?php echo $p; ?>" <?php if (($period ?? 'monthly') === $p) echo 'selected'; ?>>
+            <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>>
               <?php echo ucfirst($p); ?>
             </option>
           <?php endforeach; ?>
@@ -161,19 +175,34 @@ if (!in_array('PWD-Friendly', $selectedTags, true)) $selectedTags[] = 'PWD-Frien
       </div>
 
       <div class="col-md-8">
-        <label class="form-label">Required Skills</label>
-        <select name="required_skills[]" class="form-select" multiple size="8">
-          <?php foreach ($allowedSkills as $s): ?>
-            <option value="<?php echo htmlspecialchars($s); ?>" <?php if (in_array($s, $selectedSkills, true)) echo 'selected'; ?>>
-              <?php echo htmlspecialchars($s); ?>
-            </option>
+        <label class="form-label">Required Skills (Predefined)</label>
+        <div class="row">
+          <?php foreach ($allowedSkills as $skill):
+            $checked = in_array($skill, $selectedAllowed, true) ? 'checked' : ''; ?>
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       id="skill_<?php echo md5($skill); ?>"
+                       name="required_skills[]"
+                       value="<?php echo htmlspecialchars($skill); ?>"
+                       <?php echo $checked; ?>>
+                <label class="form-check-label small" for="skill_<?php echo md5($skill); ?>">
+                  <?php echo htmlspecialchars($skill); ?>
+                </label>
+              </div>
+            </div>
           <?php endforeach; ?>
-        </select>
+        </div>
+        <small class="text-muted d-block mt-1">Check any standardized skills.</small>
+
+        <label class="form-label mt-3">Additional / Custom Skills (comma separated)</label>
+        <input type="text" name="additional_skills" class="form-control" value="<?php echo htmlspecialchars($customSkillsCsv); ?>" placeholder="e.g., Figma, Accessibility Auditing">
+        <small class="text-muted">These remain exactly as entered and appear to applicants.</small>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Experience (years)</label>
-        <input name="required_experience" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->required_experience ?? 0); ?>">
+        <input name="required_experience" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->required_experience); ?>">
         <label class="form-label mt-3">Education Requirement</label>
         <select name="required_education" class="form-select">
           <option value="">Any</option>
@@ -187,25 +216,29 @@ if (!in_array('PWD-Friendly', $selectedTags, true)) $selectedTags[] = 'PWD-Frien
 
       <div class="col-12">
         <label class="form-label d-block">Accessibility Tags</label>
-        <?php foreach (Taxonomy::accessibilityTags() as $tag): ?>
+        <?php
+          $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
+          if (!in_array('PWD-Friendly', $currentTags, true)) $currentTags[] = 'PWD-Friendly';
+        ?>
+        <?php foreach ($accessTags as $tag): ?>
           <div class="form-check form-check-inline">
-            <input class="form-check-input" name="accessibility_tags[]" type="checkbox" value="<?php echo $tag; ?>" <?php if (in_array($tag, $selectedTags, true)) echo 'checked'; ?>>
-            <label class="form-check-label"><?php echo $tag; ?></label>
+            <input class="form-check-input"
+                   name="accessibility_tags[]"
+                   type="checkbox"
+                   value="<?php echo htmlspecialchars($tag); ?>"
+                   <?php echo in_array($tag, $currentTags, true) ? 'checked' : ''; ?>>
+            <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
           </div>
         <?php endforeach; ?>
       </div>
 
       <div class="col-12">
-        <label class="form-label">Description</label>
-        <textarea name="description" class="form-control" rows="8" required><?php echo Helpers::sanitizeOutput($job->description); ?></textarea>
+        <label class="form-label fw-semibold">Description<span class="text-danger">*</span></label>
+        <textarea name="description" class="form-control" rows="8" required><?php echo htmlspecialchars($job->description); ?></textarea>
       </div>
 
-      <div class="col-12 d-flex gap-2">
-        <button type="submit" form="job-edit" class="btn btn-primary">
-          <i class="bi bi-check2-circle me-1"></i>Save
-        </button>
-        <a class="btn btn-outline-secondary" href="employer_dashboard.php">Back</a>
-        <a class="btn btn-outline-danger ms-auto" href="jobs_edit.php?delete=1&job_id=<?php echo urlencode($job->job_id); ?>" onclick="return confirm('Delete job?')"><i class="bi bi-trash me-1"></i>Delete</a>
+      <div class="col-12 d-grid">
+        <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Changes</button>
       </div>
     </form>
   </div>
