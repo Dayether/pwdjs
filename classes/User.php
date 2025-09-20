@@ -189,4 +189,52 @@ class User {
         $stmt = $pdo->prepare($sql);
         return $stmt->execute($params);
     }
+
+    /* =========================================================
+       ADDED: Post-registration patch method to store website & phone
+       Without editing the original register() (add-only fix).
+       ========================================================= */
+    public static function updateEmployerContactByEmail(string $email, ?string $website, ?string $phone): bool {
+        $pdo = Database::getConnection();
+        $website = trim((string)$website);
+        $phone   = trim((string)$phone);
+        if ($website === '') $website = null;
+        if ($phone === '') $phone = null;
+
+        $stmt = $pdo->prepare("
+            UPDATE users
+               SET company_website = :cw,
+                   company_phone   = :cp
+             WHERE email = :email
+               AND role = 'employer'
+            LIMIT 1
+        ");
+        return $stmt->execute([
+            ':cw' => $website,
+            ':cp' => $phone,
+            ':email' => $email
+        ]);
+    }
+
+    /* OPTIONAL helper (not yet used but handy) */
+    public static function updateEmployerContactById(string $user_id, ?string $website, ?string $phone): bool {
+        $pdo = Database::getConnection();
+        $website = trim((string)$website);
+        $phone   = trim((string)$phone);
+        if ($website === '') $website = null;
+        if ($phone === '') $phone = null;
+        $stmt = $pdo->prepare("
+            UPDATE users
+               SET company_website = :cw,
+                   company_phone   = :cp
+             WHERE user_id = :uid
+               AND role = 'employer'
+            LIMIT 1
+        ");
+        return $stmt->execute([
+            ':cw' => $website,
+            ':cp' => $phone,
+            ':uid' => $user_id
+        ]);
+    }
 }

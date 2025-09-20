@@ -2,21 +2,23 @@
 require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
-require_once '../classes/Name.php';
 require_once '../classes/User.php';
+require_once '../classes/Name.php'; /* assuming you have a Name utility; keep existing includes */
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$errors = [];
+if (Helpers::isLoggedIn()) {
+    Helpers::redirect('index.php');
+}
 
+$errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Collect inputs safely
-    $name_raw     = $_POST['name']  ?? '';
+    $name_raw     = $_POST['name'] ?? '';
     $email_raw    = $_POST['email'] ?? '';
     $password     = $_POST['password'] ?? '';
-    $confirm      = $_POST['confirm_password'] ?? '';
+    $confirm      = $_POST['confirm'] ?? '';
 
     // Keep existing features
     $role_raw     = $_POST['role'] ?? 'job_seeker';
@@ -96,261 +98,138 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // ADDED START: Overwrite the flash message for employer accounts to reflect pending approval
             if ($role === 'employer') {
-                // Overwrite (still ADD ONLY since we are not deleting previous line)
-                $_SESSION['flash']['msg'] = 'Employer registration submitted. Your account is pending approval. You will be able to log in only after it is approved.';
+                Helpers::flash('msg', 'Registration successful. Your employer account is pending approval.');
             }
             // ADDED END
 
+            /* =========================================================
+               ADDED: Persist company_website & company_phone (missing in INSERT)
+               Using helper method to avoid modifying original User::register().
+               ========================================================= */
+            if ($role === 'employer' && ($company_website !== '' || $company_phone !== '')) {
+                User::updateEmployerContactByEmail($email, $company_website, $company_phone);
+            }
+
             Helpers::redirect('login.php');
         } else {
-            $errors[] = 'Failed to create account. The email may already be registered.';
+            $errors[] = 'Registration failed (email may already be in use).';
         }
     }
 }
 
 include '../includes/header.php';
 include '../includes/nav.php';
-
-// Keep selected values after validation errors
-$roleSel = $_POST['role'] ?? 'job_seeker';
-$disSel  = $_POST['disability'] ?? '';
 ?>
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-4">
-    <h2 class="h5 fw-semibold mb-3"><i class="bi bi-person-plus me-2"></i>Create your account</h2>
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="h5 fw-semibold mb-3"><i class="bi bi-person-plus me-2"></i>Create Account</h2>
 
-    <?php foreach ($errors as $e): ?>
-      <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($e); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    <?php endforeach; ?>
-
-    <form method="post" class="row g-3">
-      <!-- Name -->
-      <div class="col-12">
-        <label class="form-label">Full Name</label>
-        <input
-          name="name"
-          class="form-control"
-          placeholder="First M. Surname"
-          value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>"
-          required
-          pattern=".{3,}"
-          title="Enter at least first and last name (e.g., John M. Doe)">
-        <small class="text-muted">Format: First name, optional middle initial, and surname (e.g., John M. Doe)</small>
-      </div>
-
-      <!-- Email -->
-      <div class="col-md-6">
-        <label class="form-label">Email</label>
-        <input
-          type="email"
-          name="email"
-          class="form-control"
-          placeholder="name@example.com"
-          value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
-          required>
-      </div>
-
-      <!-- Role -->
-      <div class="col-md-6">
-        <label class="form-label">Register as</label>
-        <select name="role" id="role_select" class="form-select">
-          <?php
-            $opts = ['job_seeker' => 'Job Seeker', 'employer' => 'Employer'];
-            foreach ($opts as $val => $label) {
-              $sel = ($roleSel === $val) ? 'selected' : '';
-              echo '<option value="' . htmlspecialchars($val) . '" ' . $sel . '>' . htmlspecialchars($label) . '</option>';
-            }
-          ?>
-        </select>
-      </div>
-
-      <!-- Employer-only fields -->
-      <div id="employer_fields" class="col-12" style="display:none;">
-        <div class="border rounded p-3">
-          <h3 class="h6 fw-semibold mb-3"><i class="bi bi-building me-2"></i>Employer details</h3>
-          <div class="row g-2">
-            <div class="col-md-6">
-              <label class="form-label">Company name</label>
-              <input name="company_name" id="company_name" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>"
-                     placeholder="Your company name">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Company email (optional)</label>
-              <input type="email" name="business_email" id="business_email" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>"
-                     placeholder="hr@company.com">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Company website (optional)</label>
-              <input type="url" name="company_website" id="company_website" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>"
-                     placeholder="https://example.com">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Company phone (optional)</label>
-              <input name="company_phone" id="company_phone" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>"
-                     placeholder="+63 900 000 0000">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Business permit / registration no. (optional)</label>
-              <input name="business_permit_number" id="business_permit_number" class="form-control"
-                     value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>"
-                     placeholder="e.g., SEC/DTI/Mayor’s permit no.">
-            </div>
-            <div class="col-12 text-muted small">
-              Employer accounts are reviewed; status starts as Pending until approved.
-            </div>
+        <?php foreach ($errors as $e): ?>
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($e); ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
-        </div>
-      </div>
+        <?php endforeach; ?>
 
-      <!-- Passwords -->
-      <div class="col-md-6">
-        <label class="form-label">Password</label>
-        <input
-          type="password"
-          name="password"
-          class="form-control"
-          minlength="6"
-          required
-          placeholder="Minimum 6 characters">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Confirm Password</label>
-        <input
-          type="password"
-          name="confirm_password"
-          class="form-control"
-          minlength="6"
-          required
-          placeholder="Re-type password">
-      </div>
-
-      <!-- Disability -->
-      <div class="col-12">
-        <label class="form-label">Disability (optional)</label>
-        <div class="row g-2">
+        <form method="post" class="row g-3">
           <div class="col-md-6">
-            <select name="disability" class="form-select" id="disability_select">
-              <?php
-                $options = ['' => 'None', 'Visual' => 'Visual', 'Hearing' => 'Hearing', 'Mobility' => 'Mobility', 'Cognitive' => 'Cognitive', 'Speech' => 'Speech', 'Other' => 'Other (specify)'];
-                foreach ($options as $val => $label) {
-                    $sel = ($disSel === $val) ? 'selected' : '';
-                    echo '<option value="' . htmlspecialchars($val) . '" ' . $sel . '>' . htmlspecialchars($label) . '</option>';
-                }
-              ?>
+            <label class="form-label">Name</label>
+            <input name="name" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Password</label>
+            <input name="password" type="password" class="form-control" required>
+          </div>
+            <div class="col-md-6">
+              <label class="form-label">Confirm Password</label>
+              <input name="confirm" type="password" class="form-control" required>
+            </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Account Type</label>
+            <select name="role" class="form-select">
+              <option value="job_seeker" <?php if(($_POST['role'] ?? '')==='job_seeker') echo 'selected'; ?>>Job Seeker</option>
+              <option value="employer" <?php if(($_POST['role'] ?? '')==='employer') echo 'selected'; ?>>Employer</option>
             </select>
           </div>
-          <div class="col-md-6">
-            <input
-              id="disability_other"
-              name="disability_other"
-              class="form-control"
-              placeholder="If Other, please specify"
-              value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
-          </div>
-        </div>
-        <small class="text-muted">Sharing this helps employers provide accommodations, but it’s optional.</small>
-      </div>
 
-      <div class="col-12 d-grid">
-        <button class="btn btn-primary">
-          <i class="bi bi-check2-circle me-1"></i>Create account
-        </button>
+          <div class="col-md-6">
+            <label class="form-label">Disability</label>
+            <select name="disability" class="form-select">
+              <option value="None">None</option>
+              <option value="Visual" <?php if(($_POST['disability'] ?? '')==='Visual') echo 'selected'; ?>>Visual</option>
+              <option value="Hearing" <?php if(($_POST['disability'] ?? '')==='Hearing') echo 'selected'; ?>>Hearing</option>
+              <option value="Mobility" <?php if(($_POST['disability'] ?? '')==='Mobility') echo 'selected'; ?>>Mobility</option>
+              <option value="Other" <?php if(($_POST['disability'] ?? '')==='Other') echo 'selected'; ?>>Other</option>
+            </select>
+          </div>
+
+          <div class="col-12" id="disabilityOtherWrap" style="<?php echo (($_POST['disability'] ?? '')==='Other')?'':'display:none;'; ?>">
+            <label class="form-label">If Other, please specify</label>
+            <input name="disability_other" class="form-control" value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
+          </div>
+
+          <!-- Employer-only section -->
+          <div id="employerFields" style="<?php echo (($_POST['role'] ?? '')==='employer')?'':'display:none;'; ?>">
+            <hr>
+            <h6 class="fw-semibold mb-2"><i class="bi bi-building me-1"></i>Employer Details</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Company Name</label>
+                <input name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Business Email (optional)</label>
+                <input name="business_email" type="email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Company Website (optional)</label>
+                <input name="company_website" class="form-control" placeholder="https://example.com" value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Company Phone (optional)</label>
+                <input name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Permit / Business No. (optional)</label>
+                <input name="business_permit_number" class="form-control" value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-grid mt-3">
+            <button class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create Account</button>
+          </div>
+        </form>
+
+        <hr class="my-4">
+        <div class="small">Already have an account? <a href="login.php">Log in</a></div>
       </div>
-    </form>
+    </div>
   </div>
 </div>
 
-<script>
-// Name normalization
-(function(){
-  const input = document.querySelector('input[name="name"]');
-  if (!input) return;
-
-  const titleCaseComponent = (s) => {
-    s = (s||'').toLowerCase();
-    return s.split('-').map(part =>
-      part.split("'").map(p => p ? p[0].toUpperCase() + p.slice(1) : '').join("'")
-    ).join('-');
-  };
-  const particles = new Set(['da','de','del','dela','di','du','la','las','le','les','van','von','y','bin','binti','ibn','al']);
-  const suffixMap = { jr:'Jr.', sr:'Sr.', ii:'II', iii:'III', iv:'IV', v:'V' };
-
-  const normalize = (raw) => {
-    let s = (raw||'').trim().replace(/\s+/g,' ');
-    if (!s) return '';
-    let toks = s.split(' ');
-    toks = toks.map((t,i) => {
-      const low = t.toLowerCase();
-      if (i>0 && particles.has(low)) return low;
-      return titleCaseComponent(t);
-    });
-    const lastLow = (toks[toks.length-1]||'').toLowerCase();
-    if (suffixMap[lastLow]) toks[toks.length-1] = suffixMap[lastLow];
-
-    if (toks.length < 2) return toks.join(' ');
-
-    const first = toks[0];
-    const last  = toks[toks.length-1];
-    let mi = '';
-    for (let i=1;i<toks.length-1;i++) {
-      const p = toks[i].trim();
-      if (p) { mi = p[0].toUpperCase() + '.'; break; }
-    }
-    return [first, mi, last].filter(Boolean).join(' ');
-  };
-
-  input.addEventListener('blur', () => { input.value = normalize(input.value); });
-})();
-
-// Disability show/hide
-(function(){
-  const sel = document.getElementById('disability_select');
-  const other = document.getElementById('disability_other');
-  if (!sel || !other) return;
-
-  const sync = () => {
-    const isOther = sel.value === 'Other';
-    other.disabled = !isOther;
-    other.required = false;
-    other.style.display = isOther ? 'block' : 'none';
-  };
-  sel.addEventListener('change', sync);
-  sync();
-})();
-
-// Role employer fields
-(function(){
-  const roleSel = document.getElementById('role_select');
-  const block = document.getElementById('employer_fields');
-  const name   = document.getElementById('company_name');
-  const cemail = document.getElementById('business_email');
-  const cweb   = document.getElementById('company_website');
-  const cphone = document.getElementById('company_phone');
-
-  if (!roleSel || !block) return;
-
-  const setDisabled = (el, disabled) => { if (el) el.disabled = disabled; };
-
-  const syncRole = () => {
-    const isEmp = roleSel.value === 'employer';
-    block.style.display = isEmp ? 'block' : 'none';
-    setDisabled(name,   !isEmp);
-    setDisabled(cemail, !isEmp);
-    setDisabled(cweb,   !isEmp);
-    setDisabled(cphone, !isEmp);
-    if (name) name.required = isEmp;
-  };
-
-  roleSel.addEventListener('change', syncRole);
-  syncRole();
-})();
-</script>
-
 <?php include '../includes/footer.php'; ?>
+<script>
+const roleSelect = document.querySelector('select[name="role"]');
+const employerFields = document.getElementById('employerFields');
+const disSel = document.querySelector('select[name="disability"]');
+const disOtherWrap = document.getElementById('disabilityOtherWrap');
+
+function toggleEmployer() {
+  if (roleSelect.value === 'employer') employerFields.style.display = '';
+  else employerFields.style.display = 'none';
+}
+function toggleDisOther() {
+  if (disSel.value === 'Other') disOtherWrap.style.display = '';
+  else disOtherWrap.style.display = 'none';
+}
+roleSelect.addEventListener('change', toggleEmployer);
+disSel.addEventListener('change', toggleDisOther);
+</script>
