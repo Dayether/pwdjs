@@ -3,24 +3,43 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/Application.php';
+require_once '../classes/User.php';
+require_once '../classes/Job.php';
 
 Helpers::requireLogin();
 
-if (Helpers::isEmployer() && isset($_GET['action'], $_GET['application_id'])) {
-    $action = $_GET['action'];
-    $app_id = $_GET['application_id'];
-    if (in_array($action, ['approve','decline'])) {
-        $status = $action === 'approve' ? 'Approved' : 'Declined';
-        if (Application::updateStatus($app_id, $status, $_SESSION['user_id'])) {
+$role = $_SESSION['role'] ?? '';
+
+/**
+ * Employer (owner) OR Admin performing approve/decline via GET params.
+ * We rely on Application::updateStatus() to validate authorization.
+ */
+if ((Helpers::isEmployer() || $role === 'admin') && isset($_GET['action'], $_GET['application_id'])) {
+    $action  = $_GET['action'];
+    $app_id  = $_GET['application_id'];
+    if (in_array($action, ['approve','decline','pending'], true)) {
+        $statusMap = [
+            'approve' => 'Approved',
+            'decline' => 'Declined',
+            'pending' => 'Pending'
+        ];
+        $desiredStatus = $statusMap[$action];
+        if (Application::updateStatus($app_id, $desiredStatus, $_SESSION['user_id'])) {
             Helpers::flash('msg','Application status updated.');
+        } else {
+            Helpers::flash('error','Unable to update application status (not authorized or invalid).');
         }
     }
     Helpers::redirect($_SERVER['HTTP_REFERER'] ?? 'employer_dashboard.php');
 }
 
+/**
+ * Job seeker viewing their own applications
+ */
 if (Helpers::isJobSeeker()) {
     $apps = Application::listByUser($_SESSION['user_id']);
 } else {
+    // Employers hitting this without action: redirect to dashboard
     Helpers::redirect('employer_dashboard.php');
 }
 
@@ -29,12 +48,14 @@ $jobStatusMap = [];
 try {
     if (!empty($apps)) {
         $jobIds = array_values(array_unique(array_map(fn($a) => $a['job_id'], $apps)));
-        $placeholders = implode(',', array_fill(0, count($jobIds), '?'));
-        $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT job_id, status FROM jobs WHERE job_id IN ($placeholders)");
-        $stmt->execute($jobIds);
-        foreach ($stmt->fetchAll() as $row) {
-            $jobStatusMap[$row['job_id']] = $row['status'] ?? 'Open';
+        if ($jobIds) {
+            $placeholders = implode(',', array_fill(0, count($jobIds), '?'));
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("SELECT job_id, status FROM jobs WHERE job_id IN ($placeholders)");
+            $stmt->execute($jobIds);
+            foreach ($stmt->fetchAll() as $row) {
+                $jobStatusMap[$row['job_id']] = $row['status'] ?? 'Open';
+            }
         }
     }
 } catch (Throwable $e) {
@@ -47,6 +68,18 @@ include '../includes/nav.php';
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
     <h2 class="h5 fw-semibold mb-3"><i class="bi bi-list-check me-2"></i>My Applications</h2>
+    <?php if ($msg = ($_SESSION['flash']['msg'] ?? null)): ?>
+      <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check2-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
+    <?php if ($err = ($_SESSION['flash']['error'] ?? null)): ?>
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($err); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
     <div class="table-responsive">
       <table class="table align-middle">
         <thead class="table-light">

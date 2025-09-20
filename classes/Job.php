@@ -229,4 +229,64 @@ class Job {
         }
         return $stmt->rowCount();
     }
+
+    /* ==============================
+       DUPLICATE / SIMILARITY HELPERS
+       ============================== */
+
+    protected static function normalizeTitle(string $title): string {
+        $t = mb_strtolower($title);
+        // remove non alphanumeric (keep spaces), collapse spaces
+        $t = preg_replace('/[^a-z0-9 ]+/u',' ', $t);
+        $t = preg_replace('/\s+/u',' ', $t);
+        return trim($t);
+    }
+
+    /**
+     * Find similar jobs for the employer based on title similarity.
+     * - Scans last $scan recent jobs of that employer
+     * - Returns array of [job_id,title,created_at,status,percent,exact_match]
+     * - percent based on similar_text() vs normalized titles
+     */
+    public static function findSimilarByEmployer(string $employer_id, array $newData, float $thresholdPercent = 85.0, int $scan = 25): array {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("
+            SELECT job_id, title, created_at, status
+            FROM jobs
+            WHERE employer_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ");
+        $stmt->bindValue(1, $employer_id);
+        $stmt->bindValue(2, $scan, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+        if (!$rows) return [];
+
+        $newNorm = self::normalizeTitle($newData['title'] ?? '');
+        if ($newNorm === '') return [];
+
+        $matches = [];
+        foreach ($rows as $r) {
+            $oldNorm = self::normalizeTitle($r['title']);
+            if ($oldNorm === '') continue;
+
+            $percent = 0.0;
+            // Use similar_text for a simple measure
+            similar_text($newNorm, $oldNorm, $percent);
+
+            $exact = ($oldNorm === $newNorm);
+            if ($exact || $percent >= $thresholdPercent) {
+                $matches[] = [
+                    'job_id'      => $r['job_id'],
+                    'title'       => $r['title'],
+                    'created_at'  => $r['created_at'],
+                    'status'      => $r['status'],
+                    'percent'     => round($percent, 1),
+                    'exact_match' => $exact,
+                ];
+            }
+        }
+        return $matches;
+    }
 }

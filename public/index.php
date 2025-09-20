@@ -9,7 +9,7 @@ include '../includes/nav.php';
 
 $pdo = Database::getConnection();
 
-// Inputs (WFH-only public site: no remote filter)
+// Inputs
 $q       = trim($_GET['q'] ?? '');
 $edu     = trim($_GET['edu'] ?? '');
 $maxExp  = ($_GET['max_exp'] ?? '') !== '' ? max(0, (int)$_GET['max_exp']) : '';
@@ -106,47 +106,70 @@ function fmt_salary($cur, $min, $max, $period) {
 ?>
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body p-3 p-md-4">
+
+    <style>
+      /* Emphasis styling for filter labels & inputs */
+      .filter-bold-label { font-weight:600 !important; }
+      .filter-bold {
+        font-weight:600;
+      }
+      .filter-bold::placeholder {
+        font-weight:500;
+        color:#6c757d;
+      }
+      .filter-bold:focus {
+        border-width:2px;
+        box-shadow:none;
+      }
+      /* Optional: make select text bold as well */
+      select.filter-bold option { font-weight:500; }
+    </style>
+
     <form class="row g-2 align-items-end" method="get">
       <div class="col-lg-4">
-        <label class="form-label">Keyword</label>
-        <input type="text" name="q" class="form-control" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>">
+        <label class="form-label filter-bold-label">Keyword</label>
+        <input type="text" name="q" class="form-control filter-bold" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>">
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">Education</label>
-        <select name="edu" class="form-select">
+        <label class="form-label filter-bold-label">Education</label>
+        <select name="edu" class="form-select filter-bold">
           <option value="">Any</option>
           <?php foreach ($eduLevels as $lvl): ?>
-            <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
+            <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>>
+              <?php echo htmlspecialchars($lvl); ?>
+            </option>
           <?php endforeach; ?>
         </select>
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">Max exp (yrs)</label>
-        <input type="number" name="max_exp" min="0" class="form-control" value="<?php echo htmlspecialchars($maxExp); ?>">
+        <label class="form-label filter-bold-label">Max exp (yrs)</label>
+        <input type="number" name="max_exp" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($maxExp); ?>">
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">Region</label>
-        <input name="region" class="form-control" placeholder="e.g., Metro Manila" value="<?php echo htmlspecialchars($region); ?>">
+        <label class="form-label filter-bold-label">Region</label>
+        <input name="region" class="form-control filter-bold" placeholder="e.g., Metro Manila" value="<?php echo htmlspecialchars($region); ?>">
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">City</label>
-        <input name="city" class="form-control" placeholder="e.g., Parañaque City" value="<?php echo htmlspecialchars($city); ?>">
+        <label class="form-label filter-bold-label">City</label>
+        <input name="city" class="form-control filter-bold" placeholder="e.g., Parañaque City" value="<?php echo htmlspecialchars($city); ?>">
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">Min monthly pay (PHP)</label>
-        <input type="number" name="min_pay" min="0" class="form-control" value="<?php echo htmlspecialchars($minPay); ?>">
+        <label class="form-label filter-bold-label">Min monthly pay (PHP)</label>
+        <input type="number" name="min_pay" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($minPay); ?>">
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label">Accessibility</label>
-        <select name="tag" class="form-select">
+        <label class="form-label filter-bold-label">Accessibility</label>
+        <select name="tag" class="form-select filter-bold">
           <option value="">Any</option>
-          <?php foreach ($accessTags as $t): ?>
-            <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>><?php echo htmlspecialchars($t); ?></option>
-          <?php endforeach; ?>
+            <?php foreach ($accessTags as $t): ?>
+              <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>>
+                <?php echo htmlspecialchars($t); ?>
+              </option>
+            <?php endforeach; ?>
         </select>
       </div>
       <div class="col-lg-2 d-grid">
-        <button class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+        <button class="btn btn-primary fw-semibold"><i class="bi bi-search me-1"></i>Search</button>
       </div>
       <div class="col-auto">
         <a class="btn btn-outline-secondary" href="index.php"><i class="bi bi-x-circle me-1"></i>Clear</a>
@@ -174,7 +197,12 @@ function fmt_salary($cur, $min, $max, $period) {
           </div>
           <div class="small mb-2">
             <i class="bi bi-geo-alt me-1"></i>Original office:
-            <?php echo Helpers::sanitizeOutput(trim(($job['location_city'] ?: ''), ' ')); ?><?php echo $job['location_city'] && $job['location_region'] ? ', ' : ''; ?><?php echo Helpers::sanitizeOutput($job['location_region'] ?: ''); ?>
+            <?php
+              $cityTxt   = $job['location_city'] ?: '';
+              $regionTxt = $job['location_region'] ?: '';
+              $sep = ($cityTxt && $regionTxt) ? ', ' : '';
+              echo Helpers::sanitizeOutput($cityTxt . $sep . $regionTxt);
+            ?>
           </div>
           <div class="d-flex flex-wrap gap-1 mb-2">
             <span class="badge text-bg-light border"><i class="bi bi-house-door me-1"></i>Work From Home</span>

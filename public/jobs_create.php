@@ -28,16 +28,22 @@ $me     = User::findById($_SESSION['user_id']);
 $status = $me->employer_status ?: 'Pending';
 
 $errors = [];
+$duplicateWarning = [];
+$dupThreshold = 85.0;   // % similarity threshold
+$scanLimit    = 25;     // how many recent jobs to scan
+$duplicatePending = false; // flag if we found duplicates and waiting for confirmation
+
 if ($status !== 'Approved') {
     $errors[] = 'Your employer account is ' . htmlspecialchars($status) . '. You can post jobs only after an admin approves your account.';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
+
     $selectedGeneral = $_POST['required_skills'] ?? [];
     if (!is_array($selectedGeneral)) $selectedGeneral = [$selectedGeneral];
     $selectedGeneral = array_filter(array_map('trim', $selectedGeneral));
 
-    $requiredCustomRaw = trim($_POST['additional_skills'] ?? '');
+    $requiredCustomRaw  = trim($_POST['additional_skills'] ?? '');
     $requiredCustomList = $requiredCustomRaw !== '' ? Helpers::parseSkillInput($requiredCustomRaw) : [];
 
     $merged = [];
@@ -52,20 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
     if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
 
     $data = [
-        'title'               => trim($_POST['title']),
-        'description'         => trim($_POST['description']),
+        'title'                 => trim($_POST['title']),
+        'description'           => trim($_POST['description']),
         'required_skills_input' => $skillsCsv,
-        'required_experience' => (int)($_POST['required_experience'] ?? 0),
-        'required_education'  => trim($_POST['required_education'] ?? ''),
-        'accessibility_tags'  => implode(',', array_map('trim', $tagsSelected)),
-        'location_city'       => trim($_POST['location_city'] ?? ''),
-        'location_region'     => trim($_POST['location_region'] ?? ''),
-        'remote_option'       => 'Work From Home',
-        'employment_type'     => in_array($_POST['employment_type'] ?? '', $employmentTypes, true) ? $_POST['employment_type'] : 'Full time',
-        'salary_currency'     => strtoupper(trim($_POST['salary_currency'] ?? 'PHP')),
-        'salary_min'          => ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null,
-        'salary_max'          => ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null,
-        'salary_period'       => in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true) ? $_POST['salary_period'] : 'monthly',
+        'required_experience'   => (int)($_POST['required_experience'] ?? 0),
+        'required_education'    => trim($_POST['required_education'] ?? ''),
+        'accessibility_tags'    => implode(',', array_map('trim', $tagsSelected)),
+        'location_city'         => trim($_POST['location_city'] ?? ''),
+        'location_region'       => trim($_POST['location_region'] ?? ''),
+        'remote_option'         => 'Work From Home',
+        'employment_type'       => in_array($_POST['employment_type'] ?? '', $employmentTypes, true) ? $_POST['employment_type'] : 'Full time',
+        'salary_currency'       => strtoupper(trim($_POST['salary_currency'] ?? 'PHP')),
+        'salary_min'            => ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null,
+        'salary_max'            => ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null,
+        'salary_period'         => in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true) ? $_POST['salary_period'] : 'monthly',
     ];
 
     if (!$data['title'])       $errors[] = 'Title required';
@@ -74,7 +80,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
         $errors[] = 'Salary min cannot be greater than salary max.';
     }
 
-    if (!$errors) {
+    // DUPLICATE CHECK (only if no validation errors yet and not previously confirmed)
+    if (!$errors && !isset($_POST['confirm_duplicate'])) {
+        $similarJobs = Job::findSimilarByEmployer($_SESSION['user_id'], $data, $dupThreshold, $scanLimit);
+        if ($similarJobs) {
+            $duplicatePending = true;
+            $duplicateWarning = $similarJobs;
+        }
+    }
+
+    if (!$errors && !$duplicatePending) {
         if (Job::create($data, $_SESSION['user_id'])) {
             Helpers::flash('msg','Job created.');
             Helpers::redirect('employer_dashboard.php');
@@ -103,15 +118,46 @@ include '../includes/nav.php';
       </div>
     <?php endforeach; ?>
 
+    <?php if ($duplicatePending && $duplicateWarning): ?>
+      <div class="alert alert-warning border-2">
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-octagon me-1"></i>Possible duplicate jobs detected</div>
+        <p class="small mb-2">
+          We found existing job(s) you posted that are very similar (≥ <?php echo (int)$dupThreshold; ?>% title match).
+          Review them below. If you still want to create this new job, click "Confirm & Create" again.
+        </p>
+        <ul class="small mb-2">
+          <?php foreach ($duplicateWarning as $d): ?>
+            <li>
+              <a href="job_view.php?job_id=<?php echo urlencode($d['job_id']); ?>" target="_blank">
+                <?php echo htmlspecialchars($d['title']); ?>
+              </a>
+              (<?php echo $d['percent']; ?>% match
+              <?php if ($d['exact_match']) echo ' · exact'; ?>,
+              <?php echo htmlspecialchars(date('M d, Y', strtotime($d['created_at']))); ?>,
+              status: <?php echo htmlspecialchars($d['status']); ?>)
+            </li>
+          <?php endforeach; ?>
+        </ul>
+        <div class="small text-muted">
+          This is a safeguard to avoid accidental duplicate postings.
+        </div>
+      </div>
+    <?php endif; ?>
+
     <?php if ($status !== 'Approved'): ?>
       <div class="alert alert-warning">
         Once your employer account is approved you may post jobs.
       </div>
     <?php else: ?>
       <form method="post" class="row g-3">
+        <?php if ($duplicatePending): ?>
+          <input type="hidden" name="confirm_duplicate" value="1">
+        <?php endif; ?>
+
         <div class="col-12">
           <label class="form-label fw-semibold">Title<span class="text-danger">*</span></label>
-          <input name="title" class="form-control form-control-lg" required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+          <input name="title" class="form-control form-control-lg" required
+                 value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
         </div>
 
         <div class="col-md-6">
@@ -128,22 +174,27 @@ include '../includes/nav.php';
         <div class="col-md-6">
           <label class="form-label">Office Location (optional)</label>
           <div class="d-flex gap-2">
-            <input name="location_city" class="form-control" placeholder="City" value="<?php echo htmlspecialchars($_POST['location_city'] ?? ''); ?>">
-            <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($_POST['location_region'] ?? ''); ?>">
+            <input name="location_city" class="form-control" placeholder="City"
+                   value="<?php echo htmlspecialchars($_POST['location_city'] ?? ''); ?>">
+            <input name="location_region" class="form-control" placeholder="Region/Province"
+                   value="<?php echo htmlspecialchars($_POST['location_region'] ?? ''); ?>">
           </div>
         </div>
 
         <div class="col-md-4">
           <label class="form-label">Salary currency</label>
-          <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? 'PHP'); ?>">
+          <input name="salary_currency" class="form-control"
+                 value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? 'PHP'); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Salary min</label>
-          <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($_POST['salary_min'] ?? ''); ?>">
+          <input name="salary_min" type="number" min="0" class="form-control"
+                 value="<?php echo htmlspecialchars($_POST['salary_min'] ?? ''); ?>">
         </div>
         <div class="col-md-4">
           <label class="form-label">Salary max</label>
-          <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($_POST['salary_max'] ?? ''); ?>">
+          <input name="salary_max" type="number" min="0" class="form-control"
+                 value="<?php echo htmlspecialchars($_POST['salary_max'] ?? ''); ?>">
         </div>
 
         <div class="col-md-4">
@@ -178,13 +229,16 @@ include '../includes/nav.php';
           <small class="text-muted d-block mt-1">Select general / soft capabilities.</small>
 
           <label class="form-label mt-3">Required Skills (comma separated)</label>
-            <input name="additional_skills" class="form-control" placeholder="e.g., Calendar Management, Data Entry, Customer Support" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>">
+          <input name="additional_skills" class="form-control"
+                 placeholder="e.g., Calendar Management, Data Entry, Customer Support"
+                 value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>">
           <small class="text-muted">Specific technical or role-focused requirements.</small>
         </div>
 
         <div class="col-md-4">
           <label class="form-label">Experience (years)</label>
-          <input name="required_experience" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($_POST['required_experience'] ?? '0'); ?>">
+          <input name="required_experience" type="number" min="0" class="form-control"
+                 value="<?php echo htmlspecialchars($_POST['required_experience'] ?? '0'); ?>">
           <label class="form-label mt-3">Education Requirement</label>
           <select name="required_education" class="form-select">
             <option value="">Any</option>
@@ -203,7 +257,8 @@ include '../includes/nav.php';
             $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags'], true) : ($tag === 'PWD-Friendly');
           ?>
             <div class="form-check form-check-inline">
-              <input class="form-check-input" name="accessibility_tags[]" type="checkbox" value="<?php echo htmlspecialchars($tag); ?>" <?php echo $checked ? 'checked' : ''; ?>>
+              <input class="form-check-input" name="accessibility_tags[]" type="checkbox"
+                     value="<?php echo htmlspecialchars($tag); ?>" <?php echo $checked ? 'checked' : ''; ?>>
               <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
             </div>
           <?php endforeach; ?>
@@ -215,7 +270,10 @@ include '../includes/nav.php';
         </div>
 
         <div class="col-12 d-grid">
-          <button class="btn btn-primary btn-lg"><i class="bi bi-check2-circle me-1"></i>Create</button>
+          <button class="btn btn-primary btn-lg">
+            <i class="bi bi-check2-circle me-1"></i>
+            <?php echo $duplicatePending ? 'Confirm & Create' : 'Create'; ?>
+          </button>
         </div>
       </form>
     <?php endif; ?>

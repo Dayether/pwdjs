@@ -5,11 +5,59 @@ require_once '../classes/Helpers.php';
 require_once '../classes/Job.php';
 require_once '../classes/User.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 Helpers::requireLogin();
 if (!Helpers::isEmployer()) Helpers::redirect('index.php');
 
-$me = User::findById($_SESSION['user_id']);
+/* Optional: remember for back navigation */
+Helpers::storeLastPage();
+
+$me   = User::findById($_SESSION['user_id']);
 $jobs = Job::listByEmployer($me->user_id);
+
+/* ----- Resilient Flash Handling ----- */
+$structuredFlashes = [];
+$rawFlashSnapshot  = $_SESSION['flash'] ?? [];
+
+if (method_exists('Helpers','getFlashes')) {
+    $assoc = Helpers::getFlashes();
+    if ($assoc) {
+        foreach ($assoc as $k=>$v) {
+            $msg = trim((string)$v);
+            if ($msg==='') continue;
+            $type = match($k) {
+                'error','danger' => 'danger',
+                'success','msg'  => 'success',
+                default          => 'info'
+            };
+            $structuredFlashes[] = ['type'=>$type,'message'=>$msg];
+        }
+    }
+} else {
+    if ($rawFlashSnapshot) {
+        foreach ($rawFlashSnapshot as $k=>$v) {
+            $msg = trim((string)$v);
+            if ($msg==='') continue;
+            $type = match($k) {
+                'error','danger' => 'danger',
+                'success','msg'  => 'success',
+                default          => 'info'
+            };
+            $structuredFlashes[] = ['type'=>$type,'message'=>$msg];
+        }
+        unset($_SESSION['flash']);
+    }
+}
+
+if (!$structuredFlashes && isset($rawFlashSnapshot['msg']) && trim($rawFlashSnapshot['msg'])==='') {
+    $structuredFlashes[] = [
+        'type'=>'info',
+        'message'=>'Job action completed.'
+    ];
+}
 
 include '../includes/header.php';
 include '../includes/nav.php';
@@ -19,15 +67,28 @@ include '../includes/nav.php';
   <a href="jobs_create.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Post a Job</a>
 </div>
 
-<?php if ($msg = ($_SESSION['flash']['msg'] ?? null)): ?>
-  <div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="bi bi-check2-circle me-2"></i><?php echo htmlspecialchars($msg); ?>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<?php if ($structuredFlashes): ?>
+  <div class="mb-3">
+    <?php foreach ($structuredFlashes as $f):
+      $t = htmlspecialchars($f['type']);
+      $m = htmlspecialchars($f['message']);
+      $icon = match($t){
+        'success'=>'check2-circle',
+        'danger'=>'exclamation-triangle',
+        'warning'=>'exclamation-circle',
+        default=>'info-circle'
+      };
+    ?>
+      <div class="alert alert-<?php echo $t; ?> alert-dismissible fade show flash-auto" role="alert">
+        <i class="bi bi-<?php echo $icon; ?> me-2"></i><?php echo $m; ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endforeach; ?>
   </div>
 <?php endif; ?>
 
 <div class="table-responsive">
-  <table class="table table-sm align-middle table-hover border">
+  <table class="table table-sm align-middle table-hover border mb-0">
     <thead class="table-light">
       <tr>
         <th>Title</th>
@@ -55,9 +116,7 @@ include '../includes/nav.php';
       ?>
       <tr>
         <td>
-          <a class="fw-semibold" href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>">
-            <?php echo htmlspecialchars($j['title']); ?>
-          </a>
+          <span class="fw-semibold text-dark"><?php echo htmlspecialchars($j['title']); ?></span>
           <?php if ($j['status'] !== 'Open'): ?>
             <span class="badge bg-secondary ms-1"><?php echo htmlspecialchars($j['status']); ?></span>
           <?php endif; ?>
@@ -70,7 +129,6 @@ include '../includes/nav.php';
           <a class="btn btn-outline-primary btn-sm" href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>">
             View
           </a>
-          <!-- WALA NANG EDIT BUTTON DITO -->
           <a class="btn btn-outline-danger btn-sm"
              onclick="return confirm('Delete this job? This cannot be undone.');"
              href="job_delete.php?job_id=<?php echo urlencode($j['job_id']); ?>">
@@ -85,4 +143,14 @@ include '../includes/nav.php';
     </tbody>
   </table>
 </div>
+
 <?php include '../includes/footer.php'; ?>
+<script>
+document.querySelectorAll('.flash-auto').forEach(el=>{
+  if (el.classList.contains('alert-success') || el.classList.contains('alert-info')) {
+    setTimeout(()=>{
+      try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e){}
+    }, 4500);
+  }
+});
+</script>

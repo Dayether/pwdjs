@@ -38,6 +38,10 @@ class Helpers {
         return isset($_SESSION['role']) && $_SESSION['role'] === 'job_seeker';
     }
 
+    public static function isAdmin(): bool {
+        return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+    }
+
     /* =========================================================
        (ORIGINAL) redirect
        ========================================================= */
@@ -75,22 +79,20 @@ class Helpers {
     }
 
     /* =========================================================
-       ===============  ADDED METHODS (NO REMOVALS)  ============
-       Below are all new helpers added WITHOUT deleting any
-       existing original code above.
+       ADDED METHODS (No removals)
        ========================================================= */
 
-    // ADDED: Simple alias for escaping (sometimes code uses e())
+    // ADDED: simple login checker
+    public static function isLoggedIn(): bool {
+        return !empty($_SESSION['user_id']);
+    }
+
+    // ADDED: Simple alias for escaping (if ever used)
     public static function e(string $s): string {
         return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
     }
 
-    // ADDED: Admin role checker
-    public static function isAdmin(): bool {
-        return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
-    }
-
-    // ADDED: Uniform relative URL builder
+    // ADDED: Uniform relative/absolute URL builder
     public static function url(string $path=''): string {
         if ($path === '') return 'index.php';
         if (preg_match('#^https?://#i',$path)) return $path;
@@ -154,11 +156,11 @@ class Helpers {
         if ($lp === '') return $fallback;
         $current = basename($_SERVER['PHP_SELF'] ?? '');
         $lpBase  = basename(parse_url($lp, PHP_URL_PATH) ?? '');
-        if ($lpBase === $current) return $fallback;
+        if ($lpBase === $current) return $fallback; // Prevent loop
         return $lp;
     }
 
-    // ADDED: Optional flash -> bootstrap type mapper (not used by original, but safe)
+    // ADDED: flash key -> bootstrap type mapper
     public static function mapFlashType(string $key): string {
         return match($key) {
             'error','danger' => 'danger',
@@ -168,7 +170,7 @@ class Helpers {
         };
     }
 
-    // ADDED: Helper to get structured flashes if you later want icon/types
+    // ADDED: Structured flashes
     public static function getStructuredFlashes(): array {
         if (empty($_SESSION['flash'])) return [];
         $out = [];
@@ -183,10 +185,28 @@ class Helpers {
         return $out;
     }
 
+    // ADDED: Keep simple associative variant
     public static function getFlashesAssoc(): array {
-    if (empty($_SESSION['flash'])) return [];
-    $out = $_SESSION['flash'];
-    unset($_SESSION['flash']);
-    return $out;
-}
+        if (empty($_SESSION['flash'])) return [];
+        $out = $_SESSION['flash'];
+        unset($_SESSION['flash']);
+        return $out;
+    }
+
+    // ADDED: Safe int fetcher
+    public static function int(array $src, string $key, int $default=0): int {
+        return isset($src[$key]) && is_numeric($src[$key]) ? (int)$src[$key] : $default;
+    }
+
+    // ADDED: CSRF utilities (optional future)
+    public static function csrfToken(): string {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
+        }
+        return $_SESSION['csrf_token'];
+    }
+
+    public static function verifyCsrf(?string $token): bool {
+        return $token && isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    }
 }

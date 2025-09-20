@@ -1,76 +1,136 @@
 <?php
-// Lightweight name normalization helpers
-class Name {
-    public static function normalizeWhitespace(string $s): string {
-        $s = trim($s);
-        $s = preg_replace('/\s+/u', ' ', $s);
-        return $s ?? '';
-    }
+/**
+ * Name utility helper.
+ *
+ * Primary method used by your registration flow:
+ *   Name::normalizeDisplayName($raw)
+ *
+ * Goals:
+ *  - Trim leading/trailing whitespace.
+ *  - Collapse multiple internal spaces to single spaces.
+ *  - Remove illegal characters (digits, most symbols) but keep letters, hyphen, apostrophe, and periods.
+ *  - Normalize capitalization:
+ *      * First letter of each main token uppercase, rest lowercase.
+ *      * Preserve common lowercase particles in surnames (de, del, dela, de la, la, van, von, da, dos, das, di, du, le, el, y, bin, binti)
+ *        UNLESS they are the first token.
+ *  - Middle initial rules:
+ *      * If a middle token is a single letter (with or without a period), convert to "X."
+ *  - If result becomes empty, return empty string (caller already handles the validation error).
+ *
+ * This is intentionally lightweight; you can expand exceptions list as needed.
+ */
+class Name
+{
+    /**
+     * Normalize a raw display name string.
+     *
+     * @param string $raw
+     * @return string normalized name or '' if nothing usable
+     */
+    public static function normalizeDisplayName(string $raw): string
+    {
+        // Basic trim & collapse whitespace
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
 
-    private static function titleCaseComponent(string $s): string {
-        if ($s === '') return '';
-        $s = mb_strtolower($s);
-        // Title-case subparts split by hyphen and apostrophe
-        $dashParts = explode('-', $s);
-        foreach ($dashParts as &$dp) {
-            $apoParts = explode("'", $dp);
-            foreach ($apoParts as &$ap) {
-                if ($ap !== '') {
-                    $ap = mb_strtoupper(mb_substr($ap, 0, 1)) . mb_substr($ap, 1);
-                }
+        // Replace multiple spaces or tabs/newlines with single spaces
+        $raw = preg_replace('/\s+/u', ' ', $raw);
+
+        // Strip disallowed characters:
+        // Allow letters (any unicode), space, apostrophe, hyphen, period
+        // Remove digits and other symbols
+        $filtered = preg_replace("/[^\\p{L}\\s'\\-.]/u", '', $raw);
+        $filtered = trim($filtered);
+        if ($filtered === '') {
+            return '';
+        }
+
+        // Split into tokens
+        $parts = explode(' ', $filtered);
+
+        // Lowercase particles (not first)
+        $lowerParticles = [
+            'de','del','dela','la','van','von','da','dos','das','di','du','le','el','y','bin','binti','al'
+        ];
+
+        $normalized = [];
+        $count = count($parts);
+
+        foreach ($parts as $i => $p) {
+            $clean = trim($p, " ."); // trim periods/spaces around
+            if ($clean === '') {
+                continue;
             }
-            $dp = implode("'", $apoParts);
-        }
-        return implode('-', $dashParts);
-    }
 
-    public static function titleCaseName(string $name): string {
-        $name = self::normalizeWhitespace($name);
-        if ($name === '') return '';
-
-        $particles = ['da','de','del','dela','di','du','la','las','le','les','van','von','y','bin','binti','ibn','al'];
-
-        $tokens = preg_split('/\s+/u', $name);
-        $out = [];
-        foreach ($tokens as $i => $tok) {
-            $cased = self::titleCaseComponent($tok);
-            // Keep certain particles lowercase when not the first token
-            if ($i > 0 && in_array(mb_strtolower($tok), $particles, true)) {
-                $cased = mb_strtolower($tok);
+            // Middle initial rule: single letter or letter with period
+            if (preg_match('/^[A-Za-z]$/u', $clean)) {
+                $normalized[] = strtoupper($clean) . '.';
+                continue;
             }
-            $out[] = $cased;
+            if (preg_match('/^[A-Za-z]\\.$/u', $clean)) {
+                $normalized[] = strtoupper(substr($clean, 0, 1)) . '.';
+                continue;
+            }
+
+            $lowerCandidate = mb_strtolower($clean, 'UTF-8');
+
+            // If not first token & is a recognized particle -> keep lowercase
+            if ($i > 0 && in_array($lowerCandidate, $lowerParticles, true)) {
+                $normalized[] = $lowerCandidate;
+                continue;
+            }
+
+            // Handle hyphenated or apostrophe segments separately (e.g., Jean-Luc, O'Connor)
+            $normalized[] = self::capitalizeCompound($clean);
         }
 
-        // Normalize common suffixes
-        $last = mb_strtolower(end($out));
-        $suffixMap = ['jr'=>'Jr.', 'sr'=>'Sr.', 'ii'=>'II', 'iii'=>'III', 'iv'=>'IV', 'v'=>'V'];
-        if (isset($suffixMap[$last])) {
-            $out[count($out) - 1] = $suffixMap[$last];
-        }
-        return implode(' ', $out);
+        $result = implode(' ', $normalized);
+
+        // Final guard: collapse any double spaces that might have reappeared
+        $result = preg_replace('/\s{2,}/', ' ', $result);
+
+        return trim($result);
     }
 
-    // Compress full name to "First [M.] Last" while keeping good casing
-    public static function normalizeDisplayName(string $raw): string {
-        $raw = self::titleCaseName($raw);
-        if ($raw === '') return '';
-
-        $parts = preg_split('/\s+/u', $raw);
-        // Require at least First + Last
-        if (count($parts) < 2) return '';
-
-        $first = array_shift($parts);
-        $last  = array_pop($parts);
-
-        // Build middle initial if any middle parts exist (take first letter of the first middle)
-        $mi = '';
-        foreach ($parts as $p) {
-            $p = trim($p);
-            if ($p === '') continue;
-            $mi = mb_strtoupper(mb_substr($p, 0, 1)) . '.';
-            break;
+    /**
+     * Capitalize compounds with hyphen or apostrophe.
+     * Examples:
+     *   "o'neil"  -> "O'Neil"
+     *   "jean-luc" -> "Jean-Luc"
+     *   "macapagal" -> "Macapagal" (falls through standard path)
+     *
+     * @param string $segment
+     * @return string
+     */
+    protected static function capitalizeCompound(string $segment): string
+    {
+        // Process apostrophes first (O'Neil, D'Angelo)
+        if (str_contains($segment, "'")) {
+            $pieces = explode("'", $segment);
+            $pieces = array_map(fn($p) => self::ucfirstUtf8(mb_strtolower($p, 'UTF-8')), $pieces);
+            return implode("'", $pieces);
         }
 
-        return trim($first . ' ' . ($mi ? $mi . ' ' : '') . $last);
+        // Hyphenated (Jean-Luc, Mary-Jayne)
+        if (str_contains($segment, '-')) {
+            $pieces = explode('-', $segment);
+            $pieces = array_map(fn($p) => self::ucfirstUtf8(mb_strtolower($p, 'UTF-8')), $pieces);
+            return implode('-', $pieces);
+        }
+
+        return self::ucfirstUtf8(mb_strtolower($segment, 'UTF-8'));
+    }
+
+    /**
+     * UTF-8 safe ucfirst.
+     */
+    protected static function ucfirstUtf8(string $str): string
+    {
+        if ($str === '') return '';
+        $first = mb_substr($str, 0, 1, 'UTF-8');
+        $rest  = mb_substr($str, 1, null, 'UTF-8');
+        return mb_strtoupper($first, 'UTF-8') . $rest;
     }
 }

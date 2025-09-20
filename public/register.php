@@ -107,7 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                Using helper method to avoid modifying original User::register().
                ========================================================= */
             if ($role === 'employer' && ($company_website !== '' || $company_phone !== '')) {
-                User::updateEmployerContactByEmail($email, $company_website, $company_phone);
+                // Avoid fatal if method missing
+                if (method_exists('User','updateEmployerContactByEmail')) {
+                    User::updateEmployerContactByEmail($email, $company_website, $company_phone);
+                }
             }
 
             Helpers::redirect('login.php');

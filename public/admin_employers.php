@@ -7,32 +7,25 @@ require_once '../classes/User.php';
 Helpers::requireLogin();
 if (($_SESSION['role'] ?? '') !== 'admin') Helpers::redirect('index.php');
 
-/* ADDED: remember this page for back navigation */
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 Helpers::storeLastPage();
 
-/* ADDED: Capture incoming optional filters (add-only, original query remains) */
+/* Single filter: status */
 $filter_status = trim($_GET['status'] ?? '');
-$filter_q      = trim($_GET['q'] ?? '');
+$hasStatusFilter = ($filter_status !== '');
 
-/* ADDED: Build WHERE fragments (non-destructive) */
+/* Build WHERE only if status chosen */
 $whereParts = ["role='employer'"];
 $params = [];
-if ($filter_status !== '') {
-    // Accept case-insensitive
+if ($hasStatusFilter) {
     $whereParts[] = "LOWER(COALESCE(employer_status,'Pending')) = LOWER(?)";
     $params[] = $filter_status;
-}
-if ($filter_q !== '') {
-    $whereParts[] = "(company_name LIKE ? OR name LIKE ? OR email LIKE ? OR business_permit_number LIKE ?)";
-    $like = "%$filter_q%";
-    $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
 }
 $whereSql = implode(' AND ', $whereParts);
 
 $pdo = Database::getConnection();
 
-/* ORIGINAL QUERY (kept EXACT) */
+/* Base full list (for counts + default view) */
 $stmt = $pdo->query("
   SELECT
     user_id,
@@ -50,11 +43,11 @@ $stmt = $pdo->query("
   WHERE role='employer'
   ORDER BY employer_status='Pending' DESC, created_at DESC
 ");
-$rows = $stmt->fetchAll();
+$allRows = $stmt->fetchAll();
 
-/* ADDED: Filtered query (runs in addition; DOES NOT replace original $rows; we keep both) */
+/* Filtered list (status only) */
 $filteredRows = [];
-if ($filter_status !== '' || $filter_q !== '') {
+if ($hasStatusFilter) {
     $sqlFiltered = "
       SELECT
         user_id,
@@ -77,17 +70,14 @@ if ($filter_status !== '' || $filter_q !== '') {
     $filteredRows = $stmtF->fetchAll();
 }
 
-/* ADDED: Decide which dataset to show: if filters applied, show filtered, else original */
-$displayRows = ($filter_status !== '' || $filter_q !== '') ? $filteredRows : $rows;
+/* Decide dataset (only ONE table shown) */
+$displayRows = $hasStatusFilter ? $filteredRows : $allRows;
 
-/* ADDED: Fallback diagnostic if displayRows is empty */
+/* Diagnostic (only when nothing to show) */
 $diagnostic = [];
 if (!$displayRows) {
-    // Count how many employers total
     $diagStmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role='employer'");
     $diagnostic['total_employers'] = (int)$diagStmt->fetchColumn();
-
-    // Status distribution
     $diagDist = $pdo->query("
         SELECT COALESCE(NULLIF(TRIM(employer_status),''),'(NULL or Empty)') AS stat, COUNT(*) c
         FROM users
@@ -95,20 +85,18 @@ if (!$displayRows) {
         GROUP BY stat
         ORDER BY c DESC
     ")->fetchAll();
-
     $diagnostic['status_distribution'] = $diagDist;
 
-    // If there are employers, but filters hide them, we note it.
-    if ($diagnostic['total_employers'] > 0 && ($filter_status !== '' || $filter_q !== '')) {
-        $diagnostic['note'] = 'Employers exist but current filters returned 0 rows.';
+    if ($diagnostic['total_employers'] > 0 && $hasStatusFilter) {
+        $diagnostic['note'] = 'Employers exist but the chosen status returned 0 rows.';
     } elseif ($diagnostic['total_employers'] === 0) {
-        $diagnostic['note'] = 'No employer records found in database.';
+        $diagnostic['note'] = 'No employer records found.';
     } else {
-        $diagnostic['note'] = 'Unexpected: query returned 0 without filters. Possible DB permission/cache issue.';
+        $diagnostic['note'] = 'Unexpected empty result with no filters.';
     }
 }
 
-/* ADDED: Aggregate counts (for summary header) */
+/* Counts (from full list) */
 $counts = [
     'total'     => 0,
     'Approved'  => 0,
@@ -117,13 +105,13 @@ $counts = [
     'Rejected'  => 0,
     'Other'     => 0
 ];
-foreach ($rows as $__r) {
+foreach ($allRows as $__r) {
     $st = $__r['employer_status'] ?: 'Pending';
     $counts['total']++;
     if (isset($counts[$st])) $counts[$st]++; else $counts['Other']++;
 }
 
-/* ADDED: Get flashes (non-destructive addition) */
+/* Flashes */
 $__rawFlashCopy = $_SESSION['flash'] ?? [];
 $__flashes = method_exists('Helpers','getFlashes') ? Helpers::getFlashes() : [];
 if (!$__flashes && $__rawFlashCopy) {
@@ -136,10 +124,9 @@ if (!$__flashes && $__rawFlashCopy) {
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
-<!-- ADDED: Flash renderer -->
 <?php if ($__flashes): ?>
   <div class="mb-3">
-    <?php foreach ($__flashes as $f): 
+    <?php foreach ($__flashes as $f):
       $t = htmlspecialchars($f['type'] ?? 'info');
       $m = trim((string)($f['message'] ?? ''));
       if ($m==='') $m='Action completed.';
@@ -158,7 +145,6 @@ include '../includes/nav.php';
   </div>
 <?php endif; ?>
 
-<!-- ADDED: Employers summary -->
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body py-2 px-3 small">
     <div class="d-flex flex-wrap gap-3 align-items-center">
@@ -174,11 +160,11 @@ include '../includes/nav.php';
   </div>
 </div>
 
-<!-- ADDED: Filter form (non-destructive) -->
+<!-- Simplified filter form (status only) -->
 <form class="card border-0 shadow-sm mb-3" method="get">
   <div class="card-body py-3 px-3">
     <div class="row g-2 align-items-end">
-      <div class="col-md-3">
+      <div class="col-sm-4 col-md-3 col-lg-2">
         <label class="form-label small mb-1">Status</label>
         <select name="status" class="form-select form-select-sm">
           <option value="">-- All --</option>
@@ -189,12 +175,8 @@ include '../includes/nav.php';
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col-md-5">
-        <label class="form-label small mb-1">Search (Company / Owner / Email / Permit)</label>
-        <input name="q" class="form-control form-control-sm" value="<?php echo htmlspecialchars($filter_q); ?>">
-      </div>
-      <div class="col-md-4 d-flex gap-2">
-        <button class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Apply</button>
+      <div class="col-sm-8 col-md-9 col-lg-10 d-flex gap-2">
+        <button class="btn btn-primary btn-sm"><i class="bi bi-filter me-1"></i>Apply</button>
         <a href="admin_employers.php" class="btn btn-outline-secondary btn-sm">Reset</a>
       </div>
     </div>
@@ -210,7 +192,6 @@ include '../includes/nav.php';
           <tr>
             <th>Company</th>
             <th>Business Email</th>
-            <th>Website</th>
             <th>Phone</th>
             <th>Permit No.</th>
             <th>Status</th>
@@ -218,8 +199,7 @@ include '../includes/nav.php';
           </tr>
         </thead>
         <tbody>
-          <!-- ORIGINAL LOOP (kept) -->
-          <?php foreach ($rows as $r): ?>
+          <?php foreach ($displayRows as $r): ?>
             <tr>
               <td>
                 <div class="fw-semibold">
@@ -235,13 +215,6 @@ include '../includes/nav.php';
                 <?php endif; ?>
               </td>
               <td><?php echo Helpers::sanitizeOutput($r['business_email'] ?: '(none)'); ?></td>
-              <td>
-                <?php if (!empty($r['company_website'])): ?>
-                  <a href="<?php echo htmlspecialchars($r['company_website']); ?>" target="_blank" rel="noopener">Visit</a>
-                <?php else: ?>
-                  (none)
-                <?php endif; ?>
-              </td>
               <td><?php echo Helpers::sanitizeOutput($r['company_phone'] ?: '(none)'); ?></td>
               <td><?php echo Helpers::sanitizeOutput($r['business_permit_number'] ?: '(none)'); ?></td>
               <td>
@@ -261,60 +234,10 @@ include '../includes/nav.php';
               </td>
             </tr>
           <?php endforeach; ?>
-          <?php if (!$rows): ?>
-            <tr><td colspan="7" class="text-center text-muted py-4">No employers found.</td></tr>
-          <?php endif; ?>
-          <!-- ADDED: If filters applied, show filtered dataset separately (to avoid removing original block) -->
-          <?php if (($filter_status !== '' || $filter_q !== '') && $filteredRows): ?>
-            <!-- ADDED NOTE: Filtered Results (duplicate view but via filters) -->
-            <tr class="table-secondary">
-              <td colspan="7" class="small fw-semibold">Filtered results (below) — original unfiltered list shown above.</td>
-            </tr>
-            <?php foreach ($filteredRows as $fr): ?>
-              <tr>
-                <td>
-                  <div class="fw-semibold">
-                    <?php echo Helpers::sanitizeOutput($fr['company_name'] ?: '(none)'); ?>
-                  </div>
-                  <div class="small text-muted">
-                    <?php echo Helpers::sanitizeOutput($fr['name']); ?> · <?php echo Helpers::sanitizeOutput($fr['email']); ?>
-                  </div>
-                  <?php if (!empty($fr['employer_doc'])): ?>
-                    <div class="small">
-                      <a target="_blank" href="../<?php echo htmlspecialchars($fr['employer_doc']); ?>">View document</a>
-                    </div>
-                  <?php endif; ?>
-                </td>
-                <td><?php echo Helpers::sanitizeOutput($fr['business_email'] ?: '(none)'); ?></td>
-                <td>
-                  <?php if (!empty($fr['company_website'])): ?>
-                    <a href="<?php echo htmlspecialchars($fr['company_website']); ?>" target="_blank" rel="noopener">Visit</a>
-                  <?php else: ?>
-                    (none)
-                  <?php endif; ?>
-                </td>
-                <td><?php echo Helpers::sanitizeOutput($fr['company_phone'] ?: '(none)'); ?></td>
-                <td><?php echo Helpers::sanitizeOutput($fr['business_permit_number'] ?: '(none)'); ?></td>
-                <td>
-                  <span class="badge <?php
-                    echo $fr['employer_status']==='Approved'?'text-bg-success':(
-                          $fr['employer_status']==='Pending'?'text-bg-warning':(
-                          $fr['employer_status']==='Suspended'?'text-bg-danger':(
-                          $fr['employer_status']==='Rejected'?'text-bg-secondary':'text-bg-secondary')));
-                  ?>">
-                    <?php echo Helpers::sanitizeOutput($fr['employer_status'] ?: 'Pending'); ?>
-                  </span>
-                </td>
-                <td class="text-end">
-                  <a class="btn btn-sm btn-outline-primary" href="admin_employer_view.php?user_id=<?php echo urlencode($fr['user_id']); ?>">
-                    <i class="bi bi-eye me-1"></i>View
-                  </a>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-            <?php if (!$filteredRows): ?>
-              <tr><td colspan="7" class="text-center text-muted py-4">No filtered results.</td></tr>
-            <?php endif; ?>
+          <?php if (!$displayRows): ?>
+            <tr><td colspan="6" class="text-center text-muted py-4">
+              <?php echo $hasStatusFilter ? 'No employers match that status.' : 'No employers found.'; ?>
+            </td></tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -322,7 +245,6 @@ include '../includes/nav.php';
   </div>
 </div>
 
-<!-- ADDED: Diagnostic debug card -->
 <?php if (isset($_GET['debug']) && $_GET['debug'] == '1'): ?>
   <div class="card border-0 shadow-sm mt-3">
     <div class="card-body p-3">
@@ -337,22 +259,8 @@ include '../includes/nav.php';
 <?php endif; ?>
 
 <?php include '../includes/footer.php'; ?>
-<!-- ADDED: JS helpers -->
 <script>
 document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{
   setTimeout(()=>{ try{ bootstrap.Alert.getOrCreateInstance(el).close(); }catch(e){} },4000);
 });
-
-// Highlight if table unexpectedly empty while counts > 0
-(function(){
-  const total = <?php echo (int)$counts['total']; ?>;
-  const table = document.getElementById('employersTable');
-  if (table && total > 0) {
-    const dataRows = table.querySelectorAll('tbody tr');
-    if (dataRows.length === 1 && /No employers found/i.test(dataRows[0].textContent)) {
-      dataRows[0].classList.add('table-danger');
-      dataRows[0].title = 'Diagnostic: counts say there are employers, but listing is empty.';
-    }
-  }
-})();
 </script>

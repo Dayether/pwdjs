@@ -17,14 +17,14 @@ class Application {
     public string $created_at;
 
     public function __construct(array $data = []) {
-        $this->application_id       = $data['application_id'] ?? '';
-        $this->user_id              = $data['user_id'] ?? '';
-        $this->job_id               = $data['job_id'] ?? '';
-        $this->status               = $data['status'] ?? 'Pending';
-        $this->match_score          = isset($data['match_score']) ? (float)$data['match_score'] : 0.0;
-        $this->relevant_experience  = isset($data['relevant_experience']) ? (int)$data['relevant_experience'] : 0;
-        $this->application_education= $data['application_education'] ?? '';
-        $this->created_at           = $data['created_at'] ?? '';
+        $this->application_id        = $data['application_id'] ?? '';
+        $this->user_id               = $data['user_id'] ?? '';
+        $this->job_id                = $data['job_id'] ?? '';
+        $this->status                = $data['status'] ?? 'Pending';
+        $this->match_score           = isset($data['match_score']) ? (float)$data['match_score'] : 0.0;
+        $this->relevant_experience   = isset($data['relevant_experience']) ? (int)$data['relevant_experience'] : 0;
+        $this->application_education = $data['application_education'] ?? '';
+        $this->created_at            = $data['created_at'] ?? '';
     }
 
     /**
@@ -52,12 +52,12 @@ class Application {
             VALUES (:application_id, :user_id, :job_id, 'Pending', :match_score, :relevant_experience, :application_education)");
 
         $ok = $stmt->execute([
-            ':application_id'       => $application_id,
-            ':user_id'              => $user->user_id,
-            ':job_id'               => $job->job_id,
-            ':match_score'          => $match,
-            ':relevant_experience'  => max(0, $relevantYears),
-            ':application_education'=> $appEduCanon
+            ':application_id'        => $application_id,
+            ':user_id'               => $user->user_id,
+            ':job_id'                => $job->job_id,
+            ':match_score'           => $match,
+            ':relevant_experience'   => max(0, $relevantYears),
+            ':application_education' => $appEduCanon
         ]);
 
         if (!$ok) return false;
@@ -97,21 +97,8 @@ class Application {
     /**
      * Scoring System (Total 100):
      *  Experience: 40%
-     *    - If job required_experience == 0 => full 40
-     *    - Else min(candidateYears, requiredYears)/requiredYears * 40
-     *
      *  Skills: 40%
-     *    - All job skills (general + required)
-     *    - Let totalJobSkills = count(job skills). If 0 => full 40
-     *    - matched = count of unique candidate-selected skill IDs that exist in job's skills
-     *    - skillScore = (matched / totalJobSkills) * 40
-     *
      *  Education: 20%
-     *    - If job has no required education => full 20
-     *    - Else compare rank (candidateRank / requiredRank) * 20 (capped at 20) if candidateRank < requiredRank
-     *      full 20 if candidateRank >= requiredRank
-     *
-     * NOTE: The method expects candidate education already canonicalized ('' allowed).
      */
     public static function calculateMatchScoreFromInput(Job $job, int $relevantYears, array $selectedSkillIds, string $appEducationCanon): float
     {
@@ -145,7 +132,7 @@ class Application {
         // --- Education (20) ---
         $eduMap        = Taxonomy::educationRankMap();
         $requiredCanon = Taxonomy::canonicalizeEducation($job->required_education ?? '');
-        if ($requiredCanon === null) $requiredCanon = ''; // unrecognized => treat as none
+        if ($requiredCanon === null) $requiredCanon = ''; // treat unknown as no requirement
 
         if ($requiredCanon === '') {
             $eduScore = 20.0;
@@ -162,10 +149,64 @@ class Application {
             }
         }
 
-        // Total
         $total = $expScore + $skillScore + $eduScore;
         if ($total < 0)   $total = 0;
         if ($total > 100) $total = 100;
         return round($total, 2);
+    }
+
+    /* =========================
+       New helper + status update
+       ========================= */
+
+    public static function find(string $application_id): ?Application {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT * FROM applications WHERE application_id = ? LIMIT 1");
+        $stmt->execute([$application_id]);
+        $row = $stmt->fetch();
+        if (!$row) return null;
+        return new self($row);
+    }
+
+    /**
+     * Update application status (Approved / Declined / Pending)
+     * Authorization:
+     *  - Admin can update any application.
+     *  - Employer can update only if they own the job for that application.
+     */
+    public static function updateStatus(string $application_id, string $newStatus, string $actingUserId): bool {
+        $allowed = ['Approved','Declined','Pending'];
+        if (!in_array($newStatus, $allowed, true)) return false;
+
+        $pdo = Database::getConnection();
+
+        // Fetch application + job employer
+        $stmt = $pdo->prepare("
+            SELECT a.application_id, a.status, j.employer_id
+            FROM applications a
+            JOIN jobs j ON a.job_id = j.job_id
+            WHERE a.application_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$application_id]);
+        $row = $stmt->fetch();
+        if (!$row) return false;
+
+        // Fetch actor role
+        $actor = User::findById($actingUserId);
+        if (!$actor) return false;
+
+        $can = false;
+        if ($actor->role === 'admin') {
+            $can = true;
+        } elseif ($actor->role === 'employer' && $actor->user_id === $row['employer_id']) {
+            $can = true;
+        }
+
+        if (!$can) return false;
+
+        // Perform update (idempotent)
+        $up = $pdo->prepare("UPDATE applications SET status = :st WHERE application_id = :id LIMIT 1");
+        return $up->execute([':st'=>$newStatus, ':id'=>$application_id]);
     }
 }

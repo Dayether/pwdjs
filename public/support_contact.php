@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/* WAG i-store ang page na ito as last_page (excluded sa Helpers) —
+/* WAG i-store ang page na ito as last_page (excluded sa Helpers)
    kaya walang Helpers::storeLastPage() dito para hindi ma-overwrite ang previous. */
 
 $prefillName  = $_SESSION['name']  ?? '';
@@ -55,16 +55,15 @@ function resolve_back_url_original(): ?string {
 }
 
 /* =========================================================
-   ADDED: Normalizer para alisin ang duplicated leading segments
+   Normalizer para alisin ang duplicated leading segments
    Example:
      pwdjs/public/login.php  -> login.php
      public/login.php        -> login.php
-     pwdjs/login.php         -> login.php (optional)
+     pwdjs/login.php         -> login.php
      /pwdjs/public/login.php -> login.php
    ========================================================= */
 function normalize_relative_path(?string $p): ?string {
     if (!$p) return null;
-    // Separate query early
     $query = '';
     if (str_contains($p, '?')) {
         [$pathOnly, $query] = explode('?', $p, 2);
@@ -73,16 +72,15 @@ function normalize_relative_path(?string $p): ?string {
     }
     $pathOnly = ltrim($pathOnly, '/');
 
-    // Common deploy prefixes we want to strip ONCE
     $prefixes = [
         'pwdjs/public/',
         'public/',
-        'pwdjs/' // optional if nested
+        'pwdjs/'
     ];
     foreach ($prefixes as $pref) {
         if (stripos($pathOnly, $pref) === 0) {
             $pathOnly = substr($pathOnly, strlen($pref));
-            // After trimming one prefix, re-check from start for e.g. accidental double prefix
+            // Remove a second accidental prefix
             foreach ($prefixes as $pref2) {
                 if (stripos($pathOnly, $pref2) === 0) {
                     $pathOnly = substr($pathOnly, strlen($pref2));
@@ -92,13 +90,11 @@ function normalize_relative_path(?string $p): ?string {
         }
     }
 
-    // Prevent returning self
     $self = basename($_SERVER['PHP_SELF'] ?? 'support_contact.php');
     if (basename($pathOnly) === $self) {
         return null;
     }
 
-    // Basic safety
     if ($pathOnly === '' || $pathOnly === '.') return null;
     if (strpos($pathOnly, '..') !== false) return null;
 
@@ -108,38 +104,23 @@ function normalize_relative_path(?string $p): ?string {
 }
 
 /* =========================================================
-   ADDED: Enhanced resolver that wraps original then normalizes.
-   Priority:
-     1. ?return param / HTTP_REFERER (original)
-     2. Session last_page (if valid and different)
-     3. Fallback index.php
+   Enhanced resolver (wraps original then normalizes).
+   Order:
+     1. return param / HTTP_REFERER
+     2. session last_page
+     3. index.php
    ========================================================= */
 function resolve_back_url_enhanced(): string {
     $candidate = resolve_back_url_original();
-
-    // Try normalize original candidate
     $norm = normalize_relative_path($candidate);
-
-    // If normalized is null, try session last_page
     if ($norm === null && !empty($_SESSION['last_page'])) {
         $lp = normalize_relative_path($_SESSION['last_page']);
-        if ($lp !== null) {
-            $norm = $lp;
-        }
+        if ($lp !== null) $norm = $lp;
     }
-
-    // If still null, fallback index.php
-    if ($norm === null) {
-        $norm = 'index.php';
-    }
-
+    if ($norm === null) $norm = 'index.php';
     return $norm;
 }
 
-/* ORIGINAL assignment (kept conceptually) */
-// $backUrl = resolve_back_url_original();
-
-/* ADDED: use enhanced resolver */
 $backUrl = resolve_back_url_enhanced();
 
 /* Prefill subject */
@@ -251,12 +232,12 @@ include '../includes/nav.php';
             </select>
           </div>
 
-            <div class="col-12">
-              <label class="form-label">Message</label>
-              <textarea name="message" id="messageField" rows="6" class="form-control" required><?php
-                echo htmlspecialchars($_POST['message'] ?? ($success ? '' : ''));
-              ?></textarea>
-            </div>
+          <div class="col-12">
+            <label class="form-label">Message</label>
+            <textarea name="message" id="messageField" rows="6" class="form-control" required><?php
+              echo htmlspecialchars($_POST['message'] ?? ($success ? '' : ''));
+            ?></textarea>
+          </div>
 
             <div class="col-12 d-grid">
               <button class="btn btn-primary">
@@ -332,28 +313,24 @@ if (subjectSelect) {
   updateHelpNote();
 }
 
-// Back button JS fallback (history.back) if no anchor or anchor problematic
+// Back button JS fallback to clean duplicated segments (pwdjs/public/pwdjs/public/)
 const backBtn = document.getElementById('backBtn');
 if (backBtn) {
-  // If it's a button, already handled earlier. If anchor, we still safeguard.
   if (backBtn.tagName === 'A') {
     let href = backBtn.getAttribute('href') || '';
-    // Detect duplicated segments like pwdjs/public/pwdjs/public/
-    if (/pwdjs\\/public\\/.*pwdjs\\/public\\//i.test(href)) {
-      // Attempt to cut everything before the LAST occurrence of 'pwdjs/public/'
+    if (/pwdjs\/public\/.*pwdjs\/public\//i.test(href)) {
       const idx = href.toLowerCase().lastIndexOf('pwdjs/public/');
       if (idx !== -1) {
         href = href.substring(idx + 'pwdjs/public/'.length);
       }
-      // Further strip any leading public/
-      href = href.replace(/^public\\//i,'').replace(/^pwdjs\\//i,'');
+      href = href.replace(/^public\//i,'').replace(/^pwdjs\//i,'');
       if (href === '' || href === 'support_contact.php') {
         href = 'index.php';
       }
       backBtn.setAttribute('href', href);
     }
   } else if (backBtn.tagName === 'BUTTON') {
-    backBtn.addEventListener('click', function(){
+    backBtn.addEventListener('click', function() {
       if (history.length > 1) history.back();
       else window.location.href = this.dataset.fallback || 'index.php';
     });

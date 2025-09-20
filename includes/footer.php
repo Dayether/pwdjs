@@ -1,32 +1,34 @@
 </div>
 <footer class="footer bg-dark text-white-50 mt-auto py-4">
-  <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between">
+  <div class="container d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
     <div class="small">
-      <span class="text-white-75">PWD Employment & Skills Portal</span> ·
+      <span class="text-white-75">PWD Employment &amp; Skills Portal</span> &middot;
       <span>&copy; <?php echo date('Y'); ?></span>
     </div>
     <div class="small d-flex flex-wrap align-items-center">
-      <a class="link-light link-underline-opacity-0 me-3" href="index.php">Find Jobs</a>
+     
       <?php if (!empty($_SESSION['user_id']) && $_SESSION['role'] === 'employer'): ?>
         <a class="link-light link-underline-opacity-0 me-3" href="jobs_create.php">Post a Job</a>
       <?php endif; ?>
-      <a class="link-light link-underline-opacity-0 me-3" href="profile_edit.php">Profile</a>
+
+      <!-- Profile footer link (optional). Remove if you also want to hide here. -->
+      <?php if (!empty($_SESSION['user_id'])): ?>
+       
+      <?php endif; ?>
 
       <?php if (!empty($_SESSION['user_id'])): ?>
-        <a class="link-light link-underline-opacity-0 d-inline-flex align-items-center" href="support_contact.php">
+        <a class="link-light link-underline-opacity-0 me-3 d-inline-flex align-items-center" href="support_contact.php">
           <i class="bi bi-life-preserver me-1"></i>Support
         </a>
       <?php endif; ?>
-      <?php
-      /*
-        Kung gusto mong visible ang Support kahit hindi naka-login:
-        Palitan mo ng:
-        <a class="link-light link-underline-opacity-0 d-inline-flex align-items-center" href="support_contact.php">
-          <i class="bi bi-life-preserver me-1"></i>Support
-        </a>
-      */
-      ?>
+
+      <!-- Policy links (always visible) -->
+      <a class="link-light link-underline-opacity-0 me-3" href="security_privacy.php">Security &amp; Privacy</a>
+      <a class="link-light link-underline-opacity-0" href="terms.php">Terms &amp; Conditions</a>
     </div>
+  </div>
+  <div class="container mt-3 small text-white-50">
+    <em>Creating inclusive, remote‑friendly opportunities for Persons with Disabilities.</em>
   </div>
 </footer>
 
@@ -61,7 +63,7 @@ document.querySelectorAll('.alert.auto-dismiss').forEach(function(el) {
   }, 4000);
 });
 
-// Global confirmation handler: any element with data-confirm will show a modal
+// Global confirmation handler
 (function(){
   const modalEl = document.getElementById('confirmModal');
   const modal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
