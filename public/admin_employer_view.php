@@ -66,6 +66,28 @@ include '../includes/nav.php';
 
 /* ADDED: use last page override default list page */
 $backUrl = Helpers::getLastPage('admin_employers.php');
+
+/* ADDED START: Flash rendering (no removals) */
+$__fl = Helpers::getFlashes();
+if ($__fl) {
+  echo '<div class="mb-3">';
+  foreach ($__fl as $k=>$msg) {
+    if (trim($msg)==='') $msg = 'Action completed.'; // fallback so hindi blank
+    $type = match($k){
+      'error','danger' => 'danger',
+      'success'        => 'success',
+      'warning','auth' => 'warning',
+      'msg','info'     => 'info',
+      default          => 'primary'
+    };
+    echo '<div class="alert alert-'.$type.' alert-dismissible fade show" role="alert">';
+    echo '<i class="bi bi-info-circle me-2"></i>'.htmlspecialchars($msg);
+    echo '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    echo '</div>';
+  }
+  echo '</div>';
+}
+/* ADDED END */
 ?>
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h2 class="h5 fw-semibold mb-0"><i class="bi bi-building-check me-2"></i>Employer Profile</h2>
@@ -118,7 +140,7 @@ $backUrl = Helpers::getLastPage('admin_employers.php');
         <div class="d-flex flex-wrap gap-2">
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=approve" class="btn btn-sm btn-success">Approve</a>
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=pending" class="btn btn-sm btn-warning">Set Pending</a>
-          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=suspend" class="btn btn-sm btn-danger">Suspend</a>
+            <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=suspend" class="btn btn-sm btn-danger">Suspend</a>
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=reject" class="btn btn-sm btn-secondary">Reject</a>
         </div>
       </div>

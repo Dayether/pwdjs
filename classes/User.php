@@ -77,6 +77,15 @@ class User {
             $empDoc = $input['employer_doc'] ?? null; // path if uploaded
         }
 
+        // ADDED NORMALIZE PERMIT:
+        // Para maiwasan ang duplicate entry '' sa unique index,
+        // ginagawa nating NULL kapag wala talagang laman.
+        // Kung gusto mong gawing required kapag employer, pwede mong idagdag:
+        // if ($input['role']==='employer' && $permit==='') return false; (pero hindi ko ginawa per instruction mo na huwag magbawas/baguhin ang behavior)
+        if ($permit === '') {
+            $permit = null;
+        }
+
         // Note: company_website and company_phone are optional and can be NULL by default,
         // so we don't need to include them in INSERT.
         $stmt = $pdo->prepare("INSERT INTO users
@@ -99,7 +108,7 @@ class User {
             ':video_intro' => $video,
             ':company_name' => $company,
             ':business_email' => $bizEmail,
-            ':business_permit_number' => $permit,
+            ':business_permit_number' => $permit, // now NULL kapag walang laman
             ':employer_status' => $empStatus,
             ':employer_doc' => $empDoc
         ]);
@@ -161,7 +170,11 @@ class User {
         if (isset($data['business_email'])) $fields['business_email'] = $data['business_email'];
         if (isset($data['company_website'])) $fields['company_website'] = $data['company_website']; // NEW
         if (isset($data['company_phone']))   $fields['company_phone']   = $data['company_phone'];   // NEW
-        if (isset($data['business_permit_number'])) $fields['business_permit_number'] = $data['business_permit_number'];
+        if (isset($data['business_permit_number'])) {
+            $permit = trim($data['business_permit_number']);
+            if ($permit === '') $permit = null; // ADDED: normalize on update too
+            $fields['business_permit_number'] = $permit;
+        }
         if (isset($data['employer_doc'])) $fields['employer_doc'] = $data['employer_doc'];
 
         $set = [];

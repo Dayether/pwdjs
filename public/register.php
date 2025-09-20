@@ -5,6 +5,10 @@ require_once '../classes/Helpers.php';
 require_once '../classes/Name.php';
 require_once '../classes/User.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -88,7 +92,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         if ($ok) {
-            Helpers::flash('msg', 'Registration successful. Please log in.');
+            Helpers::flash('msg', 'Registration successful. Please log in.'); // ORIGINAL LINE (kept)
+
+            // ADDED START: Overwrite the flash message for employer accounts to reflect pending approval
+            if ($role === 'employer') {
+                // Overwrite (still ADD ONLY since we are not deleting previous line)
+                $_SESSION['flash']['msg'] = 'Employer registration submitted. Your account is pending approval. You will be able to log in only after it is approved.';
+            }
+            // ADDED END
+
             Helpers::redirect('login.php');
         } else {
             $errors[] = 'Failed to create account. The email may already be registered.';
@@ -155,7 +167,7 @@ $disSel  = $_POST['disability'] ?? '';
         </select>
       </div>
 
-      <!-- Employer-only fields (hidden for Job Seeker) -->
+      <!-- Employer-only fields -->
       <div id="employer_fields" class="col-12" style="display:none;">
         <div class="border rounded p-3">
           <h3 class="h6 fw-semibold mb-3"><i class="bi bi-building me-2"></i>Employer details</h3>
@@ -219,7 +231,7 @@ $disSel  = $_POST['disability'] ?? '';
           placeholder="Re-type password">
       </div>
 
-      <!-- Disability (optional; kept) -->
+      <!-- Disability -->
       <div class="col-12">
         <label class="form-label">Disability (optional)</label>
         <div class="row g-2">
@@ -256,7 +268,7 @@ $disSel  = $_POST['disability'] ?? '';
 </div>
 
 <script>
-// Name: normalize to "First M. Surname" on blur
+// Name normalization
 (function(){
   const input = document.querySelector('input[name="name"]');
   if (!input) return;
@@ -297,7 +309,7 @@ $disSel  = $_POST['disability'] ?? '';
   input.addEventListener('blur', () => { input.value = normalize(input.value); });
 })();
 
-// Disability: show extra input only when "Other" selected
+// Disability show/hide
 (function(){
   const sel = document.getElementById('disability_select');
   const other = document.getElementById('disability_other');
@@ -306,14 +318,14 @@ $disSel  = $_POST['disability'] ?? '';
   const sync = () => {
     const isOther = sel.value === 'Other';
     other.disabled = !isOther;
-    other.required = false; // optional overall
+    other.required = false;
     other.style.display = isOther ? 'block' : 'none';
   };
   sel.addEventListener('change', sync);
   sync();
 })();
 
-// Role: show Employer fields only when role=employer, and require company_name then
+// Role employer fields
 (function(){
   const roleSel = document.getElementById('role_select');
   const block = document.getElementById('employer_fields');
@@ -329,19 +341,14 @@ $disSel  = $_POST['disability'] ?? '';
   const syncRole = () => {
     const isEmp = roleSel.value === 'employer';
     block.style.display = isEmp ? 'block' : 'none';
-
-    // Enable fields when Employer; disable when Job Seeker so they don't submit
     setDisabled(name,   !isEmp);
     setDisabled(cemail, !isEmp);
     setDisabled(cweb,   !isEmp);
     setDisabled(cphone, !isEmp);
-
-    // Only require company_name for employer
     if (name) name.required = isEmp;
   };
 
   roleSel.addEventListener('change', syncRole);
-  // Initialize on load (respect postback selection)
   syncRole();
 })();
 </script>

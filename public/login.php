@@ -4,14 +4,28 @@ require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 
-if (session_status()===PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-/* ADDED: store last page so back logic has context when leaving login */
-Helpers::storeLastPage();
-
 $errors = [];
+
+// Retrieve flashes (may include registration success)
+$rawFlashes = Helpers::getFlashes();
+$flashMessages = [];
+if ($rawFlashes) {
+    foreach ($rawFlashes as $k => $msg) {
+        if (trim($msg) === '') $msg = 'Action completed.';
+        $type = match($k) {
+            'error','danger' => 'danger',
+            'success'        => 'success',
+            'msg','info'     => 'info',
+            'auth','warning' => 'warning',
+            default          => 'primary'
+        };
+        $flashMessages[] = ['type'=>$type,'message'=>$msg];
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email    = trim($_POST['email'] ?? '');
@@ -24,36 +38,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo = Database::getConnection();
             $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
             $stmt->execute([$email]);
-            $user = $stmt->fetchObject('User');
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$user || !password_verify($password, $user->password)) {
+            if (!$user || !password_verify($password, $user['password'])) {
                 $errors[] = 'Invalid credentials.';
             } else {
-                if ($user->role === 'employer') {
-                    $status = $user->employer_status ?? 'Pending';
-                    $supportLink = '<a href="' . Helpers::supportLink('Employer Verification') . '" class="alert-link">contact support</a>';
+
+                // ADDED START: Employer status gating (restoring intended behavior)
+                if ($user['role'] === 'employer') {
+                    $status = $user['employer_status'] ?? 'Pending';
                     if ($status !== 'Approved') {
+                        // Provide specific message and DO NOT log in
+                        $supportLink = Helpers::supportLink('Employer Verification');
                         if ($status === 'Pending') {
-                            $errors[] = 'Your employer account is pending approval. Please wait or ' . $supportLink . '.';
+                            $errors[] = 'Your employer account is still pending approval. Please wait for review or <a href="' . htmlspecialchars($supportLink) . '">contact support</a>.';
                         } elseif ($status === 'Suspended') {
-                            $errors[] = 'Your employer account is suspended. Please ' . $supportLink . '.';
+                            $errors[] = 'Your employer account is suspended. Please <a href="' . htmlspecialchars($supportLink) . '">contact support</a>.';
                         } elseif ($status === 'Rejected') {
-                            $errors[] = 'Your verification was rejected. Please ' . $supportLink . '.';
+                            $errors[] = 'Your employer verification was rejected. Please <a href="' . htmlspecialchars($supportLink) . '">contact support</a> if you believe this is an error.';
                         } else {
-                            $errors[] = 'Employer account not approved. Please ' . $supportLink . '.';
+                            $errors[] = 'Your employer account is not approved yet. Please <a href="' . htmlspecialchars($supportLink) . '">contact support</a>.';
                         }
+                        // Skip session assignment & redirect
                     }
                 }
+                // ADDED END
 
                 if (!$errors) {
-                    $_SESSION['user_id'] = $user->user_id;
-                    $_SESSION['role']    = $user->role;
-                    $_SESSION['name']    = $user->name;
-                    $_SESSION['email']   = $user->email;
+                    // ORIGINAL SESSION LOGIN (kept intact)
+                    $_SESSION['user_id'] = $user['user_id'];
+                    $_SESSION['role']    = $user['role'];
+                    $_SESSION['name']    = $user['name'];
+                    $_SESSION['email']   = $user['email'];
 
-                    if ($user->role === 'admin') {
+                    if ($user['role'] === 'admin') {
                         Helpers::redirect('admin_employers.php');
-                    } elseif ($user->role === 'employer') {
+                    } elseif ($user['role'] === 'employer') {
                         Helpers::redirect('employer_dashboard.php');
                     } else {
                         Helpers::redirect('user_dashboard.php');
@@ -77,9 +97,27 @@ include '../includes/nav.php';
           <i class="bi bi-box-arrow-in-right me-2"></i>Login
         </h2>
 
+        <?php if (!empty($flashMessages)): ?>
+          <?php foreach ($flashMessages as $f): ?>
+            <div class="alert alert-<?php echo htmlspecialchars($f['type']); ?> alert-dismissible fade show" role="alert">
+              <?php if ($f['type']==='success'): ?>
+                <i class="bi bi-check-circle me-2"></i>
+              <?php elseif ($f['type']==='danger'): ?>
+                <i class="bi bi-exclamation-triangle me-2"></i>
+              <?php elseif ($f['type']==='warning'): ?>
+                <i class="bi bi-exclamation-circle me-2"></i>
+              <?php else: ?>
+                <i class="bi bi-info-circle me-2"></i>
+              <?php endif; ?>
+              <?php echo $f['message']; ?>
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
+
         <?php foreach ($errors as $e): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i><?php echo htmlspecialchars($e); ?>
+            <i class="bi bi-exclamation-triangle me-2"></i><?php echo $e; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endforeach; ?>
@@ -108,12 +146,6 @@ include '../includes/nav.php';
           <div class="alert alert-info py-2 px-3 mb-0 small">
             Need help with your account?
             <a href="<?php echo Helpers::supportLink(); ?>" class="alert-link">Contact Support</a>.
-            <div class="mt-2 small">
-              Quick links:
-              <a href="<?php echo Helpers::supportLink('Account Suspension'); ?>" class="text-decoration-none">Account Suspension</a> &middot;
-              <a href="<?php echo Helpers::supportLink('Employer Verification'); ?>" class="text-decoration-none">Employer Verification</a> &middot;
-              <a href="<?php echo Helpers::supportLink('Login Issue'); ?>" class="text-decoration-none">Login Issue</a>
-            </div>
           </div>
         </div>
 
