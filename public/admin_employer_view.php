@@ -21,6 +21,22 @@ if ($user_id === '') {
   Helpers::redirect('admin_employers.php');
 }
 
+/* =========================================================
+   ADDED (pre-fetch current status BEFORE action so we can build
+   a fallback message even if flashes get consumed incorrectly)
+   ========================================================= */
+$__currentStatusBeforeAction = null;
+if ($user_id !== '') {
+  try {
+    $pdoPre = Database::getConnection();
+    $stmtPre = $pdoPre->prepare("SELECT employer_status FROM users WHERE user_id=? LIMIT 1");
+    $stmtPre->execute([$user_id]);
+    $__currentStatusBeforeAction = $stmtPre->fetchColumn() ?: 'Pending';
+  } catch (Throwable $e) {
+    $__currentStatusBeforeAction = null;
+  }
+}
+
 if (isset($_GET['action'])) {
   $action = $_GET['action'];
   $map = [
@@ -32,9 +48,17 @@ if (isset($_GET['action'])) {
   if (isset($map[$action])) {
     if (User::updateEmployerStatus($user_id, $map[$action])) {
       Helpers::flash('msg', 'Employer status updated to ' . $map[$action] . '.');
+
+      /* ADDED: also stash a mirror message (for recovery if flash becomes blank) */
+      $_SESSION['__status_update_msg'] = 'Employer status updated to ' . $map[$action] . '.';
+
     } else {
       Helpers::flash('msg', 'Failed to update employer status.');
+      $_SESSION['__status_update_msg'] = 'Failed to update employer status.'; /* ADDED */
     }
+  } else {
+    /* ADDED: unknown action fallback */
+    $_SESSION['__status_update_msg'] = 'Unknown employer status action.';
   }
   Helpers::redirect('admin_employer_view.php?user_id=' . urlencode($user_id));
   exit;
@@ -48,6 +72,7 @@ $emp = $stmt->fetch();
 
 if (!$emp) {
   Helpers::flash('msg', 'Employer not found.');
+  $_SESSION['__status_update_msg'] = 'Employer not found.'; /* ADDED */
   Helpers::redirect('admin_employers.php');
 }
 
@@ -67,28 +92,124 @@ include '../includes/nav.php';
 /* ADDED: use last page override default list page */
 $backUrl = Helpers::getLastPage('admin_employers.php');
 
-/* ADDED START: Flash rendering (no removals) */
-$__fl = Helpers::getFlashes();
-if ($__fl) {
-  echo '<div class="mb-3">';
-  foreach ($__fl as $k=>$msg) {
-    if (trim($msg)==='') $msg = 'Action completed.'; // fallback so hindi blank
-    $type = match($k){
-      'error','danger' => 'danger',
-      'success'        => 'success',
-      'warning','auth' => 'warning',
-      'msg','info'     => 'info',
-      default          => 'primary'
-    };
-    echo '<div class="alert alert-'.$type.' alert-dismissible fade show" role="alert">';
-    echo '<i class="bi bi-info-circle me-2"></i>'.htmlspecialchars($msg);
-    echo '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
-    echo '</div>';
-  }
-  echo '</div>';
+/* =========================================================
+   ADDED START: RESILIENT FLASH + FALLBACK INDICATOR BLOCK
+   (Original lines kept; we now add data-origin so we can dedup later)
+   ========================================================= */
+$__rawFlashSessionCopy = $_SESSION['flash'] ?? []; // snapshot
+
+$__structured = [];
+if (method_exists('Helpers','getFlashes')) {
+    $__structured = Helpers::getFlashes();
 }
-/* ADDED END */
+
+if (!$__structured && $__rawFlashSessionCopy) {
+    foreach ($__rawFlashSessionCopy as $k=>$v) {
+        $t = match($k){
+          'error','danger'=>'danger',
+          'success'=>'success',
+          'auth'=>'warning',
+          default=>'info'
+        };
+        $__structured[] = ['type'=>$t,'message'=>$v];
+    }
+}
+
+$__needsSynthetic = false;
+foreach ($__structured as $f) {
+    $msg = trim((string)($f['message'] ?? ''));
+    if ($msg === '') { $__needsSynthetic = true; break; }
+}
+if (!$__structured) $__needsSynthetic = true;
+
+$__syntheticMessages = [];
+if ($__needsSynthetic) {
+    $synthetic = $_SESSION['__status_update_msg'] ?? '';
+    if ($synthetic === '') {
+        $synthetic = 'Employer status is ' . $status . '.';
+    }
+    $__syntheticMessages[] = ['type'=>'info','message'=>$synthetic];
+}
+
+$__finalFlashList = $__structured;
+if ($__syntheticMessages) {
+    $existingTexts = array_map(fn($x)=>$x['message'],$__finalFlashList);
+    foreach ($__syntheticMessages as $s) {
+        if (!in_array($s['message'],$existingTexts,true)) {
+            $__finalFlashList[] = $s;
+        }
+    }
+}
+
+if ($__finalFlashList) {
+    echo '<div id="__emp_status_flash_block" class="container mb-3">';
+    foreach ($__finalFlashList as $f) {
+        $type = htmlspecialchars($f['type'] ?? 'info');
+        $msg  = trim((string)($f['message'] ?? ''));
+        if ($msg === '') $msg = 'Action completed.';
+        $icon = match($type){
+          'success'=>'check-circle',
+          'danger'=>'exclamation-triangle',
+          'warning'=>'exclamation-circle',
+          default=>'info-circle'
+        };
+        echo '<div class="alert alert-'.$type.' alert-dismissible fade show auto-dismiss" role="alert" data-origin="resilient-block" data-msg="'.htmlspecialchars($msg,ENT_QUOTES).'">';
+        echo '<i class="bi bi-'.$icon.' me-2"></i>'.htmlspecialchars($msg);
+        echo '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        echo '</div>';
+    }
+    echo '</div>';
+}
 ?>
+<script>
+/* ADDED JS PATCH:
+   Fills empty alerts (previous logic) with message if needed.
+*/
+(function(){
+  const currentStatus = <?php echo json_encode($status); ?>;
+  const synth = <?php echo json_encode($_SESSION['__status_update_msg'] ?? ''); ?>;
+  document.querySelectorAll('.alert.alert-info, .alert.alert-success, .alert.alert-warning, .alert.alert-danger')
+    .forEach(function(al){
+      const btn = al.querySelector('.btn-close');
+      const raw = al.cloneNode(true);
+      const innerTxt = Array.from(al.childNodes)
+          .filter(n=>n.nodeType===3)
+          .map(n=>n.textContent).join('').trim();
+      const hasMeaningful = innerTxt.length > 1;
+      if (!hasMeaningful) {
+        let injected = al.getAttribute('data-msg') || synth;
+        if (!injected) injected = 'Employer status is ' + currentStatus + '.';
+        const span = document.createElement('span');
+        span.textContent = ' ' + injected;
+        if (btn) al.insertBefore(span, btn);
+        else al.appendChild(span);
+      }
+    });
+})();
+</script>
+
+<script>
+(function(){
+  // Run after previous scripts
+  const seen = new Set();
+  document.querySelectorAll('.alert').forEach(al=>{
+    // Collect textual message excluding the close button
+    const clone = al.cloneNode(true);
+    const btn = clone.querySelector('.btn-close');
+    if (btn) btn.remove();
+    const msg = clone.textContent.replace(/\s+/g,' ').trim();
+    if (!msg) return;
+    if (seen.has(msg)) {
+      // Remove duplicates (later ones)
+      al.parentNode && al.parentNode.removeChild(al);
+    } else {
+      seen.add(msg);
+    }
+  });
+})();
+</script>
+
+
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h2 class="h5 fw-semibold mb-0"><i class="bi bi-building-check me-2"></i>Employer Profile</h2>
   <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
@@ -140,7 +261,7 @@ if ($__fl) {
         <div class="d-flex flex-wrap gap-2">
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=approve" class="btn btn-sm btn-success">Approve</a>
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=pending" class="btn btn-sm btn-warning">Set Pending</a>
-            <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=suspend" class="btn btn-sm btn-danger">Suspend</a>
+          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=suspend" class="btn btn-sm btn-danger">Suspend</a>
           <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=reject" class="btn btn-sm btn-secondary">Reject</a>
         </div>
       </div>

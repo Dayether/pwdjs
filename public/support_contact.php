@@ -54,17 +54,93 @@ function resolve_back_url_original(): ?string {
     return $relative === '' ? null : $relative;
 }
 
-$backUrl = resolve_back_url_original();
-
-/* ========= ADDED START: Session last_page override kung meron ========= */
-if (!empty($_SESSION['last_page'])) {
-    $lpBase = basename(parse_url($_SESSION['last_page'], PHP_URL_PATH) ?? '');
-    $curBase = basename($_SERVER['PHP_SELF'] ?? '');
-    if ($lpBase !== $curBase) {
-        $backUrl = $_SESSION['last_page'];
+/* =========================================================
+   ADDED: Normalizer para alisin ang duplicated leading segments
+   Example:
+     pwdjs/public/login.php  -> login.php
+     public/login.php        -> login.php
+     pwdjs/login.php         -> login.php (optional)
+     /pwdjs/public/login.php -> login.php
+   ========================================================= */
+function normalize_relative_path(?string $p): ?string {
+    if (!$p) return null;
+    // Separate query early
+    $query = '';
+    if (str_contains($p, '?')) {
+        [$pathOnly, $query] = explode('?', $p, 2);
+    } else {
+        $pathOnly = $p;
     }
+    $pathOnly = ltrim($pathOnly, '/');
+
+    // Common deploy prefixes we want to strip ONCE
+    $prefixes = [
+        'pwdjs/public/',
+        'public/',
+        'pwdjs/' // optional if nested
+    ];
+    foreach ($prefixes as $pref) {
+        if (stripos($pathOnly, $pref) === 0) {
+            $pathOnly = substr($pathOnly, strlen($pref));
+            // After trimming one prefix, re-check from start for e.g. accidental double prefix
+            foreach ($prefixes as $pref2) {
+                if (stripos($pathOnly, $pref2) === 0) {
+                    $pathOnly = substr($pathOnly, strlen($pref2));
+                }
+            }
+            break;
+        }
+    }
+
+    // Prevent returning self
+    $self = basename($_SERVER['PHP_SELF'] ?? 'support_contact.php');
+    if (basename($pathOnly) === $self) {
+        return null;
+    }
+
+    // Basic safety
+    if ($pathOnly === '' || $pathOnly === '.') return null;
+    if (strpos($pathOnly, '..') !== false) return null;
+
+    $final = $pathOnly;
+    if ($query !== '') $final .= '?' . $query;
+    return $final;
 }
-/* ========= ADDED END ========= */
+
+/* =========================================================
+   ADDED: Enhanced resolver that wraps original then normalizes.
+   Priority:
+     1. ?return param / HTTP_REFERER (original)
+     2. Session last_page (if valid and different)
+     3. Fallback index.php
+   ========================================================= */
+function resolve_back_url_enhanced(): string {
+    $candidate = resolve_back_url_original();
+
+    // Try normalize original candidate
+    $norm = normalize_relative_path($candidate);
+
+    // If normalized is null, try session last_page
+    if ($norm === null && !empty($_SESSION['last_page'])) {
+        $lp = normalize_relative_path($_SESSION['last_page']);
+        if ($lp !== null) {
+            $norm = $lp;
+        }
+    }
+
+    // If still null, fallback index.php
+    if ($norm === null) {
+        $norm = 'index.php';
+    }
+
+    return $norm;
+}
+
+/* ORIGINAL assignment (kept conceptually) */
+// $backUrl = resolve_back_url_original();
+
+/* ADDED: use enhanced resolver */
+$backUrl = resolve_back_url_enhanced();
 
 /* Prefill subject */
 $incomingSubject = trim($_GET['subject'] ?? '');
@@ -115,7 +191,10 @@ include '../includes/nav.php';
 
     <div class="d-flex justify-content-between align-items-center mb-3">
       <?php if ($backUrl): ?>
-        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm" id="backBtn">
+        <a href="<?php echo htmlspecialchars($backUrl); ?>"
+           class="btn btn-outline-secondary btn-sm"
+           id="backBtn"
+           data-original="<?php echo htmlspecialchars($backUrl); ?>">
           <i class="bi bi-arrow-left me-1"></i>Back
         </a>
       <?php else: ?>
@@ -253,12 +332,31 @@ if (subjectSelect) {
   updateHelpNote();
 }
 
-// Back button JS fallback (history.back) if no backUrl at render
+// Back button JS fallback (history.back) if no anchor or anchor problematic
 const backBtn = document.getElementById('backBtn');
-if (backBtn && backBtn.tagName === 'BUTTON') {
-  backBtn.addEventListener('click', function(){
-    if (history.length > 1) history.back();
-    else window.location.href = this.dataset.fallback || 'index.php';
-  });
+if (backBtn) {
+  // If it's a button, already handled earlier. If anchor, we still safeguard.
+  if (backBtn.tagName === 'A') {
+    let href = backBtn.getAttribute('href') || '';
+    // Detect duplicated segments like pwdjs/public/pwdjs/public/
+    if (/pwdjs\\/public\\/.*pwdjs\\/public\\//i.test(href)) {
+      // Attempt to cut everything before the LAST occurrence of 'pwdjs/public/'
+      const idx = href.toLowerCase().lastIndexOf('pwdjs/public/');
+      if (idx !== -1) {
+        href = href.substring(idx + 'pwdjs/public/'.length);
+      }
+      // Further strip any leading public/
+      href = href.replace(/^public\\//i,'').replace(/^pwdjs\\//i,'');
+      if (href === '' || href === 'support_contact.php') {
+        href = 'index.php';
+      }
+      backBtn.setAttribute('href', href);
+    }
+  } else if (backBtn.tagName === 'BUTTON') {
+    backBtn.addEventListener('click', function(){
+      if (history.length > 1) history.back();
+      else window.location.href = this.dataset.fallback || 'index.php';
+    });
+  }
 }
 </script>
