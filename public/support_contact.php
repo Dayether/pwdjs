@@ -3,7 +3,12 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+/* WAG i-store ang page na ito as last_page (excluded sa Helpers) —
+   kaya walang Helpers::storeLastPage() dito para hindi ma-overwrite ang previous. */
 
 $prefillName  = $_SESSION['name']  ?? '';
 $prefillEmail = $_SESSION['email'] ?? '';
@@ -26,56 +31,45 @@ $subjects = [
     'Other'
 ];
 
-// Enhanced safe back URL resolver
-function resolve_back_url(): ?string {
-    // 1. Explicit return param
+/* Existing resolver (HINDI inalis) */
+function resolve_back_url_original(): ?string {
     $candidate = $_GET['return'] ?? '';
-
-    // 2. If no return param, use HTTP_REFERER
     if ($candidate === '' && !empty($_SERVER['HTTP_REFERER'])) {
         $candidate = $_SERVER['HTTP_REFERER'];
     }
-
-    if ($candidate === '') {
-        return null; // Force JS history fallback later
-    }
-
-    // Parse and validate (allow only same host OR relative path)
+    if ($candidate === '') return null;
     $parsed = parse_url($candidate);
-
-    // If full URL with host different from current host => reject
     if (!empty($parsed['host']) && $parsed['host'] !== ($_SERVER['HTTP_HOST'] ?? '')) {
         return null;
     }
-
-    // Build relative path (if scheme/host present but same host we keep path+query)
     $path = $parsed['path'] ?? '';
     if ($path === '') return null;
-
-    // Do not return to the same support page (avoid loop)
     $selfName = basename($_SERVER['PHP_SELF']);
-    if (basename($path) === $selfName) {
-        return null;
-    }
-
-    if (strpos($path, '..') !== false) return null; // basic traversal guard
-
+    if (basename($path) === $selfName) return null;
+    if (strpos($path, '..') !== false) return null;
     $relative = ltrim($path, '/');
     if (isset($parsed['query'])) {
         $relative .= '?' . $parsed['query'];
     }
-
-    // Small safeguard: ensure it ends with .php or no extension (like index)
-    // (Optional – you can remove if not needed)
     return $relative === '' ? null : $relative;
 }
 
-$backUrl = resolve_back_url();
+$backUrl = resolve_back_url_original();
 
-// Prefill subject via query
+/* ========= ADDED START: Session last_page override kung meron ========= */
+if (!empty($_SESSION['last_page'])) {
+    $lpBase = basename(parse_url($_SESSION['last_page'], PHP_URL_PATH) ?? '');
+    $curBase = basename($_SERVER['PHP_SELF'] ?? '');
+    if ($lpBase !== $curBase) {
+        $backUrl = $_SESSION['last_page'];
+    }
+}
+/* ========= ADDED END ========= */
+
+/* Prefill subject */
 $incomingSubject = trim($_GET['subject'] ?? '');
 
-// Handle submit
+/* Handle submit */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name    = trim($_POST['name'] ?? '');
     $email   = trim($_POST['email'] ?? '');
@@ -119,16 +113,13 @@ include '../includes/nav.php';
 <div class="row justify-content-center">
   <div class="col-lg-9 col-xl-7">
 
-    <!-- Back button -->
     <div class="d-flex justify-content-between align-items-center mb-3">
       <?php if ($backUrl): ?>
         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm" id="backBtn">
           <i class="bi bi-arrow-left me-1"></i>Back
         </a>
       <?php else: ?>
-        <!-- JS history fallback -->
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="backBtn"
-                data-fallback="index.php">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="backBtn" data-fallback="index.php">
           <i class="bi bi-arrow-left me-1"></i>Back
         </button>
       <?php endif; ?>
@@ -181,18 +172,18 @@ include '../includes/nav.php';
             </select>
           </div>
 
-          <div class="col-12">
-            <label class="form-label">Message</label>
-            <textarea name="message" id="messageField" rows="6" class="form-control" required><?php
-              echo htmlspecialchars($_POST['message'] ?? ($success ? '' : ''));
-            ?></textarea>
-          </div>
+            <div class="col-12">
+              <label class="form-label">Message</label>
+              <textarea name="message" id="messageField" rows="6" class="form-control" required><?php
+                echo htmlspecialchars($_POST['message'] ?? ($success ? '' : ''));
+              ?></textarea>
+            </div>
 
-          <div class="col-12 d-grid">
-            <button class="btn btn-primary">
-              <i class="bi bi-envelope-paper me-1"></i>Submit Request
-            </button>
-          </div>
+            <div class="col-12 d-grid">
+              <button class="btn btn-primary">
+                <i class="bi bi-envelope-paper me-1"></i>Submit Request
+              </button>
+            </div>
         </form>
 
         <hr class="my-4">
@@ -207,9 +198,8 @@ include '../includes/nav.php';
 
 <?php include '../includes/footer.php'; ?>
 <script>
-// Auto-dismiss success
-document.querySelectorAll('.alert.auto-dismiss').forEach(function(el){
-  setTimeout(()=>{ try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e){} }, 4500);
+document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{
+  setTimeout(()=>{ try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e){} },4500);
 });
 
 const subjectSelect = document.getElementById('subjectSelect');
@@ -258,22 +248,17 @@ function updateHelpNote() {
   }
   helpNote.textContent = txt;
 }
-
 if (subjectSelect) {
   subjectSelect.addEventListener('change', updateHelpNote);
   updateHelpNote();
 }
 
-// Back button JS fallback (history.back) if we had no safe URL
+// Back button JS fallback (history.back) if no backUrl at render
 const backBtn = document.getElementById('backBtn');
 if (backBtn && backBtn.tagName === 'BUTTON') {
   backBtn.addEventListener('click', function(){
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      // Fallback if no history
-      window.location.href = this.getAttribute('data-fallback') || 'index.php';
-    }
+    if (history.length > 1) history.back();
+    else window.location.href = this.dataset.fallback || 'index.php';
   });
 }
 </script>

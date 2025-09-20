@@ -6,3 +6,4 @@ define('DB_PASS', '');            // Default password is empty in XAMPP
 define('BASE_URL', 'http://localhost/pwdjs/'); // Your project URL
 
 session_start();
+
