@@ -8,34 +8,38 @@ Helpers::requireLogin();
 
 $viewerId   = $_SESSION['user_id'] ?? null;
 $viewerRole = $_SESSION['role'] ?? '';
+$userParam  = $_GET['user_id'] ?? '';
 
-/*
- * Allow self-view without passing ?user_id.
- * If role = job_seeker and no user_id provided, set to own.
- */
-if (!isset($_GET['user_id']) && $viewerRole === 'job_seeker') {
-    $_GET['user_id'] = $viewerId;
+if ($userParam === '' && $viewerRole === 'job_seeker') {
+    $userParam = $viewerId; // view self by default
 }
 
-$user_id   = $_GET['user_id'] ?? '';
-$jobSeeker = User::findById($user_id);
-$backUrl   = isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'index.php';
+$target = User::findById($userParam);
+$backUrl = $_SERVER['HTTP_REFERER'] ?? 'index.php';
 
-if (!$jobSeeker || $jobSeeker->role !== 'job_seeker') {
+if (!$target) {
     include '../includes/header.php';
     include '../includes/nav.php';
-    echo '<div class="container py-5"><div class="alert alert-danger">Job seeker profile not found.</div></div>';
+    echo '<div class="container py-5"><div class="alert alert-danger">Profile not found.</div></div>';
     include '../includes/footer.php';
     exit;
 }
 
-$isSelf = ($viewerRole === 'job_seeker' && $viewerId === $jobSeeker->user_id);
+if ($target->role === 'employer') {
+    // This page is only for job seekers; redirect to employer profile
+    Helpers::redirect('employer_profile.php?user_id='.urlencode($target->user_id));
+    exit;
+}
+
+$isSelf = ($viewerRole === 'job_seeker' && $viewerId === $target->user_id);
 
 /* Authorization:
-   - admin or self
-   - employer only if may application relationship
+   - Admin always
+   - Self (job seeker)
+   - Employer only if employer has at least one application from this job seeker
 */
 $authorized = false;
+
 if ($viewerRole === 'admin' || $isSelf) {
     $authorized = true;
 } elseif ($viewerRole === 'employer') {
@@ -48,16 +52,18 @@ if ($viewerRole === 'admin' || $isSelf) {
             WHERE a.user_id = ? AND j.employer_id = ?
             LIMIT 1
         ");
-        $chk->execute([$jobSeeker->user_id, $viewerId]);
+        $chk->execute([$target->user_id, $viewerId]);
         if ($chk->fetch()) $authorized = true;
-    } catch (Throwable $e) {}
+    } catch (Throwable $e) {
+        $authorized = false;
+    }
 }
 
 include '../includes/header.php';
 include '../includes/nav.php';
 
 if (!$authorized) {
-    echo '<div class="container py-5"><div class="alert alert-warning">You are not authorized to view this profile.</div></div>';
+    echo '<div class="container py-5"><div class="alert alert-warning">You are not authorized to view this job seeker profile.</div></div>';
     include '../includes/footer.php';
     exit;
 }
@@ -74,7 +80,7 @@ try {
             WHERE a.user_id = ?
             ORDER BY a.created_at DESC
         ");
-        $stmt->execute([$jobSeeker->user_id]);
+        $stmt->execute([$target->user_id]);
     } elseif ($viewerRole === 'employer') {
         $stmt = $pdo->prepare("
             SELECT a.application_id, a.job_id, a.status, a.created_at, a.match_score, j.title
@@ -83,24 +89,26 @@ try {
             WHERE a.user_id = ? AND j.employer_id = ?
             ORDER BY a.created_at DESC
         ");
-        $stmt->execute([$jobSeeker->user_id, $viewerId]);
+        $stmt->execute([$target->user_id, $viewerId]);
     }
-    $applications = $stmt->fetchAll();
-} catch (Throwable $e) {}
+    $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $applications = [];
+}
 
 function safeFileLink(?string $path): ?string {
     if (!$path) return null;
     if (strpos($path,'..')!==false) return null;
     return $path;
 }
-$resumeSafe = safeFileLink($jobSeeker->resume);
-$videoSafe  = safeFileLink($jobSeeker->video_intro);
+$resumeSafe = safeFileLink($target->resume);
+$videoSafe  = safeFileLink($target->video_intro);
 
-$experienceLabel = ($jobSeeker->experience !== null)
-    ? (int)$jobSeeker->experience . ' year' . ($jobSeeker->experience == 1 ? '' : 's')
+$experienceLabel = ($target->experience !== null)
+    ? (int)$target->experience . ' year' . ($target->experience == 1 ? '' : 's')
     : '0 years';
-$educationLabel  = $jobSeeker->education_level ?: ($jobSeeker->education ?: 'Not specified');
-$disabilityLabel = $jobSeeker->disability ?: 'Not specified';
+$educationLabel  = $target->education_level ?: ($target->education ?: 'Not specified');
+$disabilityLabel = $target->disability ?: 'Not specified';
 
 /* Toast flash */
 $rawFlash = $_SESSION['flash'] ?? [];
@@ -139,25 +147,25 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h2 class="h5 fw-semibold mb-3">
-            <i class="bi bi-person-fill me-2"></i><?php echo htmlspecialchars($jobSeeker->name ?: 'Unnamed User'); ?>
+            <i class="bi bi-person-fill me-2"></i><?php echo htmlspecialchars($target->name ?: 'Unnamed User'); ?>
           </h2>
           <dl class="row small mb-0">
-            <dt class="col-5 text-muted">Email</dt><dd class="col-7"><?php echo htmlspecialchars($jobSeeker->email); ?></dd>
+            <dt class="col-5 text-muted">Email</dt><dd class="col-7"><?php echo htmlspecialchars($target->email); ?></dd>
             <dt class="col-5 text-muted">Disability</dt><dd class="col-7"><?php echo htmlspecialchars($disabilityLabel); ?></dd>
 
-            <?php if (!empty($jobSeeker->disability_type)): ?>
+            <?php if (!empty($target->disability_type)): ?>
               <dt class="col-5 text-muted">Disability Type</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($jobSeeker->disability_type); ?></dd>
+              <dd class="col-7"><?php echo htmlspecialchars($target->disability_type); ?></dd>
             <?php endif; ?>
 
-            <?php if (!empty($jobSeeker->disability_severity)): ?>
+            <?php if (!empty($target->disability_severity)): ?>
               <dt class="col-5 text-muted">Severity</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($jobSeeker->disability_severity); ?></dd>
+              <dd class="col-7"><?php echo htmlspecialchars($target->disability_severity); ?></dd>
             <?php endif; ?>
 
-            <?php if (!empty($jobSeeker->assistive_devices)): ?>
+            <?php if (!empty($target->assistive_devices)): ?>
               <dt class="col-5 text-muted">Assistive Devices</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($jobSeeker->assistive_devices); ?></dd>
+              <dd class="col-7"><?php echo htmlspecialchars($target->assistive_devices); ?></dd>
             <?php endif; ?>
 
             <dt class="col-5 text-muted">Education</dt>
@@ -166,24 +174,24 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
             <dt class="col-5 text-muted">Experience</dt>
             <dd class="col-7"><?php echo htmlspecialchars($experienceLabel); ?></dd>
 
-            <?php if (!empty($jobSeeker->gender)): ?>
+            <?php if (!empty($target->gender)): ?>
               <dt class="col-5 text-muted">Gender</dt>
-              <dd class="col-7"><?php echo htmlspecialchars($jobSeeker->gender); ?></dd>
+              <dd class="col-7"><?php echo htmlspecialchars($target->gender); ?></dd>
             <?php endif; ?>
 
-            <?php if (!empty($jobSeeker->region) || !empty($jobSeeker->province) || !empty($jobSeeker->city)): ?>
+            <?php if (!empty($target->region) || !empty($target->province) || !empty($target->city)): ?>
               <dt class="col-5 text-muted">Location</dt>
               <dd class="col-7">
                 <?php
-                  $parts = array_filter([$jobSeeker->city,$jobSeeker->province,$jobSeeker->region]);
-                  echo htmlspecialchars(implode(', ', $parts));
+                  $parts = array_filter([$target->city,$target->province,$target->region]);
+                  echo htmlspecialchars(implode(', ',$parts));
                 ?>
               </dd>
             <?php endif; ?>
 
-            <?php if (!empty($jobSeeker->primary_skill_summary)): ?>
+            <?php if (!empty($target->primary_skill_summary)): ?>
               <dt class="col-5 text-muted">Summary</dt>
-              <dd class="col-7"><?php echo nl2br(htmlspecialchars($jobSeeker->primary_skill_summary)); ?></dd>
+              <dd class="col-7"><?php echo nl2br(htmlspecialchars($target->primary_skill_summary)); ?></dd>
             <?php endif; ?>
 
             <?php if ($resumeSafe): ?>
@@ -236,7 +244,7 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
                           <?php echo htmlspecialchars($app['status']); ?>
                         </span>
                       </td>
-                      <td><?php echo htmlspecialchars($app['match_score']); ?>%</td>
+                      <td><?php echo htmlspecialchars((float)$app['match_score']); ?>%</td>
                       <td><?php echo htmlspecialchars(date('Y-m-d', strtotime($app['created_at']))); ?></td>
                     </tr>
                   <?php endforeach; ?>

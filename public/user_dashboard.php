@@ -7,17 +7,49 @@ require_once '../classes/Application.php';
 require_once '../classes/Job.php';
 
 Helpers::requireLogin();
-if (!Helpers::isJobSeeker()) Helpers::redirect('index.php');
+if (!Helpers::isJobSeeker()) {
+    Helpers::redirect('index.php');
+}
 
 $user = User::findById($_SESSION['user_id']);
 
-/* Fetch applications for this user */
-$apps = Application::listByUser($user->user_id); // returns array (job_id, title, status, match_score, created_at, etc.)
-/* Build job status map (Open/Suspended/Closed) */
+// --------------------------------------------------
+// Profile Completion Logic
+// Add or remove fields here depending on what you require
+// --------------------------------------------------
+$profileFields = [
+    'name'       => $user->name ?? '',
+    'email'      => $user->email ?? '',
+    'education'  => $user->education ?? '',
+    'disability' => $user->disability ?? '',
+    // 'pwd_id_number' => $user->pwd_id_number ?? '',   // uncomment if you have this field
+    // 'resume_path'   => $user->resume_path ?? '',     // example if you track resume
+];
+
+$totalFields    = count($profileFields);
+$filledFields   = count(array_filter($profileFields, fn($v) => trim((string)$v) !== ''));
+$profilePercent = $totalFields ? (int)round(($filledFields / $totalFields) * 100) : 0;
+$profileBarClass = 'bg-danger';
+if ($profilePercent >= 80)       $profileBarClass = 'bg-success';
+elseif ($profilePercent >= 50)   $profileBarClass = 'bg-warning';
+
+$missing = [];
+foreach ($profileFields as $k => $v) {
+    if (trim((string)$v) === '') {
+        $missing[] = ucfirst(str_replace('_', ' ', $k));
+    }
+}
+
+// --------------------------------------------------
+// Fetch user applications
+// --------------------------------------------------
+$apps = Application::listByUser($user->user_id);  // Should return latest first; adjust if not
+
+// Build job status map
 $jobStatusMap = [];
 try {
     if ($apps) {
-        $jobIds = array_values(array_unique(array_map(fn($a)=>$a['job_id'], $apps)));
+        $jobIds = array_values(array_unique(array_map(fn($a) => $a['job_id'], $apps)));
         if ($jobIds) {
             $placeholders = implode(',', array_fill(0, count($jobIds), '?'));
             $pdo = Database::getConnection();
@@ -28,15 +60,24 @@ try {
             }
         }
     }
-} catch (Throwable $e) {}
+} catch (Throwable $e) {
+    // silently ignore
+}
 
 $RECENT_LIMIT = 8;
-$recentApps = array_slice($apps, 0, $RECENT_LIMIT);
+$recentApps   = array_slice($apps, 0, $RECENT_LIMIT);
+
+// Quick counts
+$totalApps     = count($apps);
+$approvedCount = count(array_filter($apps, fn($a) => ($a['status'] ?? '') === 'Approved'));
+$pendingCount  = count(array_filter($apps, fn($a) => ($a['status'] ?? '') === 'Pending'));
 
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
+
 <div class="row g-3">
+  <!-- LEFT COLUMN -->
   <div class="col-lg-7">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
@@ -48,10 +89,12 @@ include '../includes/nav.php';
             <i class="bi bi-pencil me-1"></i>Edit Profile
           </a>
         </div>
-        <div class="row g-3">
+
+        <!-- Quick Info Boxes -->
+        <div class="row g-3 mb-3">
           <div class="col-md-6">
             <div class="p-3 rounded border bg-white h-100">
-              <div class="text-muted small">Education</div>
+              <div class="text-muted small mb-1">Education</div>
               <div class="fw-semibold">
                 <?php echo Helpers::sanitizeOutput($user->education ?: 'Not specified'); ?>
               </div>
@@ -59,14 +102,16 @@ include '../includes/nav.php';
           </div>
           <div class="col-md-6">
             <div class="p-3 rounded border bg-white h-100">
-              <div class="text-muted small">Disability</div>
+              <div class="text-muted small mb-1">Disability</div>
               <div class="fw-semibold">
                 <?php echo Helpers::sanitizeOutput($user->disability ?: 'Not specified'); ?>
               </div>
             </div>
           </div>
         </div>
-        <div class="mt-3 d-flex flex-wrap gap-2">
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-primary" href="index.php">
             <i class="bi bi-search me-1"></i>Find Jobs
           </a>
@@ -74,23 +119,47 @@ include '../includes/nav.php';
             <i class="bi bi-person-lines-fill me-1"></i>Update Profile
           </a>
         </div>
+
+        <!-- Profile Completion -->
+        <hr class="my-3">
+        <div class="mb-2 d-flex justify-content-between align-items-center">
+          <div class="small fw-semibold">Profile Completion</div>
+          <div class="small text-muted"><?php echo $filledFields . '/' . $totalFields; ?> (<?php echo $profilePercent; ?>%)</div>
+        </div>
+        <div class="progress" style="height:8px;">
+          <div class="progress-bar <?php echo $profileBarClass; ?>"
+               style="width:<?php echo $profilePercent; ?>%"
+               role="progressbar"
+               aria-valuenow="<?php echo $profilePercent; ?>"
+               aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <?php if ($profilePercent < 100): ?>
+          <div class="small mt-2 text-muted">
+            Complete your profile to increase employer trust.
+            <?php if ($missing): ?>
+              <br><span class="text-danger">Missing:</span> <?php echo htmlspecialchars(implode(', ', $missing)); ?>
+            <?php endif; ?>
+          </div>
+        <?php else: ?>
+          <div class="small mt-2 text-success">
+            Great! Your profile is fully complete.
+          </div>
+        <?php endif; ?>
+
       </div>
     </div>
 
-    <!-- Optional: Stats summary -->
+    <!-- Stats Summary -->
     <div class="row g-3">
       <div class="col-sm-4">
         <div class="card border-0 shadow-sm">
           <div class="card-body text-center py-3">
             <div class="text-muted small">Applied Jobs</div>
-            <div class="fw-bold fs-5"><?php echo count($apps); ?></div>
+            <div class="fw-bold fs-5"><?php echo $totalApps; ?></div>
           </div>
         </div>
       </div>
       <div class="col-sm-4">
-        <?php
-          $approvedCount = count(array_filter($apps, fn($a)=>($a['status'] ?? '')==='Approved'));
-        ?>
         <div class="card border-0 shadow-sm">
           <div class="card-body text-center py-3">
             <div class="text-muted small">Approved</div>
@@ -99,9 +168,6 @@ include '../includes/nav.php';
         </div>
       </div>
       <div class="col-sm-4">
-        <?php
-          $pendingCount = count(array_filter($apps, fn($a)=>($a['status'] ?? '')==='Pending'));
-        ?>
         <div class="card border-0 shadow-sm">
           <div class="card-body text-center py-3">
             <div class="text-muted small">Pending</div>
@@ -113,8 +179,8 @@ include '../includes/nav.php';
 
   </div>
 
-  <!-- Recent Applications -->
-  <div class="col-lg-5">
+  <!-- RIGHT COLUMN: Recent Applications -->
+  <div class="col-lg-5" id="applications">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body p-4 d-flex flex-column">
         <h3 class="h6 fw-semibold mb-3">
@@ -140,7 +206,7 @@ include '../includes/nav.php';
                 <?php foreach ($recentApps as $a): ?>
                   <?php
                     $status = $a['status'] ?? 'Pending';
-                    $badgeClass = match($status) {
+                    $badgeClass = match ($status) {
                       'Approved' => 'success',
                       'Declined' => 'danger',
                       'Pending'  => 'warning',
@@ -149,6 +215,8 @@ include '../includes/nav.php';
                     $jobState = $jobStatusMap[$a['job_id']] ?? 'Open';
                     $jobStateBadge = $jobState !== 'Open'
                       ? '<span class="badge bg-secondary ms-1">'.htmlspecialchars($jobState).'</span>' : '';
+                    $matchScore = isset($a['match_score']) && $a['match_score'] !== null
+                      ? (int)$a['match_score'].'%' : '—';
                   ?>
                   <tr>
                     <td class="small">
@@ -157,13 +225,7 @@ include '../includes/nav.php';
                       </a>
                       <?php echo $jobStateBadge; ?>
                     </td>
-                    <td class="text-center small">
-                      <?php
-                        $ms = isset($a['match_score']) && $a['match_score'] !== null
-                          ? (int)$a['match_score'] : null;
-                        echo $ms !== null ? $ms.'%' : '—';
-                      ?>
-                    </td>
+                    <td class="text-center small"><?php echo $matchScore; ?></td>
                     <td class="small">
                       <span class="badge text-bg-<?php echo $badgeClass; ?>">
                         <?php echo htmlspecialchars($status); ?>
@@ -178,14 +240,16 @@ include '../includes/nav.php';
             </table>
           </div>
 
-          <?php if (count($apps) > $RECENT_LIMIT): ?>
+          <?php if ($totalApps > $RECENT_LIMIT): ?>
             <div class="mt-3 text-end">
-              <a class="small" href="applications.php">View all (<?php echo count($apps); ?>)</a>
+              <a class="small" href="applications.php">View all (<?php echo $totalApps; ?>)</a>
             </div>
           <?php endif; ?>
         <?php endif; ?>
+
       </div>
     </div>
   </div>
 </div>
+
 <?php include '../includes/footer.php'; ?>

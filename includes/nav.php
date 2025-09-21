@@ -1,21 +1,18 @@
 <?php
-if (!isset($currentPage)) {
-  $currentPage = basename($_SERVER['PHP_SELF']);
-}
-function nav_active($file, $currentPage) {
-  return $file === $currentPage ? 'active' : '';
-}
-
+if (!isset($currentPage)) $currentPage = basename($_SERVER['PHP_SELF']);
+function nav_active($file,$currentPage){ return $file===$currentPage?'active':''; }
 $loggedIn = !empty($_SESSION['user_id']);
 $role = $_SESSION['role'] ?? null;
-$showPostJobButton = ($loggedIn && $role === 'employer');
-
+$showPostJobButton = ($loggedIn && $role==='employer');
 $flashes = $_SESSION['global_flashes'] ?? [];
 if (isset($_SESSION['global_flashes'])) unset($_SESSION['global_flashes']);
+
+$profileLink = 'profile_edit.php';
+if ($loggedIn && $role==='employer') $profileLink='employer_profile.php';
+elseif ($loggedIn && $role==='admin') $profileLink='profile_edit.php';
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <!-- Brand (About page link) -->
     <a class="navbar-brand fw-semibold <?php echo nav_active('about.php',$currentPage); ?>" href="about.php">
       <i class="bi bi-universal-access me-1"></i>PWD Portal
     </a>
@@ -31,29 +28,23 @@ if (isset($_SESSION['global_flashes'])) unset($_SESSION['global_flashes']);
           </a>
         </li>
 
-        <?php if ($loggedIn && $role === 'job_seeker'): ?>
+        <?php if ($loggedIn && $role==='job_seeker'): ?>
           <li class="nav-item">
             <a class="nav-link <?php echo nav_active('user_dashboard.php',$currentPage); ?>" href="user_dashboard.php">
               <i class="bi bi-speedometer2 me-1"></i>Dashboard
             </a>
           </li>
-          <!-- Removed separate 'My Applications' nav item; now inside dashboard -->
         <?php endif; ?>
 
-        <?php if ($loggedIn && $role === 'employer'): ?>
+        <?php if ($loggedIn && $role==='employer'): ?>
           <li class="nav-item">
             <a class="nav-link <?php echo nav_active('employer_dashboard.php',$currentPage); ?>" href="employer_dashboard.php">
               <i class="bi bi-speedometer2 me-1"></i>Dashboard
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link <?php echo nav_active('employer_dashboard.php',$currentPage); ?>" href="employer_dashboard.php#jobs">
-              <i class="bi bi-briefcase me-1"></i>My Jobs
-            </a>
-          </li>
         <?php endif; ?>
 
-        <?php if ($loggedIn && $role === 'admin'): ?>
+        <?php if ($loggedIn && $role==='admin'): ?>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle <?php echo in_array($currentPage,['admin_employers.php','admin_reports.php','admin_support_tickets.php'])?'active':''; ?>" href="#" data-bs-toggle="dropdown">
               <i class="bi bi-shield-lock me-1"></i>Admin
@@ -87,7 +78,7 @@ if (isset($_SESSION['global_flashes'])) unset($_SESSION['global_flashes']);
           </li>
         <?php else: ?>
           <li class="nav-item me-2">
-            <a class="btn btn-outline-light btn-sm <?php echo nav_active('profile_edit.php',$currentPage); ?>" href="job_seeker_profile.php">
+            <a class="btn btn-outline-light btn-sm <?php echo nav_active($profileLink,$currentPage); ?>" href="<?php echo $profileLink; ?>">
               <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
             </a>
           </li>

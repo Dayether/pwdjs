@@ -3,89 +3,127 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
-require_once '../classes/Job.php';
 
-$empId = $_GET['user_id'] ?? '';
-$employer = $empId ? User::findById($empId) : null;
+Helpers::requireLogin();
 
-include '../includes/header.php';
-include '../includes/nav.php';
+$viewerId   = $_SESSION['user_id'] ?? null;
+$viewerRole = $_SESSION['role'] ?? '';
+$userParam  = $_GET['user_id'] ?? '';
+
+if ($userParam === '' && $viewerRole === 'employer') {
+    $userParam = $viewerId;
+}
+
+$employer = User::findById($userParam);
+$backUrl  = $_SERVER['HTTP_REFERER'] ?? 'index.php';
 
 if (!$employer || $employer->role !== 'employer') {
+    include '../includes/header.php';
+    include '../includes/nav.php';
     echo '<div class="container py-5"><div class="alert alert-danger">Employer profile not found.</div></div>';
     include '../includes/footer.php';
     exit;
 }
 
-// Optional: Only show if Approved (else limited info)
-$limited = ($employer->employer_status !== 'Approved');
+$isSelf = ($viewerRole === 'employer' && $viewerId === $employer->user_id);
+$canSeePrivate = $isSelf || ($viewerRole === 'admin');
 
-// Normalize website
-$website = $employer->company_website;
-if ($website) {
-    $website = trim($website);
-    if ($website !== '' && !preg_match('~^https?://~i', $website)) {
-        $website = 'https://' . $website;
-    }
-}
-
-// Fetch open jobs by this employer
+/* Load jobs */
 $jobs = [];
 try {
     $pdo = Database::getConnection();
-    $stmt = $pdo->prepare("SELECT job_id, title, employment_type, created_at, status
-                           FROM jobs
-                           WHERE employer_id = ?
-                           ORDER BY created_at DESC");
+    $stmt = $pdo->prepare("
+        SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency
+        FROM jobs
+        WHERE employer_id=?
+        ORDER BY created_at DESC
+        LIMIT 200
+    ");
     $stmt->execute([$employer->user_id]);
-    $jobs = $stmt->fetchAll();
+    $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
     $jobs = [];
 }
+
+include '../includes/header.php';
+include '../includes/nav.php';
+
+$joinDate = null;
+if (!empty($employer->created_at)) {
+    $ts = strtotime($employer->created_at);
+    if ($ts && $ts > 0) $joinDate = date('Y-m-d',$ts);
+}
 ?>
-<div class="container py-4" id="main-content">
+<div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Back
-    </a>
+    <div class="d-flex gap-2">
+      <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+      <?php if ($isSelf): ?>
+        <a href="employer_edit.php" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-pencil-square me-1"></i>Edit Profile
+        </a>
+      <?php endif; ?>
+    </div>
+    <?php if ($isSelf): ?>
+      <a class="btn btn-outline-primary btn-sm" href="employer_dashboard.php">
+        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+      </a>
+    <?php endif; ?>
   </div>
 
-  <div class="row">
-    <div class="col-lg-5 mb-4">
-      <div class="card border-0 shadow-sm">
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h2 class="h5 fw-semibold mb-3">
-            <i class="bi bi-building me-2"></i>
-            <?php echo htmlspecialchars($employer->company_name ?: $employer->name); ?>
+            <i class="bi bi-building me-2"></i><?php echo htmlspecialchars($employer->company_name ?: $employer->name ?: 'Employer'); ?>
           </h2>
-          <div class="mb-2">
-            <span class="badge
-              <?php
-                echo $employer->employer_status==='Approved'?'text-bg-success':
-                     ($employer->employer_status==='Suspended'?'text-bg-warning':
-                     ($employer->employer_status==='Rejected'?'text-bg-danger':'text-bg-secondary'));
-              ?>">
-              <?php echo htmlspecialchars($employer->employer_status ?: 'Status'); ?>
-            </span>
-          </div>
+          <dl class="row small mb-0">
+            <dt class="col-5 text-muted">Display Name</dt>
+            <dd class="col-7"><?php echo htmlspecialchars($employer->name); ?></dd>
 
-          <dl class="mb-0 small">
-            <dt class="text-muted">Business Email</dt>
-            <dd><?php echo htmlspecialchars($employer->business_email ?: $employer->email); ?></dd>
-
-            <?php if (!$limited && $website): ?>
-              <dt class="text-muted">Website</dt>
-              <dd><a href="<?php echo htmlspecialchars($website); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($website); ?></a></dd>
+            <?php if ($employer->company_website): ?>
+              <dt class="col-5 text-muted">Website</dt>
+              <dd class="col-7">
+                <a href="<?php echo htmlspecialchars($employer->company_website); ?>" target="_blank" rel="noopener">
+                  <?php echo htmlspecialchars($employer->company_website); ?>
+                </a>
+              </dd>
             <?php endif; ?>
 
-            <?php if (!$limited && $employer->company_phone): ?>
-              <dt class="text-muted">Phone</dt>
-              <dd><?php echo htmlspecialchars($employer->company_phone); ?></dd>
+            <?php if ($employer->company_phone): ?>
+              <dt class="col-5 text-muted">Phone</dt>
+              <dd class="col-7"><?php echo htmlspecialchars($employer->company_phone); ?></dd>
             <?php endif; ?>
 
-            <?php if ($limited): ?>
-              <dt class="text-muted">Information</dt>
-              <dd>Full company details are visible once employer is approved.</dd>
+            <?php if ($canSeePrivate && $employer->business_email): ?>
+              <dt class="col-5 text-muted">Business Email</dt>
+              <dd class="col-7"><?php echo htmlspecialchars($employer->business_email); ?></dd>
+            <?php endif; ?>
+
+            <?php if ($canSeePrivate && $employer->business_permit_number): ?>
+              <dt class="col-5 text-muted">Permit #</dt>
+              <dd class="col-7"><?php echo htmlspecialchars($employer->business_permit_number); ?></dd>
+            <?php endif; ?>
+
+            <?php if ($canSeePrivate && $employer->employer_status): ?>
+              <dt class="col-5 text-muted">Status</dt>
+              <dd class="col-7">
+                <span class="badge bg-<?php
+                  echo $employer->employer_status==='Approved'?'success':
+                       ($employer->employer_status==='Suspended'?'danger':
+                        ($employer->employer_status==='Rejected'?'secondary':'warning'));
+                ?>">
+                  <?php echo htmlspecialchars($employer->employer_status); ?>
+                </span>
+              </dd>
+            <?php endif; ?>
+
+            <?php if ($joinDate): ?>
+              <dt class="col-5 text-muted">Joined</dt>
+              <dd class="col-7"><?php echo htmlspecialchars($joinDate); ?></dd>
             <?php endif; ?>
           </dl>
         </div>
@@ -95,7 +133,9 @@ try {
     <div class="col-lg-7">
       <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
-          <h3 class="h6 fw-semibold mb-3"><i class="bi bi-briefcase me-2"></i>Jobs by this Employer (<?php echo count($jobs); ?>)</h3>
+          <h3 class="h6 fw-semibold mb-3">
+            <i class="bi bi-briefcase me-2"></i>Jobs Posted (<?php echo count($jobs); ?>)
+          </h3>
           <?php if (!$jobs): ?>
             <div class="text-muted small">No jobs posted yet.</div>
           <?php else: ?>
@@ -104,25 +144,39 @@ try {
                 <thead class="table-light">
                   <tr>
                     <th>Title</th>
-                    <th>Type</th>
                     <th>Status</th>
-                    <th>Posted</th>
+                    <th>Type</th>
+                    <th>Salary</th>
+                    <th>Date</th>
                   </tr>
                 </thead>
-                <tbody>
-                  <?php foreach ($jobs as $j):
-                      $st = $j['status'] ?? 'Open';
-                      $badge = $st==='Open'?'success':($st==='Suspended'?'warning':($st==='Closed'?'secondary':'secondary'));
-                  ?>
+                <tbody class="small">
+                  <?php foreach ($jobs as $j): ?>
                     <tr>
                       <td>
-                        <a class="text-decoration-none fw-semibold" href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>">
+                        <a href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>">
                           <?php echo htmlspecialchars($j['title']); ?>
                         </a>
                       </td>
+                      <td>
+                        <span class="badge bg-<?php
+                          echo $j['status']==='Open'?'success':
+                               ($j['status']==='Closed'?'secondary':'warning');
+                        ?>">
+                          <?php echo htmlspecialchars($j['status']); ?>
+                        </span>
+                      </td>
                       <td><?php echo htmlspecialchars($j['employment_type']); ?></td>
-                      <td><span class="badge text-bg-<?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span></td>
-                      <td><span class="small text-muted"><?php echo date('M j, Y', strtotime($j['created_at'])); ?></span></td>
+                      <td>
+                        <?php
+                          if ($j['salary_min'] && $j['salary_max']) {
+                              echo htmlspecialchars(number_format($j['salary_min'])) . ' - ' .
+                                   htmlspecialchars(number_format($j['salary_max'])) . ' ' .
+                                   htmlspecialchars($j['salary_currency']);
+                          } else echo '—';
+                        ?>
+                      </td>
+                      <td><?php echo htmlspecialchars(date('Y-m-d', strtotime($j['created_at']))); ?></td>
                     </tr>
                   <?php endforeach; ?>
                 </tbody>
@@ -132,6 +186,7 @@ try {
         </div>
       </div>
     </div>
+
   </div>
 </div>
 <?php include '../includes/footer.php'; ?>
