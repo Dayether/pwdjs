@@ -22,7 +22,7 @@
         </div>
       </div>
       <div class="container mt-3 small text-white-50">
-        <em>Creating inclusive, remote‑friendly opportunities for Persons with Disabilities.</em>
+       
       </div>
     </footer>
 
