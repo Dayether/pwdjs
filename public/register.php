@@ -3,7 +3,7 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
-require_once '../classes/Name.php'; /* assuming you have a Name utility; keep existing includes */
+require_once '../classes/Name.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -20,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password     = $_POST['password'] ?? '';
     $confirm      = $_POST['confirm'] ?? '';
 
-    // Keep existing features
     $role_raw     = $_POST['role'] ?? 'job_seeker';
     $dis_sel      = $_POST['disability'] ?? '';
     $dis_other    = trim($_POST['disability_other'] ?? '');
@@ -32,19 +31,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $company_phone   = trim($_POST['company_phone'] ?? '');
     $business_permit_number = trim($_POST['business_permit_number'] ?? '');
 
-    // Name normalization
+    // New: PWD ID for job seekers
+    $pwd_id_number = trim($_POST['pwd_id_number'] ?? '');
+
+    // Normalize Name
     $displayName = Name::normalizeDisplayName($name_raw);
     if ($displayName === '') {
-        $errors[] = 'Please enter your name as "First M. Surname" (middle initial optional).';
+        $errors[] = 'Please enter your name properly (e.g. "Juan D. Dela Cruz").';
     }
 
-    // Email validation
+    // Email
     $email = mb_strtolower(trim($email_raw));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Please enter a valid email address.';
     }
 
-    // Password validation
+    // Password
     if (strlen($password) < 6) {
         $errors[] = 'Password must be at least 6 characters.';
     }
@@ -52,11 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Passwords do not match.';
     }
 
-    // Role: only public roles
+    // Role
     $allowedRoles = ['job_seeker','employer'];
     $role = in_array($role_raw, $allowedRoles, true) ? $role_raw : 'job_seeker';
 
-    // Disability: optional
+    // Disability handling
     $disability = '';
     if ($dis_sel === 'Other') {
         $disability = $dis_other;
@@ -64,17 +66,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $disability = $dis_sel;
     }
 
-    // Employer validations (only if Employer)
+    // Employer validations
     if ($role === 'employer') {
         if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
         if ($business_email !== '' && !filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'Please enter a valid company email address.';
+            $errors[] = 'Invalid company email.';
         }
         if ($company_website !== '' && !filter_var($company_website, FILTER_VALIDATE_URL)) {
-            $errors[] = 'Please enter a valid company website URL (including http:// or https://).';
+            $errors[] = 'Invalid company website (include http:// or https://).';
         }
-        // company_phone optional
-        // business_permit_number optional
+    }
+
+    // Basic validation for PWD ID (optional but if supplied check format)
+    if ($role === 'job_seeker' && $pwd_id_number !== '') {
+        // Example simple rule: numeric/alphanumeric length 6-20
+        if (!preg_match('/^[A-Za-z0-9\-]{4,30}$/', $pwd_id_number)) {
+            $errors[] = 'PWD ID Number format invalid (allow letters, numbers, dash).';
+        }
     }
 
     if (!$errors) {
@@ -85,37 +93,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'role' => $role,
             'disability' => $disability ?: null,
 
-            // Employer fields
+            // Employer
             'company_name' => $role === 'employer' ? $company_name : '',
             'business_email' => $role === 'employer' ? $business_email : '',
             'company_website' => $role === 'employer' ? $company_website : '',
             'company_phone' => $role === 'employer' ? $company_phone : '',
             'business_permit_number' => $role === 'employer' ? $business_permit_number : '',
+
+            // Job seeker PWD ID
+            'pwd_id_number' => $role === 'job_seeker' ? $pwd_id_number : ''
         ]);
 
         if ($ok) {
-            Helpers::flash('msg', 'Registration successful. Please log in.'); // ORIGINAL LINE (kept)
-
-            // ADDED START: Overwrite the flash message for employer accounts to reflect pending approval
-            if ($role === 'employer') {
-                Helpers::flash('msg', 'Registration successful. Your employer account is pending approval.');
-            }
-            // ADDED END
-
-            /* =========================================================
-               ADDED: Persist company_website & company_phone (missing in INSERT)
-               Using helper method to avoid modifying original User::register().
-               ========================================================= */
-            if ($role === 'employer' && ($company_website !== '' || $company_phone !== '')) {
-                // Avoid fatal if method missing
-                if (method_exists('User','updateEmployerContactByEmail')) {
-                    User::updateEmployerContactByEmail($email, $company_website, $company_phone);
-                }
-            }
-
+            Helpers::flash('msg','Registration successful. You can now log in.');
             Helpers::redirect('login.php');
         } else {
-            $errors[] = 'Registration failed (email may already be in use).';
+            $errors[] = 'Registration failed (email might already be registered).';
         }
     }
 }
@@ -124,10 +117,12 @@ include '../includes/header.php';
 include '../includes/nav.php';
 ?>
 <div class="row justify-content-center">
-  <div class="col-lg-8 col-xl-7">
+  <div class="col-lg-8 col-xl-6">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <h2 class="h5 fw-semibold mb-3"><i class="bi bi-person-plus me-2"></i>Create Account</h2>
+        <h2 class="h5 fw-semibold mb-3">
+          <i class="bi bi-person-plus me-2"></i>Create Account
+        </h2>
 
         <?php foreach ($errors as $e): ?>
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -136,10 +131,10 @@ include '../includes/nav.php';
           </div>
         <?php endforeach; ?>
 
-        <form method="post" class="row g-3">
+        <form method="post" class="row g-3 needs-validation" novalidate>
           <div class="col-md-6">
             <label class="form-label">Name</label>
-            <input name="name" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+            <input name="name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Email</label>
@@ -149,90 +144,115 @@ include '../includes/nav.php';
             <label class="form-label">Password</label>
             <input name="password" type="password" class="form-control" required>
           </div>
+          <div class="col-md-6">
+            <label class="form-label">Confirm Password</label>
+            <input name="confirm" type="password" class="form-control" required>
+          </div>
+
             <div class="col-md-6">
-              <label class="form-label">Confirm Password</label>
-              <input name="confirm" type="password" class="form-control" required>
+              <label class="form-label">Account Type</label>
+              <select name="role" id="roleSelect" class="form-select" required>
+                <option value="job_seeker" <?php echo (($_POST['role'] ?? '')==='job_seeker')?'selected':''; ?>>Job Seeker</option>
+                <option value="employer" <?php echo (($_POST['role'] ?? '')==='employer')?'selected':''; ?>>Employer</option>
+              </select>
             </div>
 
-          <div class="col-md-6">
-            <label class="form-label">Account Type</label>
-            <select name="role" class="form-select">
-              <option value="job_seeker" <?php if(($_POST['role'] ?? '')==='job_seeker') echo 'selected'; ?>>Job Seeker</option>
-              <option value="employer" <?php if(($_POST['role'] ?? '')==='employer') echo 'selected'; ?>>Employer</option>
-            </select>
-          </div>
-
-          <div class="col-md-6">
+          <div class="col-md-6" id="disabilityWrapper">
             <label class="form-label">Disability</label>
-            <select name="disability" class="form-select">
-              <option value="None">None</option>
-              <option value="Visual" <?php if(($_POST['disability'] ?? '')==='Visual') echo 'selected'; ?>>Visual</option>
-              <option value="Hearing" <?php if(($_POST['disability'] ?? '')==='Hearing') echo 'selected'; ?>>Hearing</option>
-              <option value="Mobility" <?php if(($_POST['disability'] ?? '')==='Mobility') echo 'selected'; ?>>Mobility</option>
-              <option value="Other" <?php if(($_POST['disability'] ?? '')==='Other') echo 'selected'; ?>>Other</option>
+            <select name="disability" id="disabilitySelect" class="form-select">
+              <?php
+                $selected = $_POST['disability'] ?? 'None';
+                $opts = ['None','Visual','Hearing','Physical','Intellectual','Psychosocial','Learning','Speech','Other'];
+                foreach ($opts as $o) {
+                    echo '<option value="'.htmlspecialchars($o).'" '.($selected===$o?'selected':'').'>'.$o.'</option>';
+                }
+              ?>
             </select>
+            <input type="text"
+                   name="disability_other"
+                   id="disabilityOtherInput"
+                   class="form-control mt-2 <?php echo ($selected==='Other')?'':'d-none'; ?>"
+                   placeholder="Specify disability"
+                   value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
           </div>
 
-          <div class="col-12" id="disabilityOtherWrap" style="<?php echo (($_POST['disability'] ?? '')==='Other')?'':'display:none;'; ?>">
-            <label class="form-label">If Other, please specify</label>
-            <input name="disability_other" class="form-control" value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
+          <!-- NEW: PWD ID FIELD (shows only if role = job_seeker) -->
+          <div class="col-md-12" id="pwdIdContainer" style="display: <?php echo (($_POST['role'] ?? 'job_seeker')==='job_seeker')?'block':'none'; ?>">
+            <label class="form-label">Government PWD ID Number (Optional but increases trust)</label>
+            <input type="text"
+                   name="pwd_id_number"
+                   class="form-control"
+                   placeholder="Enter your Government PWD ID"
+                   value="<?php echo htmlspecialchars($_POST['pwd_id_number'] ?? ''); ?>">
+            <div class="form-text">
+              Provided ID will be encrypted. Submitting this sets status to Pending for admin verification.
+            </div>
           </div>
 
-          <!-- Employer-only section -->
-          <div id="employerFields" style="<?php echo (($_POST['role'] ?? '')==='employer')?'':'display:none;'; ?>">
-            <hr>
-            <h6 class="fw-semibold mb-2"><i class="bi bi-building me-1"></i>Employer Details</h6>
-            <div class="row g-3">
+          <!-- Employer section (shows only if employer) -->
+          <div id="employerSection" style="display: <?php echo (($_POST['role'] ?? '')==='employer')?'block':'none'; ?>">
+            <div class="row g-3 mt-1">
               <div class="col-md-6">
                 <label class="form-label">Company Name</label>
-                <input name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
+                <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
               </div>
               <div class="col-md-6">
                 <label class="form-label">Business Email (optional)</label>
-                <input name="business_email" type="email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
+                <input type="email" name="business_email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
               </div>
               <div class="col-md-6">
                 <label class="form-label">Company Website (optional)</label>
-                <input name="company_website" class="form-control" placeholder="https://example.com" value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>">
+                <input type="text" name="company_website" class="form-control" placeholder="https://..." value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>">
               </div>
               <div class="col-md-6">
                 <label class="form-label">Company Phone (optional)</label>
-                <input name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
+                <input type="text" name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
               </div>
               <div class="col-md-6">
-                <label class="form-label">Permit / Business No. (optional)</label>
-                <input name="business_permit_number" class="form-control" value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>">
+                <label class="form-label">Business Permit # (optional)</label>
+                <input type="text" name="business_permit_number" class="form-control" value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>">
               </div>
             </div>
           </div>
 
-          <div class="col-12 d-grid mt-3">
-            <button class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Create Account</button>
+          <div class="col-12 d-grid mt-2">
+            <button class="btn btn-primary">
+              <i class="bi bi-person-plus me-1"></i>Create Account
+            </button>
           </div>
         </form>
 
-        <hr class="my-4">
-        <div class="small">Already have an account? <a href="login.php">Log in</a></div>
+        <hr class="mt-4">
+        <div class="small text-muted">
+          Already have an account? <a href="login.php">Log in</a>
+        </div>
       </div>
     </div>
   </div>
 </div>
-
 <?php include '../includes/footer.php'; ?>
 <script>
-const roleSelect = document.querySelector('select[name="role"]');
-const employerFields = document.getElementById('employerFields');
-const disSel = document.querySelector('select[name="disability"]');
-const disOtherWrap = document.getElementById('disabilityOtherWrap');
+const roleSelect = document.getElementById('roleSelect');
+const employerSection = document.getElementById('employerSection');
+const pwdIdContainer = document.getElementById('pwdIdContainer');
+const disabilitySelect = document.getElementById('disabilitySelect');
+const disabilityOtherInput = document.getElementById('disabilityOtherInput');
 
-function toggleEmployer() {
-  if (roleSelect.value === 'employer') employerFields.style.display = '';
-  else employerFields.style.display = 'none';
-}
-function toggleDisOther() {
-  if (disSel.value === 'Other') disOtherWrap.style.display = '';
-  else disOtherWrap.style.display = 'none';
-}
-roleSelect.addEventListener('change', toggleEmployer);
-disSel.addEventListener('change', toggleDisOther);
+roleSelect.addEventListener('change', ()=>{
+  if (roleSelect.value === 'employer') {
+    employerSection.style.display = 'block';
+    pwdIdContainer.style.display = 'none';
+  } else {
+    employerSection.style.display = 'none';
+    pwdIdContainer.style.display = 'block';
+  }
+});
+
+disabilitySelect.addEventListener('change', ()=>{
+  if (disabilitySelect.value === 'Other') {
+    disabilityOtherInput.classList.remove('d-none');
+  } else {
+    disabilityOtherInput.classList.add('d-none');
+  }
+});
 </script>

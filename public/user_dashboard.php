@@ -3,14 +3,47 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
+require_once '../classes/ProfileCompleteness.php';
 
 Helpers::requireLogin();
 if (!Helpers::isJobSeeker()) Helpers::redirect('index.php');
+
 $user = User::findById($_SESSION['user_id']);
+
+// Recompute completeness every 15 mins or if empty
+$recalcNeeded = empty($user->profile_last_calculated) || (time() - strtotime($user->profile_last_calculated ?? '1970-01-01')) > 900;
+if ($recalcNeeded) {
+    $percent = ProfileCompleteness::compute($user->user_id);
+    $user->profile_completeness = $percent;
+} else {
+    $percent = (int)$user->profile_completeness;
+}
 
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="fw-semibold"><i class="bi bi-person-check me-2"></i>Profile Completeness</span>
+      <span class="badge bg-primary"><?php echo $percent; ?>%</span>
+    </div>
+    <div class="progress" style="height:10px;">
+      <div class="progress-bar <?php echo $percent<50?'bg-danger':($percent<80?'bg-warning':''); ?>"
+           role="progressbar"
+           style="width:<?php echo $percent; ?>%;"
+           aria-valuenow="<?php echo $percent; ?>" aria-valuemin="0" aria-valuemax="100"></div>
+    </div>
+    <?php if ($percent < 100): ?>
+      <div class="mt-2 small">
+        <a href="profile_edit.php" class="text-decoration-none">Improve your profile to attract employers.</a>
+      </div>
+    <?php else: ?>
+      <div class="mt-2 small text-success">Great! Your profile is complete.</div>
+    <?php endif; ?>
+  </div>
+</div>
+
 <div class="row g-3">
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm">
@@ -23,7 +56,12 @@ include '../includes/nav.php';
           <div class="col-md-6">
             <div class="p-3 rounded border bg-white h-100">
               <div class="text-muted small">Education</div>
-              <div class="fw-semibold"><?php echo Helpers::sanitizeOutput($user->education ?: 'Not specified'); ?></div>
+              <div class="fw-semibold">
+                <?php
+                  $edu = $user->education_level ?: $user->education;
+                  echo Helpers::sanitizeOutput($edu ?: 'Not specified');
+                ?>
+              </div>
             </div>
           </div>
           <div class="col-md-6">
