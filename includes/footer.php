@@ -1,126 +1,86 @@
-</div>
-<footer class="footer bg-dark text-white-50 mt-auto py-4">
-  <div class="container d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
-    <div class="small">
-      <span class="text-white-75">PWD Employment &amp; Skills Portal</span> &middot;
-      <span>&copy; <?php echo date('Y'); ?></span>
-    </div>
-    <div class="small d-flex flex-wrap align-items-center">
-     
-      <?php if (!empty($_SESSION['user_id']) && $_SESSION['role'] === 'employer'): ?>
-        <a class="link-light link-underline-opacity-0 me-3" href="jobs_create.php">Post a Job</a>
-      <?php endif; ?>
+    </main><!-- /main content area -->
 
-      <!-- Profile footer link (optional). Remove if you also want to hide here. -->
-      <?php if (!empty($_SESSION['user_id'])): ?>
-       
-      <?php endif; ?>
+    <footer class="footer bg-dark text-white-50 py-4 mt-auto">
+      <div class="container d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+        <div class="small">
+          <span class="text-white-75">PWD Employment &amp; Skills Portal</span> &middot;
+          <span>&copy; <?php echo date('Y'); ?></span>
+        </div>
+        <div class="small d-flex flex-wrap align-items-center">
+          <?php if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer'): ?>
+            <a class="link-light link-underline-opacity-0 me-3" href="jobs_create.php">Post a Job</a>
+          <?php endif; ?>
 
-      <?php if (!empty($_SESSION['user_id'])): ?>
-        <a class="link-light link-underline-opacity-0 me-3 d-inline-flex align-items-center" href="support_contact.php">
-          <i class="bi bi-life-preserver me-1"></i>Support
-        </a>
-      <?php endif; ?>
+          <?php if (!empty($_SESSION['user_id'])): ?>
+            <a class="link-light link-underline-opacity-0 me-3 d-inline-flex align-items-center" href="support_contact.php">
+              <i class="bi bi-life-preserver me-1"></i>Support
+            </a>
+          <?php endif; ?>
 
-      <!-- Policy links (always visible) -->
-      <a class="link-light link-underline-opacity-0 me-3" href="security_privacy.php">Security &amp; Privacy</a>
-      <a class="link-light link-underline-opacity-0" href="terms.php">Terms &amp; Conditions</a>
-    </div>
-  </div>
-  <div class="container mt-3 small text-white-50">
-    <em>Creating inclusive, remote‑friendly opportunities for Persons with Disabilities.</em>
-  </div>
-</footer>
-
-<!-- Reusable confirmation modal -->
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="confirmModalLabel">Please confirm</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <a class="link-light link-underline-opacity-0 me-3" href="security_privacy.php">Security &amp; Privacy</a>
+          <a class="link-light link-underline-opacity-0" href="terms.php">Terms &amp; Conditions</a>
+        </div>
       </div>
-      <div class="modal-body">
-        <p class="mb-0" id="confirmModalMessage">Are you sure?</p>
+      <div class="container mt-3 small text-white-50">
+        <em>Creating inclusive, remote‑friendly opportunities for Persons with Disabilities.</em>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmModalNo">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmModalYes">Yes</button>
+    </footer>
+
+    <!-- Global confirmation modal (kept) -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmModalLabel">Please confirm</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0" id="confirmModalMessage">Are you sure?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="confirmModalNo">Cancel</button>
+            <button type="button" class="btn btn-primary" id="confirmModalYes">Yes</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Close sticky page wrapper -->
-</div>
+</div><!-- /page-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Auto-dismiss flash alerts
-document.querySelectorAll('.alert.auto-dismiss').forEach(function(el) {
-  setTimeout(function() {
-    try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch (e) {}
-  }, 4000);
+/* Auto-dismiss flash alerts */
+document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{
+  setTimeout(()=>{ try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e){} },4000);
 });
 
-// Global confirmation handler
+/* Global confirmation handler */
 (function(){
   const modalEl = document.getElementById('confirmModal');
-  const modal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
-  if (!modalEl || !modal) return;
-
-  const titleEl = modalEl.querySelector('#confirmModalLabel');
-  const msgEl = modalEl.querySelector('#confirmModalMessage');
-  const yesBtn = modalEl.querySelector('#confirmModalYes');
-  const noBtn = modalEl.querySelector('#confirmModalNo');
-
-  let pending = null;
+  if (!modalEl) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  let targetHref = null;
 
   document.addEventListener('click', function(e){
-    const trigger = e.target.closest('[data-confirm]');
-    if (!trigger) return;
-    if (trigger.disabled) return;
+    const link = e.target.closest('a[data-confirm]');
+    if (!link) return;
     e.preventDefault();
+    targetHref = link.getAttribute('href');
 
-    const title = trigger.getAttribute('data-confirm-title') || 'Please confirm';
-    const message = trigger.getAttribute('data-confirm') || trigger.getAttribute('data-confirm-message') || 'Are you sure?';
-    const yesText = trigger.getAttribute('data-confirm-yes') || 'Yes';
-    const noText = trigger.getAttribute('data-confirm-no') || 'Cancel';
-    const method = trigger.getAttribute('data-method') || (trigger.tagName === 'BUTTON' ? 'submit' : 'get');
-    const href = trigger.getAttribute('href') || trigger.getAttribute('data-href') || '';
-
-    if (titleEl) titleEl.textContent = title;
-    if (msgEl) msgEl.textContent = message;
-    if (yesBtn) yesBtn.textContent = yesText;
-    if (noBtn) noBtn.textContent = noText;
-
-    pending = { trigger, method, href };
+    modalEl.querySelector('#confirmModalLabel').textContent =
+      link.getAttribute('data-confirm-title') || 'Confirm';
+    modalEl.querySelector('#confirmModalMessage').textContent =
+      link.getAttribute('data-confirm') || 'Are you sure?';
+    modalEl.querySelector('#confirmModalYes').textContent =
+      link.getAttribute('data-confirm-yes') || 'Yes';
+    modalEl.querySelector('#confirmModalNo').textContent =
+      link.getAttribute('data-confirm-no') || 'Cancel';
     modal.show();
   });
 
-  if (yesBtn) {
-    yesBtn.addEventListener('click', function(){
-      if (!pending) return;
-      const { trigger, method, href } = pending;
-      pending = null;
-      modal.hide();
-
-      if (method === 'submit') {
-        const form = trigger.closest('form');
-        if (form) form.submit();
-        return;
-      }
-      if (method === 'post') {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = href || '#';
-        document.body.appendChild(form);
-        form.submit();
-        return;
-      }
-      if (href) window.location.href = href;
-    });
-  }
+  modalEl.querySelector('#confirmModalYes').addEventListener('click', ()=>{
+    if (targetHref) window.location.href = targetHref;
+  });
 })();
 </script>
 </body>

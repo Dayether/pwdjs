@@ -17,7 +17,7 @@ if (isset($_SESSION['global_flashes'])) unset($_SESSION['global_flashes']);
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <a class="navbar-brand fw-semibold" href="index.php">
+    <a class="navbar-brand fw-semibold" href="about.php">
       <i class="bi bi-universal-access me-1"></i>PWD Portal
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
