@@ -12,6 +12,10 @@ require_once '../classes/Sensitive.php';
 Helpers::requireLogin();
 $user = User::findById($_SESSION['user_id']);
 if (!$user) Helpers::redirect('login.php');
+// Prevent admin users from using the job seeker profile edit page
+if (($_SESSION['role'] ?? '') === 'admin') {
+  Helpers::redirect('index.php');
+}
 
 $errors = [];
 $flashRedirect = null; // where to redirect after successful sub-action
@@ -125,20 +129,21 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='profile') {
     $update['disability_severity']  = $_POST['disability_severity'] ?: null;
     $update['assistive_devices']    = trim($_POST['assistive_devices'] ?? '');
 
-    // PWD ID
-  if (isset($_POST['pwd_id_number']) && $_POST['pwd_id_number'] !== '') {
-    $raw = preg_replace('/\s+/', '', $_POST['pwd_id_number']);
-    // Basic sanity length bounds (4..64 chars arbitrary)
-    if (strlen($raw) >= 4 && strlen($raw) <= 64) {
-      $update['pwd_id_last4'] = substr($raw, -4);
-      $enc = Sensitive::encrypt($raw);
-      if ($enc) {
-        $update['pwd_id_number'] = $enc;
+    // PWD ID: allow setting ONLY if not already stored
+    if (!$user->pwd_id_last4) {
+      if (isset($_POST['pwd_id_number']) && $_POST['pwd_id_number'] !== '') {
+        $raw = preg_replace('/\s+/', '', $_POST['pwd_id_number']);
+        if (strlen($raw) >= 4 && strlen($raw) <= 64) {
+          $update['pwd_id_last4'] = substr($raw, -4);
+          $enc = Sensitive::encrypt($raw);
+          if ($enc) {
+            $update['pwd_id_number'] = $enc;
+          }
+        } else {
+          $errors[] = 'PWD ID length invalid (must be 4-64 chars).';
+        }
       }
-    } else {
-      $errors[] = 'PWD ID length invalid (must be 4-64 chars).';
     }
-  }
 
     // Resume Upload
     if (!empty($_FILES['resume']['name'])) {
@@ -339,14 +344,15 @@ include '../includes/nav.php';
             <input type="text" name="assistive_devices" class="form-control" value="<?php echo htmlspecialchars($user->assistive_devices); ?>">
           </div>
           <div class="col-md-6">
-            <label class="form-label">PWD ID Number (optional)</label>
-            <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter or leave blank">
+            <label class="form-label">PWD ID Number</label>
             <?php if ($user->pwd_id_last4): ?>
-              <div class="form-text">
-                Stored securely (ending in ****<?php echo htmlspecialchars($user->pwd_id_last4); ?>)
+              <div class="form-control bg-light" tabindex="-1" style="cursor:not-allowed;">
+                ****<?php echo htmlspecialchars($user->pwd_id_last4); ?> (locked)
               </div>
+              <div class="form-text">For security, the PWD ID cannot be changed once saved. Contact support if correction is needed.</div>
             <?php else: ?>
-              <div class="form-text">Added value: verification may increase trust for employers.</div>
+              <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter your PWD ID for verification" autocomplete="off">
+              <div class="form-text">Will be encrypted and locked after saving.</div>
             <?php endif; ?>
           </div>
         </div>

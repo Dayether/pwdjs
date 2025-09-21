@@ -70,7 +70,7 @@ class User {
         return new self($row);
     }
 
-    /* Extended to include employer fields */
+    /* Extended to include employer + PWD fields */
     public static function updateProfileExtended(string $userId, array $data): bool {
         $allowed = [
             // shared / job seeker
@@ -84,10 +84,17 @@ class User {
             'business_permit_number','employer_doc'
         ];
 
+        // If changing PWD ID, encrypt + reset status to Pending
         if (isset($data['pwd_id_number']) && $data['pwd_id_number'] !== '') {
+            $raw = preg_replace('/\s+/', '', $data['pwd_id_number']);
             if (class_exists('Sensitive')) {
-                $data['pwd_id_number'] = Sensitive::encrypt($data['pwd_id_number']);
+                $data['pwd_id_number'] = Sensitive::encrypt($raw);
+            } else {
+                $data['pwd_id_number'] = $raw;
             }
+            $data['pwd_id_last4'] = substr($raw, -4);
+            $allowed[] = 'pwd_id_status';
+            $data['pwd_id_status'] = 'Pending';
         }
 
         $set = [];
@@ -109,6 +116,7 @@ class User {
     public static function register(array $input): bool {
         $pdo = Database::getConnection();
 
+        // Email uniqueness
         $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
         $stmt->execute([$input['email']]);
         if ($stmt->fetch()) return false;
@@ -120,6 +128,7 @@ class User {
         $education  = '';
         $disability = $input['disability'] ?? null;
 
+        // Employer defaults
         $company = '';
         $bizEmail = '';
         $permit = null;
@@ -130,24 +139,34 @@ class User {
             $company  = trim($input['company_name'] ?? '');
             $bizEmail = trim($input['business_email'] ?? '');
             $permit   = trim($input['business_permit_number'] ?? '');
-            if ($permit === '') $permit = null;
+            // Enforce non-empty business permit for employers (defensive; UI also validates)
+            if ($permit === '') {
+                return false; // missing required business permit
+            }
+            // Basic format safeguard (alphanumeric, dash, slash, 4-40 chars)
+            if (!preg_match('/^[A-Za-z0-9\-\/]{4,40}$/', $permit)) {
+                return false; // invalid format
+            }
         }
 
+        // PWD ID (REQUIRED now for job_seeker)
         $pwdIdEncrypted = null;
         $pwdIdLast4 = null;
         $pwdStatus = 'None';
 
         if (($input['role'] ?? '') === 'job_seeker') {
             $rawPwdId = preg_replace('/\s+/', '', $input['pwd_id_number'] ?? '');
-            if ($rawPwdId !== '') {
-                if (class_exists('Sensitive')) {
-                    $pwdIdEncrypted = Sensitive::encrypt($rawPwdId);
-                } else {
-                    $pwdIdEncrypted = $rawPwdId;
-                }
-                $pwdIdLast4 = substr($rawPwdId, -4);
-                $pwdStatus = 'Pending';
+            if ($rawPwdId === '') {
+                // Hard requirement
+                return false;
             }
+            if (class_exists('Sensitive')) {
+                $pwdIdEncrypted = Sensitive::encrypt($rawPwdId);
+            } else {
+                $pwdIdEncrypted = $rawPwdId;
+            }
+            $pwdIdLast4 = substr($rawPwdId, -4);
+            $pwdStatus = 'Pending';
         }
 
         $stmt = $pdo->prepare("
@@ -176,5 +195,85 @@ class User {
             $pwdIdLast4,
             $pwdStatus
         ]);
+    }
+
+    /* ===================== ADMIN HELPERS FOR JOB SEEKERS ===================== */
+
+    public static function listJobSeekers(?string $statusFilter = null): array {
+        $pdo = Database::getConnection();
+        $where = "role='job_seeker'";
+        $params = [];
+        if ($statusFilter !== null && $statusFilter !== '') {
+            $where .= " AND pwd_id_status = ?";
+            $params[] = $statusFilter;
+        }
+        $sql = "
+            SELECT user_id,name,email,disability,pwd_id_last4,pwd_id_status,created_at
+            FROM users
+            WHERE $where
+            ORDER BY (pwd_id_status='Pending') DESC, created_at DESC
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public static function jobSeekerCounts(): array {
+        $pdo = Database::getConnection();
+        $rows = $pdo->query("
+            SELECT pwd_id_status AS status, COUNT(*) c
+            FROM users
+            WHERE role='job_seeker'
+            GROUP BY pwd_id_status
+        ")->fetchAll(PDO::FETCH_ASSOC);
+        $out = [
+            'total'    => 0,
+            'Verified' => 0,
+            'Pending'  => 0,
+            'Rejected' => 0,
+            'None'     => 0,
+            'Other'    => 0
+        ];
+        foreach ($rows as $r) {
+            $s = $r['status'] ?: 'None';
+            $out['total'] += (int)$r['c'];
+            if (isset($out[$s])) {
+                $out[$s] += (int)$r['c'];
+            } else {
+                $out['Other'] += (int)$r['c'];
+            }
+        }
+        return $out;
+    }
+
+    public static function getFullPwdId(User $user): ?string {
+        if (!$user->pwd_id_number) return null;
+        if (class_exists('Sensitive')) {
+            try { return Sensitive::decrypt($user->pwd_id_number); }
+            catch (Throwable $e) { return null; }
+        }
+        return $user->pwd_id_number;
+    }
+
+    public static function setPwdIdStatus(string $userId, string $status): bool {
+        if (!in_array($status,['Verified','Rejected'],true)) return false;
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("UPDATE users SET pwd_id_status=? WHERE user_id=? AND role='job_seeker'");
+        return $stmt->execute([$status,$userId]);
+    }
+
+    /* ===================== ADMIN: EMPLOYER STATUS ===================== */
+    public static function updateEmployerStatus(string $userId, string $newStatus): bool {
+        $valid = ['Approved','Suspended','Pending','Rejected'];
+        if (!in_array($newStatus,$valid,true)) return false;
+        $pdo = Database::getConnection();
+        // Check current status first (avoid unnecessary write; allow idempotent true)
+        $curStmt = $pdo->prepare("SELECT employer_status FROM users WHERE user_id=? AND role='employer' LIMIT 1");
+        $curStmt->execute([$userId]);
+        $current = $curStmt->fetchColumn();
+        if ($current === false) return false; // not found / not employer
+        if ($current === $newStatus) return true; // already that status
+        $upd = $pdo->prepare("UPDATE users SET employer_status=? WHERE user_id=? AND role='employer'");
+        return $upd->execute([$newStatus,$userId]);
     }
 }

@@ -10,7 +10,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 if (Helpers::isLoggedIn()) {
-    Helpers::redirect('index.php');
+  $r = $_SESSION['role'] ?? '';
+  if ($r === 'admin')      Helpers::redirect('admin_employers.php');
+  elseif ($r === 'employer') Helpers::redirect('employer_dashboard.php');
+  else                     Helpers::redirect('user_dashboard.php');
 }
 
 $errors = [];
@@ -31,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $company_phone   = trim($_POST['company_phone'] ?? '');
     $business_permit_number = trim($_POST['business_permit_number'] ?? '');
 
-    // New: PWD ID for job seekers
+    // PWD ID (REQUIRED FOR JOB SEEKER)
     $pwd_id_number = trim($_POST['pwd_id_number'] ?? '');
 
     // Normalize Name
@@ -60,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Disability handling
     $disability = '';
+    $selectedDis = $dis_sel;
     if ($dis_sel === 'Other') {
         $disability = $dis_other;
     } elseif ($dis_sel && $dis_sel !== 'None') {
@@ -69,6 +73,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Employer validations
     if ($role === 'employer') {
         if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
+    if ($business_permit_number === '') {
+      $errors[] = 'Business Permit Number is required for Employer accounts.';
+    } else {
+      if (!preg_match('/^[A-Za-z0-9\-\/]{4,40}$/', $business_permit_number)) {
+        $errors[] = 'Business Permit Number format invalid (letters, numbers, dash, slash; 4-40 chars).';
+      }
+    }
         if ($business_email !== '' && !filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Invalid company email.';
         }
@@ -77,11 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Basic validation for PWD ID (optional but if supplied check format)
-    if ($role === 'job_seeker' && $pwd_id_number !== '') {
-        // Example simple rule: numeric/alphanumeric length 6-20
-        if (!preg_match('/^[A-Za-z0-9\-]{4,30}$/', $pwd_id_number)) {
-            $errors[] = 'PWD ID Number format invalid (allow letters, numbers, dash).';
+    // PWD ID VALIDATION (NOW STRICTLY REQUIRED FOR JOB SEEKER)
+    if ($role === 'job_seeker') {
+        if ($pwd_id_number === '') {
+            $errors[] = 'Government PWD ID Number is required.';
+        } else {
+            if (!preg_match('/^[A-Za-z0-9\-]{4,30}$/', $pwd_id_number)) {
+                $errors[] = 'PWD ID Number format invalid (letters, numbers, dash; 4-30 chars).';
+            }
         }
     }
 
@@ -100,15 +114,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'company_phone' => $role === 'employer' ? $company_phone : '',
             'business_permit_number' => $role === 'employer' ? $business_permit_number : '',
 
-            // Job seeker PWD ID
+            // Job seeker PWD ID (required)
             'pwd_id_number' => $role === 'job_seeker' ? $pwd_id_number : ''
         ]);
 
         if ($ok) {
-            Helpers::flash('msg','Registration successful. You can now log in.');
+            if ($role === 'job_seeker') {
+                Helpers::flash('msg','Registration successful. Your PWD ID is pending admin verification before you can access the portal.');
+            } else {
+                Helpers::flash('msg','Registration successful. Employer account pending approval.');
+            }
+      // Store email for login prefill
+      $_SESSION['prefill_email'] = $email;
             Helpers::redirect('login.php');
         } else {
-            $errors[] = 'Registration failed (email might already be registered).';
+            $errors[] = 'Registration failed (email might already be registered or missing required data).';
         }
     }
 }
@@ -140,22 +160,22 @@ include '../includes/nav.php';
             <label class="form-label">Email</label>
             <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Password</label>
-            <input name="password" type="password" class="form-control" required>
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Confirm Password</label>
-            <input name="confirm" type="password" class="form-control" required>
-          </div>
-
             <div class="col-md-6">
-              <label class="form-label">Account Type</label>
-              <select name="role" id="roleSelect" class="form-select" required>
-                <option value="job_seeker" <?php echo (($_POST['role'] ?? '')==='job_seeker')?'selected':''; ?>>Job Seeker</option>
-                <option value="employer" <?php echo (($_POST['role'] ?? '')==='employer')?'selected':''; ?>>Employer</option>
-              </select>
+              <label class="form-label">Password</label>
+              <input name="password" type="password" class="form-control" required>
             </div>
+            <div class="col-md-6">
+              <label class="form-label">Confirm Password</label>
+              <input name="confirm" type="password" class="form-control" required>
+            </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Account Type</label>
+            <select name="role" id="roleSelect" class="form-select" required>
+              <option value="job_seeker" <?php echo (($_POST['role'] ?? '')==='job_seeker')?'selected':''; ?>>Job Seeker</option>
+              <option value="employer" <?php echo (($_POST['role'] ?? '')==='employer')?'selected':''; ?>>Employer</option>
+            </select>
+          </div>
 
           <div class="col-md-6" id="disabilityWrapper">
             <label class="form-label">Disability</label>
@@ -176,20 +196,20 @@ include '../includes/nav.php';
                    value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
           </div>
 
-          <!-- NEW: PWD ID FIELD (shows only if role = job_seeker) -->
+          <!-- PWD ID FIELD NOW REQUIRED FOR JOB SEEKER -->
           <div class="col-md-12" id="pwdIdContainer" style="display: <?php echo (($_POST['role'] ?? 'job_seeker')==='job_seeker')?'block':'none'; ?>">
-            <label class="form-label">Government PWD ID Number (Optional but increases trust)</label>
+            <label class="form-label">Government PWD ID Number <span class="text-danger">*</span></label>
             <input type="text"
                    name="pwd_id_number"
                    class="form-control"
                    placeholder="Enter your Government PWD ID"
                    value="<?php echo htmlspecialchars($_POST['pwd_id_number'] ?? ''); ?>">
             <div class="form-text">
-              Provided ID will be encrypted. Submitting this sets status to Pending for admin verification.
+              Required. Will be encrypted and set to Pending for admin verification.
             </div>
           </div>
 
-          <!-- Employer section (shows only if employer) -->
+          <!-- Employer section -->
           <div id="employerSection" style="display: <?php echo (($_POST['role'] ?? '')==='employer')?'block':'none'; ?>">
             <div class="row g-3 mt-1">
               <div class="col-md-6">
@@ -209,8 +229,9 @@ include '../includes/nav.php';
                 <input type="text" name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
               </div>
               <div class="col-md-6">
-                <label class="form-label">Business Permit # (optional)</label>
-                <input type="text" name="business_permit_number" class="form-control" value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>">
+                <label class="form-label">Business Permit # <span class="text-danger">*</span></label>
+                <input type="text" name="business_permit_number" id="businessPermitInput" class="form-control" required pattern="[A-Za-z0-9\-/]{4,40}" value="<?php echo htmlspecialchars($_POST['business_permit_number'] ?? ''); ?>">
+                <div class="form-text">Required. 4-40 chars (letters, numbers, dash or slash).</div>
               </div>
             </div>
           </div>
@@ -237,14 +258,17 @@ const employerSection = document.getElementById('employerSection');
 const pwdIdContainer = document.getElementById('pwdIdContainer');
 const disabilitySelect = document.getElementById('disabilitySelect');
 const disabilityOtherInput = document.getElementById('disabilityOtherInput');
+const businessPermitInput = document.getElementById('businessPermitInput');
 
 roleSelect.addEventListener('change', ()=>{
   if (roleSelect.value === 'employer') {
     employerSection.style.display = 'block';
     pwdIdContainer.style.display = 'none';
+    if (businessPermitInput) businessPermitInput.setAttribute('required','required');
   } else {
     employerSection.style.display = 'none';
     pwdIdContainer.style.display = 'block';
+    if (businessPermitInput) businessPermitInput.removeAttribute('required');
   }
 });
 

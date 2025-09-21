@@ -385,6 +385,12 @@ include '../includes/nav.php';
                 <i class="bi bi-pencil-square me-1"></i>Edit Job
               </button>
             </div>
+          <?php elseif (Helpers::isJobSeeker()): ?>
+            <div class="mt-2 mt-lg-0 d-flex gap-2">
+              <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#reportJobModal">
+                <i class="bi bi-flag me-1"></i>Report Job
+              </button>
+            </div>
           <?php endif; ?>
         </div>
 
@@ -779,6 +785,65 @@ include '../includes/nav.php';
 </div>
 
 <?php include '../includes/footer.php'; ?>
+<!-- Report Job Modal -->
+<?php if (Helpers::isJobSeeker()): ?>
+<div class="modal fade" id="reportJobModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="job_report_submit.php" class="needs-validation" novalidate>
+        <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($job->job_id); ?>">
+        <div class="modal-header py-2">
+          <h5 class="modal-title"><i class="bi bi-flag me-2"></i>Report Job</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Reason <span class="text-danger">*</span></label>
+            <select name="reason" class="form-select form-select-sm" required>
+              <option value="">Select a reason</option>
+              <?php
+                $reasons = ['Spam/Scam','Fake or Misleading','Discriminatory','Inappropriate Content','Other'];
+                foreach ($reasons as $r) {
+                  echo '<option value="'.htmlspecialchars($r).'">'.htmlspecialchars($r).'</option>';
+                }
+              ?>
+            </select>
+            <div class="invalid-feedback">Please choose a reason.</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Details (optional)</label>
+            <textarea name="details" class="form-control form-control-sm" rows="4" maxlength="2000" placeholder="Provide additional context (optional)"></textarea>
+            <div class="form-text">Max 2000 characters.</div>
+          </div>
+          <div class="alert alert-info small py-2 mb-0"><i class="bi bi-shield-exclamation me-1"></i> Misuse of reports may lead to account review.</div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-danger btn-sm"><i class="bi bi-flag me-1"></i>Submit Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(()=>{
+  const modal=document.getElementById('reportJobModal');
+  if(modal){
+    modal.addEventListener('shown.bs.modal',()=>{
+      const sel=modal.querySelector('select[name=reason]'); if(sel) sel.focus();
+    });
+    // Bootstrap validation
+    const form=modal.querySelector('form');
+    form.addEventListener('submit',e=>{
+      if(!form.checkValidity()){
+        e.preventDefault(); e.stopPropagation();
+      }
+      form.classList.add('was-validated');
+    });
+  }
+})();
+</script>
+<?php endif; ?>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

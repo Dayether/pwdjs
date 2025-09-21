@@ -3,6 +3,8 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
+require_once '../classes/Experience.php';
+require_once '../classes/Certification.php';
 
 Helpers::requireLogin();
 
@@ -70,6 +72,9 @@ if (!$authorized) {
 
 /* Applications visible to viewer */
 $applications = [];
+// Fetch experience & certifications (always safe once authorized; use user id)
+$experiences = Experience::listByUser($target->user_id);
+$certs = Certification::listByUser($target->user_id);
 try {
     $pdo = Database::getConnection();
     if ($viewerRole === 'admin' || $isSelf) {
@@ -146,12 +151,39 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
-          <h2 class="h5 fw-semibold mb-3">
-            <i class="bi bi-person-fill me-2"></i><?php echo htmlspecialchars($target->name ?: 'Unnamed User'); ?>
+          <h2 class="h5 fw-semibold mb-3 d-flex flex-wrap align-items-center gap-2">
+            <span><i class="bi bi-person-fill me-2"></i><?php echo htmlspecialchars($target->name ?: 'Unnamed User'); ?></span>
+            <?php if (!empty($target->pwd_id_status)): ?>
+              <?php
+                $vs = $target->pwd_id_status;
+                $vClass = match($vs){
+                  'Verified' => 'success',
+                  'Pending'  => 'warning',
+                  'Rejected' => 'danger',
+                  default    => 'secondary'
+                };
+              ?>
+              <span class="badge text-bg-<?php echo $vClass; ?> small">PWD: <?php echo htmlspecialchars($vs); ?></span>
+            <?php endif; ?>
           </h2>
           <dl class="row small mb-0">
             <dt class="col-5 text-muted">Email</dt><dd class="col-7"><?php echo htmlspecialchars($target->email); ?></dd>
             <dt class="col-5 text-muted">Disability</dt><dd class="col-7"><?php echo htmlspecialchars($disabilityLabel); ?></dd>
+            <?php if (!empty($target->date_of_birth)): ?>
+              <dt class="col-5 text-muted">Age</dt>
+              <dd class="col-7"><?php
+                $dobTs = strtotime($target->date_of_birth);
+                if ($dobTs) {
+                  $age = (int)date('Y') - (int)date('Y',$dobTs);
+                  if (date('md') < date('md',$dobTs)) $age--;
+                  echo htmlspecialchars($age.' yrs');
+                } else echo '—';
+              ?></dd>
+            <?php endif; ?>
+            <?php if (!empty($target->phone)): ?>
+              <dt class="col-5 text-muted">Phone</dt>
+              <dd class="col-7"><?php echo htmlspecialchars($target->phone); ?></dd>
+            <?php endif; ?>
 
             <?php if (!empty($target->disability_type)): ?>
               <dt class="col-5 text-muted">Disability Type</dt>
@@ -217,14 +249,15 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
     </div>
 
     <div class="col-lg-7">
-      <div class="card border-0 shadow-sm">
+      <!-- Applications -->
+      <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
           <h3 class="h6 fw-semibold mb-3"><i class="bi bi-send me-2"></i>Applications</h3>
           <?php if (!$applications): ?>
             <div class="text-muted small">No applications found or not visible for your role.</div>
           <?php else: ?>
             <div class="table-responsive">
-              <table class="table table-sm align-middle">
+              <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
                   <tr>
                     <th>Job Title</th>
@@ -251,6 +284,58 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
                 </tbody>
               </table>
             </div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Experience -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h3 class="h6 fw-semibold mb-3"><i class="bi bi-briefcase me-2"></i>Work Experience</h3>
+          <?php if (!$experiences): ?>
+            <div class="text-muted small">No experience listed.</div>
+          <?php else: ?>
+            <ul class="list-unstyled small mb-0">
+              <?php foreach ($experiences as $exp): ?>
+                <li class="mb-2">
+                  <span class="fw-semibold"><?php echo Helpers::sanitizeOutput($exp['position']); ?></span>
+                  @ <?php echo Helpers::sanitizeOutput($exp['company']); ?>
+                  <span class="text-muted">
+                    (<?php echo htmlspecialchars(substr($exp['start_date'],0,7)); ?> -
+                    <?php echo $exp['is_current'] ? 'Present' : ($exp['end_date'] ? htmlspecialchars(substr($exp['end_date'],0,7)) : '—'); ?>)
+                  </span>
+                  <?php if (!empty($exp['description'])): ?>
+                    <div><?php echo nl2br(htmlspecialchars($exp['description'])); ?></div>
+                  <?php endif; ?>
+                </li>
+              <?php endforeach; ?>
+            </ul>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <!-- Certifications -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+          <h3 class="h6 fw-semibold mb-3"><i class="bi bi-patch-check me-2"></i>Certifications</h3>
+          <?php if (!$certs): ?>
+            <div class="text-muted small">No certifications listed.</div>
+          <?php else: ?>
+            <ul class="list-unstyled small mb-0">
+              <?php foreach ($certs as $ct): ?>
+                <li class="mb-2">
+                  <span class="fw-semibold"><?php echo Helpers::sanitizeOutput($ct['name']); ?></span>
+                  <?php if ($ct['issuer']): ?><span class="text-muted">· <?php echo Helpers::sanitizeOutput($ct['issuer']); ?></span><?php endif; ?>
+                  <?php if ($ct['issued_date']): ?><span class="text-muted"> (<?php echo htmlspecialchars(substr($ct['issued_date'],0,7)); ?>)</span><?php endif; ?>
+                  <?php if ($ct['credential_id']): ?><div class="text-muted">Credential: <?php echo Helpers::sanitizeOutput($ct['credential_id']); ?></div><?php endif; ?>
+                  <?php if ($ct['attachment_path']): ?>
+                    <div>
+                      <a class="text-decoration-none" href="../<?php echo htmlspecialchars($ct['attachment_path']); ?>" target="_blank"><i class="bi bi-paperclip me-1"></i>Attachment</a>
+                    </div>
+                  <?php endif; ?>
+                </li>
+              <?php endforeach; ?>
+            </ul>
           <?php endif; ?>
         </div>
       </div>

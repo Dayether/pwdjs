@@ -5,6 +5,8 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Application.php';
 require_once '../classes/Job.php';
+require_once '../classes/Experience.php';
+require_once '../classes/Certification.php';
 
 Helpers::requireLogin();
 if (!Helpers::isJobSeeker()) {
@@ -18,12 +20,16 @@ $user = User::findById($_SESSION['user_id']);
 // Add or remove fields here depending on what you require
 // --------------------------------------------------
 $profileFields = [
-    'name'       => $user->name ?? '',
-    'email'      => $user->email ?? '',
-    'education'  => $user->education ?? '',
-    'disability' => $user->disability ?? '',
-    // 'pwd_id_number' => $user->pwd_id_number ?? '',   // uncomment if you have this field
-    // 'resume_path'   => $user->resume_path ?? '',     // example if you track resume
+  'name'                 => $user->name ?? '',
+  'email'                => $user->email ?? '',
+  'education_level'      => $user->education_level ?? ($user->education ?? ''),
+  'disability'           => $user->disability ?? '',
+  'disability_type'      => $user->disability_type ?? '',
+  'primary_skill_summary'=> $user->primary_skill_summary ?? '',
+  'phone'                => $user->phone ?? '',
+  'location'             => ($user->region && $user->province && $user->city) ? 'ok' : '',
+  'resume'               => $user->resume ?? '',
+  'video_intro'          => $user->video_intro ?? '',
 ];
 
 $totalFields    = count($profileFields);
@@ -44,6 +50,9 @@ foreach ($profileFields as $k => $v) {
 // Fetch user applications
 // --------------------------------------------------
 $apps = Application::listByUser($user->user_id);  // Should return latest first; adjust if not
+// Fetch experience & certifications (limit display later)
+$experiences = Experience::listByUser($user->user_id);
+$certs = Certification::listByUser($user->user_id);
 
 // Build job status map
 $jobStatusMap = [];
@@ -96,7 +105,7 @@ include '../includes/nav.php';
             <div class="p-3 rounded border bg-white h-100">
               <div class="text-muted small mb-1">Education</div>
               <div class="fw-semibold">
-                <?php echo Helpers::sanitizeOutput($user->education ?: 'Not specified'); ?>
+                <?php echo Helpers::sanitizeOutput(($user->education_level ?: $user->education) ?: 'Not specified'); ?>
               </div>
             </div>
           </div>
@@ -174,6 +183,61 @@ include '../includes/nav.php';
             <div class="fw-bold fs-5 text-warning"><?php echo $pendingCount; ?></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Experience Preview -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 fw-semibold mb-0"><i class="bi bi-briefcase me-2"></i>Recent Experience</h3>
+          <a href="profile_edit.php#employment-section" class="small text-decoration-none">Manage</a>
+        </div>
+        <?php if (!$experiences): ?>
+          <div class="small text-muted">No experience added yet.</div>
+        <?php else: ?>
+          <ul class="list-unstyled small mb-0">
+            <?php foreach (array_slice($experiences,0,3) as $exp): ?>
+              <li class="mb-1">
+                <span class="fw-semibold"><?php echo Helpers::sanitizeOutput($exp['position']); ?></span>
+                @ <?php echo Helpers::sanitizeOutput($exp['company']); ?>
+                <span class="text-muted">
+                  (<?php echo htmlspecialchars(substr($exp['start_date'],0,7)); ?> -
+                  <?php echo $exp['is_current'] ? 'Present' : ($exp['end_date'] ? htmlspecialchars(substr($exp['end_date'],0,7)) : '—'); ?>)
+                </span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+          <?php if (count($experiences) > 3): ?><div class="small mt-1"><a href="profile_edit.php#employment-section">View all (<?php echo count($experiences); ?>)</a></div><?php endif; ?>
+        <?php endif; ?>
+      </div>
+    </div>
+
+    <!-- Certifications Preview -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 fw-semibold mb-0"><i class="bi bi-patch-check me-2"></i>Certifications</h3>
+          <a href="profile_edit.php#employment-section" class="small text-decoration-none">Manage</a>
+        </div>
+        <?php if (!$certs): ?>
+          <div class="small text-muted">No certifications yet.</div>
+        <?php else: ?>
+          <ul class="list-unstyled small mb-0">
+            <?php foreach (array_slice($certs,0,4) as $ct): ?>
+              <li class="mb-1">
+                <span class="fw-semibold"><?php echo Helpers::sanitizeOutput($ct['name']); ?></span>
+                <?php if ($ct['issuer']): ?>
+                  <span class="text-muted">· <?php echo Helpers::sanitizeOutput($ct['issuer']); ?></span>
+                <?php endif; ?>
+                <?php if ($ct['issued_date']): ?>
+                  <span class="text-muted">(<?php echo htmlspecialchars(substr($ct['issued_date'],0,7)); ?>)</span>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+          <?php if (count($certs) > 4): ?><div class="small mt-1"><a href="profile_edit.php#employment-section">View all (<?php echo count($certs); ?>)</a></div><?php endif; ?>
+        <?php endif; ?>
       </div>
     </div>
 

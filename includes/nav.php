@@ -8,8 +8,13 @@ $flashes = $_SESSION['global_flashes'] ?? [];
 if (isset($_SESSION['global_flashes'])) unset($_SESSION['global_flashes']);
 
 $profileLink = 'profile_edit.php';
-if ($loggedIn && $role==='employer') $profileLink='employer_profile.php';
-elseif ($loggedIn && $role==='admin') $profileLink='profile_edit.php';
+if ($loggedIn && $role==='employer') {
+  $profileLink='employer_profile.php';
+} elseif ($loggedIn && $role==='admin') {
+  $profileLink=''; // no profile page for admin
+} elseif ($loggedIn && $role==='job_seeker') {
+  $profileLink='job_seeker_profile.php'; // self-view; edit button available inside
+}
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
@@ -46,11 +51,12 @@ elseif ($loggedIn && $role==='admin') $profileLink='profile_edit.php';
 
         <?php if ($loggedIn && $role==='admin'): ?>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle <?php echo in_array($currentPage,['admin_employers.php','admin_reports.php','admin_support_tickets.php'])?'active':''; ?>" href="#" data-bs-toggle="dropdown">
+            <a class="nav-link dropdown-toggle <?php echo in_array($currentPage,['admin_employers.php','admin_reports.php','admin_support_tickets.php','admin_job_seekers.php','admin_job_seeker_view.php'])?'active':''; ?>" href="#" data-bs-toggle="dropdown">
               <i class="bi bi-shield-lock me-1"></i>Admin
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item <?php echo nav_active('admin_employers.php',$currentPage); ?>" href="admin_employers.php">Employers</a></li>
+              <li><a class="dropdown-item <?php echo nav_active('admin_job_seekers.php',$currentPage); ?>" href="admin_job_seekers.php">Job Seekers</a></li>
               <li><a class="dropdown-item <?php echo nav_active('admin_reports.php',$currentPage); ?>" href="admin_reports.php">Reports</a></li>
               <li><a class="dropdown-item <?php echo nav_active('admin_support_tickets.php',$currentPage); ?>" href="admin_support_tickets.php">Support Tickets</a></li>
             </ul>
@@ -78,9 +84,15 @@ elseif ($loggedIn && $role==='admin') $profileLink='profile_edit.php';
           </li>
         <?php else: ?>
           <li class="nav-item me-2">
-            <a class="btn btn-outline-light btn-sm <?php echo nav_active($profileLink,$currentPage); ?>" href="<?php echo $profileLink; ?>">
-              <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
-            </a>
+            <?php if ($role==='admin'): ?>
+              <span class="btn btn-outline-light btn-sm disabled" tabindex="-1">
+                <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
+              </span>
+            <?php else: ?>
+              <a class="btn btn-outline-light btn-sm <?php echo $profileLink?nav_active($profileLink,$currentPage):''; ?>" href="<?php echo $profileLink ?: '#'; ?>">
+                <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
+              </a>
+            <?php endif; ?>
           </li>
           <li class="nav-item">
             <a class="btn btn-outline-light btn-sm"

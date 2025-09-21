@@ -209,4 +209,16 @@ class Helpers {
     public static function verifyCsrf(?string $token): bool {
         return $token && isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
     }
+
+    // ADDED: Central role-based dashboard redirect
+    public static function redirectToRoleDashboard(): void {
+        $r = $_SESSION['role'] ?? '';
+        if ($r === 'admin') {
+            self::redirect('admin_employers.php');
+        } elseif ($r === 'employer') {
+            self::redirect('employer_dashboard.php');
+        } else {
+            self::redirect('user_dashboard.php');
+        }
+    }
 }
