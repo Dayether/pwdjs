@@ -4,6 +4,7 @@ require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Sensitive.php';
+require_once '../classes/Mail.php';
 
 Helpers::requireLogin();
 if (($_SESSION['role'] ?? '') !== 'admin') {
@@ -16,21 +17,78 @@ $search = trim($_GET['q'] ?? '');
 
 // Actions (verify / reject / pending)
 if (isset($_GET['action'], $_GET['user_id'])) {
-    $action = $_GET['action'];
-    $uid = $_GET['user_id'];
-    if ($action === 'verify') {
-        if (User::setPwdIdStatus($uid,'Verified')) Helpers::flash('msg','PWD ID verified.');
-        else Helpers::flash('error','Failed to verify.');
-    } elseif ($action === 'reject') {
-        if (User::setPwdIdStatus($uid,'Rejected')) Helpers::flash('msg','PWD ID rejected.');
-        else Helpers::flash('error','Failed to reject.');
-    } elseif ($action === 'pending') {
-        $pdo = Database::getConnection();
-        $st = $pdo->prepare("UPDATE users SET pwd_id_status='Pending' WHERE user_id=? AND role='job_seeker'");
-        if ($st->execute([$uid])) Helpers::flash('msg','Set back to Pending.');
-        else Helpers::flash('error','Failed to update.');
+  $action = $_GET['action'];
+  $uid = $_GET['user_id'];
+  // get current before change
+  $pdoChk = Database::getConnection();
+  $stChk = $pdoChk->prepare("SELECT pwd_id_status,name,email FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
+  $stChk->execute([$uid]);
+  $before = $stChk->fetch(PDO::FETCH_ASSOC) ?: null;
+  $prevStatus = $before['pwd_id_status'] ?? null;
+
+  $finalStatus = null; // track new status if updated
+  $baseMsg = null;
+  $ok = false;
+  if ($action === 'verify') {
+    $ok = User::setPwdIdStatus($uid,'Verified');
+    $finalStatus = $ok ? 'Verified' : null;
+    $baseMsg = $ok ? 'PWD ID verified.' : 'Failed to verify.';
+  } elseif ($action === 'reject') {
+    $ok = User::setPwdIdStatus($uid,'Rejected');
+    $finalStatus = $ok ? 'Rejected' : null;
+    $baseMsg = $ok ? 'PWD ID rejected.' : 'Failed to reject.';
+  } elseif ($action === 'pending') {
+    $st = $pdoChk->prepare("UPDATE users SET pwd_id_status='Pending' WHERE user_id=? AND role='job_seeker'");
+    $ok = $st->execute([$uid]);
+    $finalStatus = $ok ? 'Pending' : null;
+    $baseMsg = $ok ? 'Set back to Pending.' : 'Failed to update.';
+  }
+
+  $emailInfo = '';
+  if ($ok && $finalStatus !== null && $prevStatus !== $finalStatus) {
+    if ($before && Mail::isEnabled()) {
+      $toEmail = $before['email'];
+      $toName  = $before['name'];
+      $subject = match($finalStatus) {
+        'Verified' => 'Your PWD ID Has Been Verified',
+        'Rejected' => 'Your PWD ID Verification Was Rejected',
+        'Pending'  => 'Your PWD ID Status Set Back to Pending',
+        default    => 'Your PWD ID Status Updated'
+      };
+      $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
+      if ($finalStatus === 'Verified') {
+        $body .= '<p>Your PWD ID has been <strong>verified</strong>. You now have full access to job application features requiring verified status.</p>';
+      } elseif ($finalStatus === 'Rejected') {
+        $body .= '<p>Your PWD ID verification was <strong>rejected</strong>. You may re-upload or contact support for clarification.</p>';
+      } elseif ($finalStatus === 'Pending') {
+        $body .= '<p>Your PWD ID status has been set back to <strong>Pending</strong>. We will notify you once it is reviewed again.</p>';
+      } else {
+        $body .= '<p>Your PWD ID status has been updated to <strong>'.htmlspecialchars($finalStatus).'</strong>.</p>';
+      }
+      $body .= '<p>Regards,<br>The Admin Team</p>';
+      $sendRes = Mail::send($toEmail, $toName, $subject, $body);
+      if ($sendRes['success']) {
+        $emailInfo = ' Email notification sent.';
+      } else {
+        if ($sendRes['error'] === 'SMTP disabled') {
+          $emailInfo = ' (Email not sent: SMTP disabled.)';
+        } else {
+          $emailInfo = ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
+        }
+      }
+    } elseif ($before && !Mail::isEnabled()) {
+      $emailInfo = ' (Email not sent: SMTP disabled.)';
     }
-    Helpers::redirect('admin_job_seekers.php');
+  }
+
+  if ($baseMsg !== null) {
+    if ($ok) {
+      Helpers::flash('msg', $baseMsg.$emailInfo);
+    } else {
+      Helpers::flash('error', $baseMsg);
+    }
+  }
+  Helpers::redirect('admin_job_seekers.php');
 }
 
 $pdo = Database::getConnection();

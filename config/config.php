@@ -19,6 +19,6 @@ define('SMTP_SECURE', 'tls');
 define('SMTP_USER', 'mingchancutie@gmail.com');
 define('SMTP_PASS', 'zzyvwpscxnxvtaja');
 define('SMTP_FROM_EMAIL', 'mingchancutie@gmail.com');
-define('SMTP_FROM_NAME', 'PWD Portal Support'); // set to true to enable sending
+define('SMTP_FROM_NAME', 'PWD Portal'); // set to true to enable sending
 }
 

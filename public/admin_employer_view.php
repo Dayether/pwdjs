@@ -3,6 +3,7 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
+require_once '../classes/Mail.php';
 
 if (session_status()===PHP_SESSION_NONE){
     session_start();
@@ -46,12 +47,58 @@ if (isset($_GET['action'])) {
     'reject'   => 'Rejected'
   ];
   if (isset($map[$action])) {
-    if (User::updateEmployerStatus($user_id, $map[$action])) {
-      Helpers::flash('msg', 'Employer status updated to ' . $map[$action] . '.');
-
-      /* ADDED: also stash a mirror message (for recovery if flash becomes blank) */
-      $_SESSION['__status_update_msg'] = 'Employer status updated to ' . $map[$action] . '.';
-
+    $newStatus = $map[$action];
+    $updated = User::updateEmployerStatus($user_id, $newStatus);
+    if ($updated) {
+      $baseMsg = 'Employer status updated to ' . $newStatus . '.';
+      $emailInfo = '';
+      // Only send if status actually changed
+      if ($__currentStatusBeforeAction !== $newStatus) {
+        // Fetch user email + name for notification
+        try {
+          $pdoE = Database::getConnection();
+          $stE = $pdoE->prepare("SELECT name,email,company_name FROM users WHERE user_id=? AND role='employer' LIMIT 1");
+          $stE->execute([$user_id]);
+          $empRow = $stE->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) { $empRow = null; }
+        if ($empRow && Mail::isEnabled()) {
+          $toEmail = $empRow['email'];
+          $toName  = $empRow['name'];
+          $company = $empRow['company_name'] ?: 'your company';
+          $subject = match($newStatus) {
+            'Approved'  => 'Your Employer Account Has Been Approved',
+            'Suspended' => 'Your Employer Account Has Been Suspended',
+            'Rejected'  => 'Your Employer Account Application Was Rejected',
+            default     => 'Your Employer Account Status Updated'
+          };
+          $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
+          $body .= '<p>Your employer account for <strong>'.htmlspecialchars($company).'</strong> has been updated to status: <strong>'.htmlspecialchars($newStatus).'</strong>.</p>';
+          if ($newStatus === 'Approved') {
+            $body .= '<p>You can now post jobs and manage applicants.</p>';
+          } elseif ($newStatus === 'Suspended') {
+            $body .= '<p>Job posting and applicant management are temporarily disabled. Please contact support if you believe this is an error.</p>';
+          } elseif ($newStatus === 'Rejected') {
+            $body .= '<p>Your application was not approved. You may reply with additional documentation or contact support for clarification.</p>';
+          } else {
+            $body .= '<p>Your application is pending review. We will notify you once a decision is made.</p>';
+          }
+          $body .= '<p>Regards,<br>The Admin Team</p>';
+          $sendRes = Mail::send($toEmail, $toName, $subject, $body);
+          if ($sendRes['success']) {
+            $emailInfo = ' Email notification sent.';
+          } else {
+            if ($sendRes['error'] === 'SMTP disabled') {
+              $emailInfo = ' (Email not sent: SMTP disabled.)';
+            } else {
+              $emailInfo = ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
+            }
+          }
+        } elseif ($empRow && !Mail::isEnabled()) {
+          $emailInfo = ' (Email not sent: SMTP disabled.)';
+        }
+      }
+      Helpers::flash('msg', $baseMsg.$emailInfo);
+      $_SESSION['__status_update_msg'] = $baseMsg.$emailInfo; /* recovery mirror */
     } else {
       Helpers::flash('msg', 'Failed to update employer status.');
       $_SESSION['__status_update_msg'] = 'Failed to update employer status.'; /* ADDED */
