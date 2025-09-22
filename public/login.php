@@ -44,8 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $errors[] = 'Employer account not approved (status: '.$estatus.').';
                 }
             }
-            // Job seeker gating (PWD ID)
-            if (!$errors && $row['role'] === 'job_seeker') {
+      // Job seeker gating (account suspension + PWD ID)
+      if (!$errors && $row['role'] === 'job_seeker') {
+        $acctStatus = $row['job_seeker_status'] ?? 'Active';
+        if ($acctStatus === 'Suspended') {
+          $errors[] = 'Your account is suspended. Please contact support.';
+        }
+      }
+      if (!$errors && $row['role'] === 'job_seeker') {
                 $s = $row['pwd_id_status'] ?? 'None';
                 if ($s !== 'Verified') {
                     if ($s === 'Pending')

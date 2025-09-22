@@ -21,10 +21,11 @@ if (isset($_GET['action'], $_GET['user_id'])) {
   $uid = $_GET['user_id'];
   // get current before change
   $pdoChk = Database::getConnection();
-  $stChk = $pdoChk->prepare("SELECT pwd_id_status,name,email FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
+  $stChk = $pdoChk->prepare("SELECT pwd_id_status,job_seeker_status,name,email FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
   $stChk->execute([$uid]);
   $before = $stChk->fetch(PDO::FETCH_ASSOC) ?: null;
   $prevStatus = $before['pwd_id_status'] ?? null;
+  $prevAcctStatus = $before['job_seeker_status'] ?? 'Active';
 
   $finalStatus = null; // track new status if updated
   $baseMsg = null;
@@ -42,10 +43,19 @@ if (isset($_GET['action'], $_GET['user_id'])) {
     $ok = $st->execute([$uid]);
     $finalStatus = $ok ? 'Pending' : null;
     $baseMsg = $ok ? 'Set back to Pending.' : 'Failed to update.';
+  } elseif ($action === 'suspend_acct') {
+    $ok = User::updateJobSeekerStatus($uid,'Suspended');
+    $finalAcctStatus = $ok ? 'Suspended' : null;
+    $baseMsg = $ok ? 'Account suspended.' : 'Failed to suspend account.';
+  } elseif ($action === 'activate_acct') {
+    $ok = User::updateJobSeekerStatus($uid,'Active');
+    $finalAcctStatus = $ok ? 'Active' : null;
+    $baseMsg = $ok ? 'Account activated.' : 'Failed to activate account.';
   }
 
   $emailInfo = '';
-  if ($ok && $finalStatus !== null && $prevStatus !== $finalStatus) {
+  // Email for PWD ID status changes
+  if ($ok && isset($finalStatus) && $finalStatus !== null && $prevStatus !== $finalStatus) {
     if ($before && Mail::isEnabled()) {
       $toEmail = $before['email'];
       $toName  = $before['name'];
@@ -81,6 +91,34 @@ if (isset($_GET['action'], $_GET['user_id'])) {
     }
   }
 
+  // Email for account suspension / activation
+  if ($ok && isset($finalAcctStatus) && $finalAcctStatus !== null && $prevAcctStatus !== $finalAcctStatus) {
+    if ($before && Mail::isEnabled()) {
+      $toEmail = $before['email'];
+      $toName  = $before['name'];
+      $subject = $finalAcctStatus === 'Suspended' ? 'Your Account Has Been Suspended' : 'Your Account Has Been Re-Activated';
+      $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
+      if ($finalAcctStatus === 'Suspended') {
+        $body .= '<p>Your job seeker account has been <strong>suspended</strong>. You cannot log in or apply to jobs until it is re-activated. If you believe this is an error, please contact support.</p>';
+      } else {
+        $body .= '<p>Your job seeker account has been <strong>re-activated</strong>. You may now log in and continue using the portal.</p>';
+      }
+      $body .= '<p>Regards,<br>The Admin Team</p>';
+      $sendRes2 = Mail::send($toEmail, $toName, $subject, $body);
+      if ($sendRes2['success']) {
+        $emailInfo .= ' Account email notification sent.';
+      } else {
+        if ($sendRes2['error'] === 'SMTP disabled') {
+          $emailInfo .= ' (Account email not sent: SMTP disabled.)';
+        } else {
+          $emailInfo .= ' (Account email failed: '.htmlspecialchars($sendRes2['error']).')';
+        }
+      }
+    } elseif ($before && !Mail::isEnabled()) {
+      $emailInfo .= ' (Account email not sent: SMTP disabled.)';
+    }
+  }
+
   if ($baseMsg !== null) {
     if ($ok) {
       Helpers::flash('msg', $baseMsg.$emailInfo);
@@ -103,10 +141,25 @@ if ($search !== '') {
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
-$sql = "SELECT user_id,name,email,pwd_id_last4,pwd_id_status,created_at FROM users WHERE $where ORDER BY (pwd_id_status='Pending') DESC, created_at DESC LIMIT 300";
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$sql = "SELECT user_id,name,email,pwd_id_last4,pwd_id_status,job_seeker_status,created_at FROM users WHERE $where ORDER BY (pwd_id_status='Pending') DESC, created_at DESC LIMIT 300";
+try {
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute($params);
+  $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  // Fallback if migration not yet applied (no job_seeker_status column)
+  $fallbackSql = str_replace(',job_seeker_status','', $sql);
+  $stmt = $pdo->prepare($fallbackSql);
+  $stmt->execute($params);
+  $rowsRaw = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  // Inject default Active status so page still works
+  $rows = [];
+  foreach ($rowsRaw as $r) {
+    if (!isset($r['job_seeker_status'])) $r['job_seeker_status'] = 'Active';
+    $rows[] = $r;
+  }
+  $_SESSION['flash']['error'] = 'Note: job_seeker_status column missing. Run migration 20250922_add_job_seeker_status.sql to enable suspension feature.';
+}
 
 $counts = User::jobSeekerCounts();
 
@@ -171,8 +224,9 @@ include '../includes/nav.php';
             <th>Name</th>
             <th>Email</th>
             <th class="text-center">PWD ID (Last4)</th>
-            <th class="text-center">Status</th>
-            <th class="text-end" style="width: 180px;">Actions</th>
+            <th class="text-center">PWD ID Status</th>
+            <th class="text-center">Account</th>
+            <th class="text-end" style="width: 240px;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -181,23 +235,31 @@ include '../includes/nav.php';
           <?php else: foreach ($rows as $r): ?>
             <?php
               $st = $r['pwd_id_status'] ?: 'None';
+              $acct = $r['job_seeker_status'] ?: 'Active';
               $badgeClass = match($st){
                 'Verified' => 'text-bg-success',
                 'Pending'  => 'text-bg-warning',
                 'Rejected' => 'text-bg-danger',
                 default    => 'text-bg-secondary'
               };
+              $acctBadge = $acct === 'Suspended' ? 'text-bg-danger' : 'text-bg-success';
             ?>
             <tr>
               <td class="small fw-semibold"><a class="text-decoration-none" href="admin_job_seeker_view.php?user_id=<?php echo urlencode($r['user_id']); ?>"><?php echo Helpers::sanitizeOutput($r['name']); ?></a></td>
               <td class="small text-muted"><?php echo Helpers::sanitizeOutput($r['email']); ?></td>
               <td class="small text-center"><?php echo $r['pwd_id_last4'] ? '****'.$r['pwd_id_last4'] : '—'; ?></td>
               <td class="small text-center"><span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st); ?></span></td>
+              <td class="small text-center"><span class="badge <?php echo $acctBadge; ?>"><?php echo htmlspecialchars($acct); ?></span></td>
               <td class="text-end small">
                 <div class="btn-group btn-group-sm">
                   <a class="btn btn-outline-success" href="?action=verify&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Verify this PWD ID?');">Verify</a>
                   <a class="btn btn-outline-warning" href="?action=pending&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Set back to Pending?');">Pending</a>
                   <a class="btn btn-outline-danger" href="?action=reject&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Reject this PWD ID?');">Reject</a>
+                  <?php if ($acct === 'Suspended'): ?>
+                    <a class="btn btn-outline-primary" href="?action=activate_acct&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Activate this account?');">Activate</a>
+                  <?php else: ?>
+                    <a class="btn btn-outline-secondary" href="?action=suspend_acct&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Suspend this account?');">Suspend</a>
+                  <?php endif; ?>
                 </div>
               </td>
             </tr>

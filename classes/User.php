@@ -31,6 +31,7 @@ class User {
     public ?string $pwd_id_number = null;
     public ?string $pwd_id_last4 = null;
     public ?string $pwd_id_status = null;
+    public ?string $job_seeker_status = null; // Active | Suspended
 
     public ?int $experience = null;
     public ?int $profile_completeness = null;
@@ -260,6 +261,20 @@ class User {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("UPDATE users SET pwd_id_status=? WHERE user_id=? AND role='job_seeker'");
         return $stmt->execute([$status,$userId]);
+    }
+
+    /* ===================== ADMIN: JOB SEEKER ACCOUNT STATUS (SUSPEND) ===================== */
+    public static function updateJobSeekerStatus(string $userId, string $newStatus): bool {
+        $valid = ['Active','Suspended'];
+        if (!in_array($newStatus,$valid,true)) return false;
+        $pdo = Database::getConnection();
+        $cur = $pdo->prepare("SELECT job_seeker_status FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
+        $cur->execute([$userId]);
+        $current = $cur->fetchColumn();
+        if ($current === false) return false;
+        if ($current === $newStatus) return true;
+        $upd = $pdo->prepare("UPDATE users SET job_seeker_status=? WHERE user_id=? AND role='job_seeker'");
+        return $upd->execute([$newStatus,$userId]);
     }
 
     /* ===================== ADMIN: EMPLOYER STATUS ===================== */
