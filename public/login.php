@@ -118,7 +118,7 @@ include '../includes/nav.php';
           Don't have an account? <a href="register.php">Register</a>
         </div>
         <div class="alert alert-info mt-3 py-2 small mb-0">
-          Need help with your account? <a href="support.php" class="fw-semibold text-decoration-none">Contact Support</a>.
+          Need help with your account? <a href="support_contact.php" class="fw-semibold text-decoration-none">Contact Support</a>.
         </div>
       </div>
     </div>
