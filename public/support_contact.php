@@ -2,6 +2,7 @@
 require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
+require_once '../classes/Mail.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -154,6 +155,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':subject'   => $subject,
                 ':message'   => $message
             ]);
+
+      // Log original ticket as first "user" entry (if replies table exists)
+      try {
+        $stmt2 = $pdo->prepare("INSERT INTO support_ticket_replies (ticket_id, sender_role, sender_user_id, message, email_sent) VALUES (?,?,?,?,0)");
+        $stmt2->execute([$ticket_id, 'user', $_SESSION['user_id'] ?? null, $message]);
+      } catch (Throwable $e) { /* ignore if table absent */ }
+
+      // Send acknowledgment email (if enabled)
+      if (Mail::isEnabled()) {
+        $ackSubject = 'Support Ticket Received: ' . $subject . ' (' . $ticket_id . ')';
+        $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+        $safeSubj = htmlspecialchars($subject, ENT_QUOTES, 'UTF-8');
+        $preview  = nl2br(htmlspecialchars(mb_strimwidth($message, 0, 800, '...'), ENT_QUOTES, 'UTF-8'));
+        $htmlAck = '<p>Hi ' . $safeName . ',</p>'
+          . '<p>We received your support request with subject: <strong>' . $safeSubj . '</strong>.</p>'
+          . '<p><strong>Ticket ID:</strong> ' . $ticket_id . '</p>'
+          . '<p>Below is a copy of your message:</p>'
+          . '<blockquote style="border-left:4px solid #0d6efd;padding:6px 10px;background:#f8f9fa">' . $preview . '</blockquote>'
+          . '<p style="font-size:12px;color:#666">Our team will review and reply. Please keep the Ticket ID for reference.</p>';
+        $altAck = "We received your support ticket (ID: $ticket_id)\nSubject: $subject\n\n" . mb_strimwidth($message, 0, 800, '...');
+        Mail::send($email, $name, $ackSubject, $htmlAck, $altAck);
+      }
             $success         = true;
             $prefillName     = $name;
             $prefillEmail    = $email;
@@ -243,8 +266,7 @@ include '../includes/nav.php';
               <button class="btn btn-primary">
                 <i class="bi bi-envelope-paper me-1"></i>Submit Request
               </button>
-            </div>
-        </form>
+      </div>
 
         <hr class="my-4">
         <div id="dynamicHelpNote" class="small text-muted">
@@ -254,8 +276,7 @@ include '../includes/nav.php';
       </div>
     </div>
   </div>
-</div>
-
+ </div>
 <?php include '../includes/footer.php'; ?>
 <script>
 document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{

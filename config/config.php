@@ -7,3 +7,18 @@ define('BASE_URL', 'http://localhost/pwdjs/'); // Your project URL
 
 session_start();
 
+/* =====================
+   SMTP / Mail Settings
+   (Modify values for your real SMTP provider; keep credentials private.)
+   ===================== */
+if (!defined('SMTP_HOST')) {
+define('SMTP_ENABLE', true);
+define('SMTP_HOST', 'smtp.gmail.com');
+define('SMTP_PORT', 587);
+define('SMTP_SECURE', 'tls');
+define('SMTP_USER', 'mingchancutie@gmail.com');
+define('SMTP_PASS', 'zzyvwpscxnxvtaja');
+define('SMTP_FROM_EMAIL', 'mingchancutie@gmail.com');
+define('SMTP_FROM_NAME', 'PWD Portal Support'); // set to true to enable sending
+}
+

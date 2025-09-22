@@ -100,19 +100,31 @@ $__rawFlashSessionCopy = $_SESSION['flash'] ?? []; // snapshot
 
 $__structured = [];
 if (method_exists('Helpers','getFlashes')) {
-    $__structured = Helpers::getFlashes();
+  $rawFlashes = Helpers::getFlashes(); // returns assoc key => message (strings)
+  if (is_array($rawFlashes)) {
+    foreach ($rawFlashes as $k=>$v) {
+      $t = match($k){
+        'error','danger'=>'danger',
+        'success'=>'success',
+        'auth'=>'warning',
+        default=>'info'
+      };
+      $__structured[] = ['type'=>$t,'message'=>(string)$v];
+    }
+  }
 }
 
+// Fallback to snapshot if still empty (e.g., no getFlashes method or was already consumed)
 if (!$__structured && $__rawFlashSessionCopy) {
-    foreach ($__rawFlashSessionCopy as $k=>$v) {
-        $t = match($k){
-          'error','danger'=>'danger',
-          'success'=>'success',
-          'auth'=>'warning',
-          default=>'info'
-        };
-        $__structured[] = ['type'=>$t,'message'=>$v];
-    }
+  foreach ($__rawFlashSessionCopy as $k=>$v) {
+    $t = match($k){
+      'error','danger'=>'danger',
+      'success'=>'success',
+      'auth'=>'warning',
+      default=>'info'
+    };
+    $__structured[] = ['type'=>$t,'message'=>(string)$v];
+  }
 }
 
 $__needsSynthetic = false;

@@ -3,6 +3,8 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/SupportTicket.php';
+require_once '../classes/Database.php';
+require_once '../classes/Mail.php';
 
 Helpers::requireLogin();
 if (($_SESSION['role'] ?? '') !== 'admin') {
@@ -66,6 +68,83 @@ if (!empty($_GET['view'])) {
         Helpers::redirect('admin_support_tickets.php');
         exit;
     }
+}
+
+// Handle admin reply (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply_ticket_id'], $_POST['reply_message'])) {
+  if (($_SESSION['role'] ?? '') !== 'admin') {
+    Helpers::flash('msg','Not authorized.');
+    Helpers::redirect('admin_support_tickets.php');
+    exit;
+  }
+  $replyTicketId = trim($_POST['reply_ticket_id']);
+  $replyBodyRaw  = trim($_POST['reply_message']);
+  $manualEmail   = trim($_POST['reply_recipient'] ?? '');
+  $changeStatus  = trim($_POST['reply_new_status'] ?? '');
+  $ticketRow     = SupportTicket::find($replyTicketId);
+  if (!$ticketRow) {
+    Helpers::flash('msg','Ticket not found for reply.');
+    Helpers::redirect('admin_support_tickets.php');
+    exit;
+  }
+  if ($replyBodyRaw === '') {
+    Helpers::flash('msg','Reply cannot be empty.');
+    Helpers::redirect('admin_support_tickets.php?view='.urlencode($replyTicketId));
+    exit;
+  }
+
+    // Decide recipient: manual email if provided & valid, else ticket email
+    $recipientEmail = filter_var($manualEmail, FILTER_VALIDATE_EMAIL) ? $manualEmail : $ticketRow['email'];
+    $recipientName  = $recipientEmail === $ticketRow['email'] ? $ticketRow['name'] : $ticketRow['name'];
+
+    $safeReply = htmlspecialchars($replyBodyRaw, ENT_QUOTES, 'UTF-8');
+    $origPreview = nl2br(htmlspecialchars(mb_strimwidth($ticketRow['message'],0,800,'...'), ENT_QUOTES, 'UTF-8'));
+    $subject = 'Re: '.$ticketRow['subject'].' [Ticket '.$ticketRow['ticket_id'].']';
+    $html = '<p>Hi '.htmlspecialchars($recipientName, ENT_QUOTES, 'UTF-8').',</p>'
+      . '<p>'.nl2br($safeReply).'</p>'
+      . '<hr><p style="font-size:12px;color:#666">Original Ticket:</p><blockquote style="border-left:4px solid #0d6efd;padding:6px 10px;background:#f8f9fa">'.$origPreview.'</blockquote>'
+      . '<p style="font-size:11px;color:#888">This is an administrative response from PWD Portal Support.</p>';
+    $alt = "Reply:\n".$replyBodyRaw."\n\n--- Original ---\n".$ticketRow['message'];
+  $mailSent = false; $mailError = null; $sendResult = null; $smtpDisabled = false;
+  if (Mail::isEnabled()) {
+    $sendResult = Mail::send($recipientEmail, $recipientName, $subject, $html, $alt);
+    $mailSent = $sendResult['success'];
+    $mailError = $sendResult['success'] ? null : ($sendResult['error'] ?? 'Unknown error');
+  } else {
+    $smtpDisabled = true; // treat as logged-only, not an error
+  }
+
+  // Log reply
+  try {
+    $pdo = Database::getConnection();
+    $stmt = $pdo->prepare("INSERT INTO support_ticket_replies (ticket_id, sender_role, sender_user_id, message, email_sent, email_error) VALUES (?,?,?,?,?,?)");
+    $stmt->execute([
+      $replyTicketId,
+      'admin',
+      $_SESSION['user_id'] ?? null,
+      $replyBodyRaw,
+      $mailSent ? 1 : 0,
+      $mailError
+    ]);
+  } catch (Throwable $e) {
+    // silent fail for logging
+  }
+
+  // Optional: store reply in a simple table (if exists) – skipped (no schema provided).
+
+  if ($changeStatus && in_array($changeStatus, ['Open','Pending','Resolved','Closed'], true)) {
+    @SupportTicket::updateStatus($replyTicketId, $changeStatus);
+  }
+
+  if ($mailSent) {
+    Helpers::flash('msg','Reply sent to user.');
+  } elseif ($smtpDisabled) {
+    Helpers::flash('msg','Reply saved (email sending disabled).');
+  } else {
+    Helpers::flash('msg','Reply logged but email failed: '.($mailError ?: 'Unknown error'));
+  }
+  Helpers::redirect('admin_support_tickets.php?view='.urlencode($replyTicketId));
+  exit;
 }
 
 $statusFilter = $_GET['status'] ?? '';
@@ -244,6 +323,45 @@ include '../includes/nav.php';
          <i class="bi bi-trash me-1"></i>Delete
       </a>
     </div>
+
+    <hr class="my-4">
+    <h4 class="h6 fw-semibold mb-3"><i class="bi bi-reply me-2"></i>Send Reply</h4>
+    <?php if (!Mail::isEnabled()): ?>
+      <div class="alert alert-warning py-2 px-3 small">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Email sending is OFF. To enable: open <code>config/config.php</code>, set <code>SMTP_ENABLE</code> = <code>true</code> and provide valid <code>SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_FROM_EMAIL</code>. While disabled, replies are logged only (no email sent).
+      </div>
+    <?php endif; ?>
+    <form method="post" class="row g-3">
+      <input type="hidden" name="reply_ticket_id" value="<?php echo htmlspecialchars($viewTicket['ticket_id']); ?>">
+      <div class="col-md-6">
+        <label class="form-label">Recipient Email (manual override)</label>
+        <input name="reply_recipient" type="email" class="form-control" placeholder="Leave blank to use ticket email (<?php echo htmlspecialchars($viewTicket['email']); ?>)" value="<?php echo htmlspecialchars($_POST['reply_recipient'] ?? ''); ?>">
+        <div class="form-text">If left empty, ticket's original email will be used.</div>
+      </div>
+      <div class="col-md-6 d-flex align-items-end">
+        <div class="small text-muted">Original: <?php echo htmlspecialchars($viewTicket['email']); ?></div>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Reply Message</label>
+        <textarea name="reply_message" class="form-control" rows="6" placeholder="Type your response..." required><?php
+          echo htmlspecialchars($_POST['reply_message'] ?? '');
+        ?></textarea>
+        <div class="form-text">User will receive this via email (HTML formatted).</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Update Status</label>
+        <select name="reply_new_status" class="form-select">
+          <option value="">(Leave unchanged)</option>
+          <?php foreach (['Open','Pending','Resolved','Closed'] as $st): ?>
+            <option value="<?php echo $st; ?>" <?php if(($viewTicket['status']??'')===$st) echo 'disabled'; ?>><?php echo $st; ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="col-md-8 d-flex align-items-end justify-content-end">
+        <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Send Reply</button>
+      </div>
+    </form>
   </div>
 </div>
 <?php endif; ?>
