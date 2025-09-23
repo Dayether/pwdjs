@@ -84,32 +84,58 @@ if ($loggedIn && $role==='employer') {
             </a>
           </li>
         <?php else: ?>
-          <li class="nav-item me-2">
-            <?php if ($role==='admin'): ?>
-              <span class="btn btn-outline-light btn-sm disabled" tabindex="-1">
-                <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
-              </span>
-            <?php else: ?>
-              <a class="btn btn-outline-light btn-sm <?php echo $profileLink?nav_active($profileLink,$currentPage):''; ?>" href="<?php echo $profileLink ?: '#'; ?>">
-                <i class="bi bi-person-circle me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?>
+          <?php if ($role === 'admin'): ?>
+            <li class="nav-item d-flex align-items-center me-2">
+              <span class="text-white small fw-semibold"><i class="bi bi-shield-lock me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+            </li>
+            <li class="nav-item">
+              <a class="btn btn-outline-light btn-sm" href="logout.php" data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Log out" data-confirm-no="Stay logged in">
+                <i class="bi bi-box-arrow-right me-1"></i>Logout
               </a>
-            <?php endif; ?>
-          </li>
-          <li class="nav-item">
-            <a class="btn btn-outline-light btn-sm"
-               href="logout.php"
-               data-confirm-title="Log out"
-               data-confirm="Are you sure you want to log out?"
-               data-confirm-yes="Log out"
-               data-confirm-no="Stay logged in">
-              <i class="bi bi-box-arrow-right me-1"></i>Logout
-            </a>
-          </li>
+            </li>
+          <?php else: ?>
+            <?php
+              $avatarPath = null;
+              if (!empty($_SESSION['user_id'])) {
+                try {
+                  $pdoAvatar = Database::getConnection();
+                  $stmtA = $pdoAvatar->prepare("SELECT profile_picture FROM users WHERE user_id=? LIMIT 1");
+                  $stmtA->execute([$_SESSION['user_id']]);
+                  $avatarPath = $stmtA->fetchColumn() ?: null;
+                } catch (Throwable $e) { $avatarPath = null; }
+              }
+            ?>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                <?php if ($avatarPath): ?>
+                  <img src="../<?php echo htmlspecialchars($avatarPath); ?>" alt="Avatar" class="rounded-circle border" style="width:32px;height:32px;object-fit:cover;">
+                <?php else: ?>
+                  <span class="rounded-circle bg-light d-inline-flex justify-content-center align-items-center" style="width:32px;height:32px;">
+                    <i class="bi bi-person" style="font-size:1rem;"></i>
+                  </span>
+                <?php endif; ?>
+                <span class="small fw-semibold text-white"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="<?php echo $profileLink ?: '#'; ?>">View Profile</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item d-flex align-items-center gap-2" href="logout.php" data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Log out" data-confirm-no="Stay logged in">
+                    <i class="bi bi-box-arrow-right"></i><span>Logout</span>
+                  </a>
+                </li>
+              </ul>
+            </li>
+          <?php endif; ?>
         <?php endif; ?>
       </ul>
     </div>
   </div>
 </nav>
+<style>
+  /* Ensure profile dropdown appears above sticky tabs or other elements */
+  .navbar .dropdown-menu { z-index: 2000; }
+</style>
 <?php
 if (!empty($flashes)) {
   echo '<div class="container mt-3">';

@@ -81,11 +81,29 @@ class User {
             'education','education_level','primary_skill_summary',
             'disability_type','disability_severity','assistive_devices',
             'pwd_id_number','pwd_id_last4',
-            'profile_picture',
+            // profile_picture will be conditionally allowed after schema check
             // employer-specific
             'company_name','business_email','company_website','company_phone',
             'business_permit_number','employer_doc'
         ];
+
+        // Detect if profile_picture column exists (cached static for performance)
+        static $hasProfilePic = null;
+        if ($hasProfilePic === null) {
+            try {
+                $pdoCheck = Database::getConnection();
+                $res = $pdoCheck->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+                $hasProfilePic = $res && $res->fetch() ? true : false;
+            } catch (Throwable $e) {
+                $hasProfilePic = false;
+            }
+        }
+        if ($hasProfilePic) {
+            $allowed[] = 'profile_picture';
+        } else {
+            // Column not present; drop any provided value to prevent SQL error
+            unset($data['profile_picture']);
+        }
 
         // If changing PWD ID, encrypt + reset status to Pending
         if (isset($data['pwd_id_number']) && $data['pwd_id_number'] !== '') {

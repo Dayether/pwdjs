@@ -22,63 +22,82 @@ if (!empty($_SESSION['prefill_email'])) {
 $errors = [];
 $flashMessages = method_exists('Helpers','getFlashes') ? Helpers::getFlashes() : [];
 
-// Simple per-IP throttle (5 failed attempts -> 15 minutes cooldown)
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+// Per-email throttle (5 failed attempts -> 15 minutes cooldown)
 $THROTTLE_MAX_ATTEMPTS = 5;
 $THROTTLE_COOLDOWN_SEC = 15 * 60; // 15 minutes
 $throttleDir = __DIR__ . '/../uploads/.throttle';
 if (!is_dir($throttleDir)) { @mkdir($throttleDir, 0777, true); }
-$throttleFile = $throttleDir . '/' . md5($ip) . '.json';
-$throttle = [ 'attempts' => 0, 'blocked_until' => 0 ];
-if (is_file($throttleFile)) {
-  $raw = @file_get_contents($throttleFile);
-  if ($raw) {
-    $data = json_decode($raw, true);
-    if (is_array($data)) {
-      $throttle['attempts'] = (int)($data['attempts'] ?? 0);
-      $throttle['blocked_until'] = (int)($data['blocked_until'] ?? 0);
-    }
-  }
-}
+$cooldownRemaining = 0; // dynamic per email after POST
+$throttle = null; // will load after email known
+$throttleFile = null;
 
-// If blocked, show remaining time and skip processing
-$cooldownRemaining = 0;
-if (time() < $throttle['blocked_until']) {
-  $cooldownRemaining = max(0, $throttle['blocked_until'] - time());
-  $mins = (int)floor($cooldownRemaining / 60);
-  $secs = $cooldownRemaining % 60;
-  $errors[] = 'Too many failed login attempts. Please try again in ' . $mins . 'm ' . $secs . 's.';
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($errors)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $pass  = $_POST['password'] ?? '';
 
-    if ($email === '' || $pass === '') {
+    $emailKey = strtolower($email);
+  if ($emailKey !== '') {
+    $throttleFile = $throttleDir . '/' . md5('email:'.$emailKey) . '.json';
+    $throttle = ['attempts'=>0,'blocked_until'=>0,'last_failed'=>0];
+    if (is_file($throttleFile)) {
+      $raw = @file_get_contents($throttleFile);
+      if ($raw) {
+        $data = json_decode($raw,true);
+        if (is_array($data)) {
+          $throttle['attempts'] = (int)($data['attempts'] ?? 0);
+          $throttle['blocked_until'] = (int)($data['blocked_until'] ?? 0);
+          $throttle['last_failed'] = (int)($data['last_failed'] ?? 0);
+        }
+      }
+    }
+    // Decay logic: if no failures for an entire cooldown window, reset attempts
+    if ($throttle['attempts'] > 0 && (time() - (int)$throttle['last_failed']) >= $THROTTLE_COOLDOWN_SEC) {
+      $throttle['attempts'] = 0;
+      $throttle['last_failed'] = 0;
+      @file_put_contents($throttleFile, json_encode($throttle));
+    }
+    if (time() < $throttle['blocked_until']) {
+      $cooldownRemaining = max(0, $throttle['blocked_until'] - time());
+      $mins = (int)floor($cooldownRemaining / 60);
+      $secs = $cooldownRemaining % 60;
+      $errors[] = 'Too many failed login attempts for this email. Try again in ' . $mins . 'm ' . $secs . 's.';
+    }
+  }
+
+    if (empty($errors) && ($email === '' || $pass === '')) {
         $errors[] = 'Please enter both email and password.';
-    } else {
+    }
+
+    if (empty($errors)) {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("SELECT * FROM users WHERE email=? LIMIT 1");
         $stmt->execute([$email]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$row || !password_verify($pass, $row['password'])) {
-      $currentAttempts = (int)$throttle['attempts'];
-      $newAttempts = $currentAttempts + 1;
-      if ($newAttempts >= $THROTTLE_MAX_ATTEMPTS) {
-        $throttle['blocked_until'] = time() + $THROTTLE_COOLDOWN_SEC;
-        $throttle['attempts'] = 0; // reset after applying cooldown
-        @file_put_contents($throttleFile, json_encode($throttle));
-        $cooldownRemaining = $THROTTLE_COOLDOWN_SEC;
-        $mins = (int)floor($THROTTLE_COOLDOWN_SEC / 60);
-        $errors[] = 'Too many failed login attempts. Please try again in ' . $mins . 'm 0s.';
-      } else {
-        $throttle['attempts'] = $newAttempts;
-        @file_put_contents($throttleFile, json_encode($throttle));
-        $remaining = $THROTTLE_MAX_ATTEMPTS - $newAttempts;
-        $errors[] = 'Invalid email or password. Attempt ' . $newAttempts . ' of ' . $THROTTLE_MAX_ATTEMPTS . ' before cooldown (' . $remaining . ' remaining).';
-      }
-    } else {
+        if (!$row || !password_verify($pass, $row['password'])) {
+            // Only track if we have a throttleFile (i.e., email provided)
+            if ($throttleFile) {
+                $currentAttempts = (int)($throttle['attempts'] ?? 0);
+                $newAttempts = $currentAttempts + 1;
+        if ($newAttempts >= $THROTTLE_MAX_ATTEMPTS) {
+          $throttle['blocked_until'] = time() + $THROTTLE_COOLDOWN_SEC;
+          $throttle['attempts'] = 0; // reset attempts after blocking
+          $throttle['last_failed'] = time();
+          @file_put_contents($throttleFile, json_encode($throttle));
+                    $cooldownRemaining = $THROTTLE_COOLDOWN_SEC;
+                    $mins = (int)floor($THROTTLE_COOLDOWN_SEC / 60);
+                    $errors[] = 'Too many failed login attempts for this email. Try again in ' . $mins . 'm 0s.';
+                } else {
+          $throttle['attempts'] = $newAttempts;
+          $throttle['last_failed'] = time();
+          @file_put_contents($throttleFile, json_encode($throttle));
+                    $remaining = $THROTTLE_MAX_ATTEMPTS - $newAttempts;
+                    $errors[] = 'Invalid email or password. Attempt ' . $newAttempts . ' of ' . $THROTTLE_MAX_ATTEMPTS . ' for this email (' . $remaining . ' remaining).';
+                }
+            } else {
+                $errors[] = 'Invalid email or password.';
+            }
+        } else {
       // Employer gating
       if (strtolower((string)$row['role']) === 'employer') {
         $estatus = trim((string)($row['employer_status'] ?? 'Pending'));
@@ -112,8 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($errors)) {
                 $_SESSION['name']    = $row['name'];
                 $_SESSION['email']   = $row['email'];
 
-        // Clear throttle on successful login
-        if (is_file($throttleFile)) { @unlink($throttleFile); }
+        // Clear throttle for this email on success
+        if ($throttleFile && is_file($throttleFile)) { @unlink($throttleFile); }
 
                 if ($row['role'] === 'admin') {
                     Helpers::redirect('admin_employers.php');
@@ -146,7 +165,7 @@ include '../includes/nav.php';
         <?php if ($cooldownRemaining > 0): ?>
           <?php $m = (int)floor($cooldownRemaining/60); $s=$cooldownRemaining%60; ?>
           <div class="alert alert-danger alert-dismissible fade show" id="loginCooldownAlert">
-            Too many failed login attempts. Please try again in
+            Too many failed login attempts for this email. Please try again in
             <strong><span id="loginCooldownTimer" data-remaining="<?php echo (int)$cooldownRemaining; ?>"><?php echo $m; ?>m <?php echo $s; ?>s</span></strong>.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
