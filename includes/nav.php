@@ -55,6 +55,7 @@ if ($loggedIn && $role==='employer') {
               <i class="bi bi-shield-lock me-1"></i>Admin
             </a>
             <ul class="dropdown-menu">
+              <li><a class="dropdown-item <?php echo nav_active('admin_dashboard.php',$currentPage); ?>" href="admin_dashboard.php">Dashboard</a></li>
               <li><a class="dropdown-item <?php echo nav_active('admin_employers.php',$currentPage); ?>" href="admin_employers.php">Employers</a></li>
               <li><a class="dropdown-item <?php echo nav_active('admin_job_seekers.php',$currentPage); ?>" href="admin_job_seekers.php">Job Seekers</a></li>
               <li><a class="dropdown-item <?php echo nav_active('admin_reports.php',$currentPage); ?>" href="admin_reports.php">Reports</a></li>

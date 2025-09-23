@@ -42,6 +42,20 @@ class Helpers {
         return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
     }
 
+    // Enforce specific role with friendly redirect and message
+    public static function requireRole(string $role): void {
+        if (empty($_SESSION['user_id'])) {
+            self::flash('auth','Please log in to continue.');
+            header('Location: login.php');
+            exit;
+        }
+        $current = $_SESSION['role'] ?? '';
+        if ($current !== $role) {
+            self::flash('error','You do not have permission to access that page.');
+            self::redirectToRoleDashboard();
+        }
+    }
+
     /* =========================================================
        (ORIGINAL) redirect
        ========================================================= */

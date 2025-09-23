@@ -5,20 +5,17 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Mail.php';
 
-if (session_status()===PHP_SESSION_NONE){
-    session_start();
-}
-Helpers::requireLogin();
-if (!Helpers::isAdmin()) {
-  Helpers::redirect('index.php');
-}
+Helpers::requireRole('admin');
 
-/* ADDED: store page for back usage */
-Helpers::storeLastPage();
+/* Do NOT call storeLastPage here so back button points to the listing/search page instead of this view */
 
-$user_id = $_GET['user_id'] ?? '';
+// Establish selected employer via POST -> session; avoid exposing in URL
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['user_id'])) {
+  $_SESSION['__admin_view_user_emp'] = (string)$_POST['user_id'];
+}
+$user_id = $_SESSION['__admin_view_user_emp'] ?? '';
 if ($user_id === '') {
-  Helpers::flash('error','Missing user_id.');
+  Helpers::flash('error','Missing user selection.');
   Helpers::redirect('admin_employers.php');
 }
 
@@ -38,8 +35,8 @@ if ($user_id !== '') {
   }
 }
 
-if (isset($_GET['action'])) {
-  $action = $_GET['action'];
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
+  $action = $_POST['action'];
   $map = [
     'approve'  => 'Approved',
     'suspend'  => 'Suspended',
@@ -50,6 +47,13 @@ if (isset($_GET['action'])) {
     $newStatus = $map[$action];
     $updated = User::updateEmployerStatus($user_id, $newStatus);
     if ($updated) {
+      // If status didn't actually change, avoid creating a misleading "updated" flash
+      if ($__currentStatusBeforeAction === $newStatus) {
+        Helpers::flash('msg', 'Employer status is already ' . $newStatus . '.');
+        $_SESSION['__status_update_msg'] = 'Employer status is already ' . $newStatus . '.';
+  Helpers::redirect('admin_employer_view');
+        exit;
+      }
       $baseMsg = 'Employer status updated to ' . $newStatus . '.';
       $emailInfo = '';
       // Only send if status actually changed
@@ -107,7 +111,7 @@ if (isset($_GET['action'])) {
     /* ADDED: unknown action fallback */
     $_SESSION['__status_update_msg'] = 'Unknown employer status action.';
   }
-  Helpers::redirect('admin_employer_view.php?user_id=' . urlencode($user_id));
+  Helpers::redirect('admin_employer_view');
   exit;
 }
 
@@ -120,6 +124,7 @@ $emp = $stmt->fetch();
 if (!$emp) {
   Helpers::flash('msg', 'Employer not found.');
   $_SESSION['__status_update_msg'] = 'Employer not found.'; /* ADDED */
+  unset($_SESSION['__admin_view_user_emp']);
   Helpers::redirect('admin_employers.php');
 }
 
@@ -270,59 +275,40 @@ if ($__finalFlashList) {
 
 
 <div class="d-flex align-items-center justify-content-between mb-3">
-  <h2 class="h5 fw-semibold mb-0"><i class="bi bi-building-check me-2"></i>Employer Profile</h2>
-  <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  <div>
+    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-sm btn-outline-secondary me-2" onclick="if(document.referrer){history.back();return false;}"><i class="bi bi-arrow-left"></i></a>
+    <span class="h5 fw-semibold align-middle">Employer Verification</span>
+  </div>
+  
 </div>
 
-<div class="row g-3">
+<div class="row g-4">
   <div class="col-lg-7">
     <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="text-muted small">Company</div>
-            <h3 class="h5 fw-semibold mb-1"><?php echo Helpers::sanitizeOutput($emp['company_name'] ?: '(none)'); ?></h3>
-            <div class="small text-muted">Permit / Registration No.: <span class="fw-semibold"><?php echo Helpers::sanitizeOutput($emp['business_permit_number'] ?: '(none)'); ?></span></div>
-          </div>
-          <div>
-            <span class="badge <?php echo $status==='Approved'?'text-bg-success':($status==='Pending'?'text-bg-warning':($status==='Suspended'?'text-bg-danger':'text-bg-secondary')); ?>">
-              <?php echo htmlspecialchars($status); ?>
-            </span>
-          </div>
-        </div>
-
-        <hr>
-
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="text-muted small">Business Email</div>
-            <div class="fw-medium"><?php echo Helpers::sanitizeOutput($emp['business_email'] ?: '(none)'); ?></div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Account Owner</div>
-            <div class="fw-medium"><?php echo Helpers::sanitizeOutput($emp['name']); ?></div>
-            <div class="small text-muted"><?php echo Helpers::sanitizeOutput($emp['email']); ?></div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="text-muted small">Created At</div>
-            <div class="fw-medium"><?php echo htmlspecialchars(date('M d, Y', strtotime($emp['created_at']))); ?></div>
-          </div>
-            <div class="col-md-6">
-              <div class="text-muted small">Jobs Posted</div>
-              <div class="fw-medium"><?php echo (int)$emp['job_count']; ?></div>
-            </div>
-        </div>
-
-        <hr>
-
-        <div class="small text-muted mb-2">Actions</div>
-        <div class="d-flex flex-wrap gap-2">
-          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=approve" class="btn btn-sm btn-success">Approve</a>
-          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=pending" class="btn btn-sm btn-warning">Set Pending</a>
-          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=suspend" class="btn btn-sm btn-danger">Suspend</a>
-          <a href="?user_id=<?php echo urlencode($emp['user_id']); ?>&action=reject" class="btn btn-sm btn-secondary">Reject</a>
-        </div>
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Profile Information</span>
+        <?php
+          $st = ($status ?? 'Pending') ?: 'Pending';
+          $badgeClass = match($st){
+            'Approved'  => 'text-bg-success',
+            'Pending'   => 'text-bg-warning',
+            'Suspended' => 'text-bg-danger',
+            'Rejected'  => 'text-bg-secondary',
+            default     => 'text-bg-secondary'
+          };
+        ?>
+        <span class="badge <?php echo $badgeClass; ?>">Status: <?php echo htmlspecialchars($st); ?></span>
+      </div>
+      <div class="card-body small">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Company</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['company_name']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Business Email</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['business_email']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Permit / Reg. No.</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['business_permit_number']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Account Owner</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['name']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Owner Email</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['email']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Created</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['created_at']??'')); echo $v!==''?htmlspecialchars($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Jobs Posted</dt><dd class="col-sm-8"><?php $v=(string)($emp['job_count'] ?? '0'); echo $v!==''?htmlspecialchars($v):'0'; ?></dd>
+        </dl>
       </div>
     </div>
 
@@ -348,11 +334,22 @@ if ($__finalFlashList) {
   </div>
 
   <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold">Verification Actions</div>
+      <div class="card-body">
+        <form method="post" class="d-grid gap-2">
+          <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($emp['user_id']); ?>">
+          <button name="action" value="approve" class="btn btn-success" onclick="return confirm('Approve this employer?');"><i class="bi bi-check2-circle me-1"></i>Approve</button>
+          <button name="action" value="pending" class="btn btn-warning" onclick="return confirm('Set employer back to Pending?');"><i class="bi bi-arrow-counterclockwise me-1"></i>Set Pending</button>
+          <button name="action" value="suspend" class="btn btn-danger" onclick="return confirm('Suspend this employer?');"><i class="bi bi-x-circle me-1"></i>Suspend</button>
+          <button name="action" value="reject" class="btn btn-secondary" onclick="return confirm('Reject this employer?');"><i class="bi bi-slash-circle me-1"></i>Reject</button>
+        </form>
+      </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <h3 class="h6 fw-semibold mb-3">
-          <i class="bi bi-file-earmark-text me-1"></i>Verification Document
-        </h3>
+      <div class="card-header bg-white fw-semibold">Verification Document</div>
+      <div class="card-body">
         <?php
           $doc = $emp['employer_doc'] ?? '';
           if ($doc):

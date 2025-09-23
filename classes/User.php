@@ -45,6 +45,7 @@ class User {
     public ?string $business_permit_number = null;
     public ?string $employer_status = null;
     public ?string $employer_doc = null;
+    public ?string $profile_picture = null; // new profile image path
 
     public ?string $created_at = null;
     public ?string $password = null;
@@ -80,6 +81,7 @@ class User {
             'education','education_level','primary_skill_summary',
             'disability_type','disability_severity','assistive_devices',
             'pwd_id_number','pwd_id_last4',
+            'profile_picture',
             // employer-specific
             'company_name','business_email','company_website','company_phone',
             'business_permit_number','employer_doc'

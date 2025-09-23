@@ -177,6 +177,31 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='profile') {
         }
     }
 
+  // Profile Picture Upload (image)
+  if (!empty($_FILES['profile_picture']['name'])) {
+    $allowedImg = ['image/jpeg','image/png','image/gif'];
+    if (in_array($_FILES['profile_picture']['type'], $allowedImg, true)) {
+      if ($_FILES['profile_picture']['size'] <= 2*1024*1024) { // 2MB limit
+        if (!is_dir('../uploads/profile')) @mkdir('../uploads/profile',0775,true);
+        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+        if (!preg_match('/^(jpe?g|png|gif)$/',$ext)) {
+          $errors[] = 'Invalid image extension.';
+        } else {
+          $pName = 'uploads/profile/' . uniqid('pf_') . '.' . $ext;
+          if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], '../'.$pName)) {
+            $update['profile_picture'] = $pName;
+          } else {
+            $errors[] = 'Failed to upload profile picture.';
+          }
+        }
+      } else {
+        $errors[] = 'Profile picture too large (max 2MB).';
+      }
+    } else {
+      $errors[] = 'Invalid image format (JPG/PNG/GIF).';
+    }
+  }
+
     if (!$errors) {
         if (User::updateProfileExtended($user->user_id, $update)) {
             ProfileCompleteness::compute($user->user_id);
@@ -252,6 +277,19 @@ include '../includes/nav.php';
       <!-- BASIC -->
       <div class="tab-pane fade show active" id="tab-basic">
         <div class="row g-3">
+          <div class="col-md-3 text-center">
+            <label class="form-label d-block">Profile Picture</label>
+            <div class="mb-2">
+              <?php if (!empty($user->profile_picture)): ?>
+                <img src="../<?php echo htmlspecialchars($user->profile_picture); ?>" alt="Profile" class="rounded-circle border" style="width:100px;height:100px;object-fit:cover;">
+              <?php else: ?>
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width:100px;height:100px;font-size:2rem;color:#888;"> <i class="bi bi-person"></i> </div>
+              <?php endif; ?>
+            </div>
+            <input type="file" name="profile_picture" accept="image/*" class="form-control form-control-sm">
+            <div class="form-text">JPG/PNG/GIF max 2MB</div>
+          </div>
+          <div class="col-md-9">
           <div class="col-md-6">
             <label class="form-label">Full Name</label>
             <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($user->name); ?>" required>
@@ -305,6 +343,7 @@ include '../includes/nav.php';
             <label class="form-label">Primary Skill Summary / Bio</label>
             <textarea name="primary_skill_summary" class="form-control" rows="4"><?php echo htmlspecialchars($user->primary_skill_summary); ?></textarea>
           </div>
+          </div><!-- /.col-md-9 -->
         </div>
       </div>
 

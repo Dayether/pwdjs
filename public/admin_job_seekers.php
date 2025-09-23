@@ -6,128 +6,16 @@ require_once '../classes/User.php';
 require_once '../classes/Sensitive.php';
 require_once '../classes/Mail.php';
 
-Helpers::requireLogin();
-if (($_SESSION['role'] ?? '') !== 'admin') {
-    Helpers::redirect('index.php');
-}
+Helpers::requireRole('admin');
+
+// Remember this page for Back from the detail view
+Helpers::storeLastPage();
 
 // Filters
 $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
 $search = trim($_GET['q'] ?? '');
 
-// Actions (verify / reject / pending)
-if (isset($_GET['action'], $_GET['user_id'])) {
-  $action = $_GET['action'];
-  $uid = $_GET['user_id'];
-  // get current before change
-  $pdoChk = Database::getConnection();
-  $stChk = $pdoChk->prepare("SELECT pwd_id_status,job_seeker_status,name,email FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
-  $stChk->execute([$uid]);
-  $before = $stChk->fetch(PDO::FETCH_ASSOC) ?: null;
-  $prevStatus = $before['pwd_id_status'] ?? null;
-  $prevAcctStatus = $before['job_seeker_status'] ?? 'Active';
-
-  $finalStatus = null; // track new status if updated
-  $baseMsg = null;
-  $ok = false;
-  if ($action === 'verify') {
-    $ok = User::setPwdIdStatus($uid,'Verified');
-    $finalStatus = $ok ? 'Verified' : null;
-    $baseMsg = $ok ? 'PWD ID verified.' : 'Failed to verify.';
-  } elseif ($action === 'reject') {
-    $ok = User::setPwdIdStatus($uid,'Rejected');
-    $finalStatus = $ok ? 'Rejected' : null;
-    $baseMsg = $ok ? 'PWD ID rejected.' : 'Failed to reject.';
-  } elseif ($action === 'pending') {
-    $st = $pdoChk->prepare("UPDATE users SET pwd_id_status='Pending' WHERE user_id=? AND role='job_seeker'");
-    $ok = $st->execute([$uid]);
-    $finalStatus = $ok ? 'Pending' : null;
-    $baseMsg = $ok ? 'Set back to Pending.' : 'Failed to update.';
-  } elseif ($action === 'suspend_acct') {
-    $ok = User::updateJobSeekerStatus($uid,'Suspended');
-    $finalAcctStatus = $ok ? 'Suspended' : null;
-    $baseMsg = $ok ? 'Account suspended.' : 'Failed to suspend account.';
-  } elseif ($action === 'activate_acct') {
-    $ok = User::updateJobSeekerStatus($uid,'Active');
-    $finalAcctStatus = $ok ? 'Active' : null;
-    $baseMsg = $ok ? 'Account activated.' : 'Failed to activate account.';
-  }
-
-  $emailInfo = '';
-  // Email for PWD ID status changes
-  if ($ok && isset($finalStatus) && $finalStatus !== null && $prevStatus !== $finalStatus) {
-    if ($before && Mail::isEnabled()) {
-      $toEmail = $before['email'];
-      $toName  = $before['name'];
-      $subject = match($finalStatus) {
-        'Verified' => 'Your PWD ID Has Been Verified',
-        'Rejected' => 'Your PWD ID Verification Was Rejected',
-        'Pending'  => 'Your PWD ID Status Set Back to Pending',
-        default    => 'Your PWD ID Status Updated'
-      };
-      $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
-      if ($finalStatus === 'Verified') {
-        $body .= '<p>Your PWD ID has been <strong>verified</strong>. You now have full access to job application features requiring verified status.</p>';
-      } elseif ($finalStatus === 'Rejected') {
-        $body .= '<p>Your PWD ID verification was <strong>rejected</strong>. You may re-upload or contact support for clarification.</p>';
-      } elseif ($finalStatus === 'Pending') {
-        $body .= '<p>Your PWD ID status has been set back to <strong>Pending</strong>. We will notify you once it is reviewed again.</p>';
-      } else {
-        $body .= '<p>Your PWD ID status has been updated to <strong>'.htmlspecialchars($finalStatus).'</strong>.</p>';
-      }
-      $body .= '<p>Regards,<br>The Admin Team</p>';
-      $sendRes = Mail::send($toEmail, $toName, $subject, $body);
-      if ($sendRes['success']) {
-        $emailInfo = ' Email notification sent.';
-      } else {
-        if ($sendRes['error'] === 'SMTP disabled') {
-          $emailInfo = ' (Email not sent: SMTP disabled.)';
-        } else {
-          $emailInfo = ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
-        }
-      }
-    } elseif ($before && !Mail::isEnabled()) {
-      $emailInfo = ' (Email not sent: SMTP disabled.)';
-    }
-  }
-
-  // Email for account suspension / activation
-  if ($ok && isset($finalAcctStatus) && $finalAcctStatus !== null && $prevAcctStatus !== $finalAcctStatus) {
-    if ($before && Mail::isEnabled()) {
-      $toEmail = $before['email'];
-      $toName  = $before['name'];
-      $subject = $finalAcctStatus === 'Suspended' ? 'Your Account Has Been Suspended' : 'Your Account Has Been Re-Activated';
-      $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
-      if ($finalAcctStatus === 'Suspended') {
-        $body .= '<p>Your job seeker account has been <strong>suspended</strong>. You cannot log in or apply to jobs until it is re-activated. If you believe this is an error, please contact support.</p>';
-      } else {
-        $body .= '<p>Your job seeker account has been <strong>re-activated</strong>. You may now log in and continue using the portal.</p>';
-      }
-      $body .= '<p>Regards,<br>The Admin Team</p>';
-      $sendRes2 = Mail::send($toEmail, $toName, $subject, $body);
-      if ($sendRes2['success']) {
-        $emailInfo .= ' Account email notification sent.';
-      } else {
-        if ($sendRes2['error'] === 'SMTP disabled') {
-          $emailInfo .= ' (Account email not sent: SMTP disabled.)';
-        } else {
-          $emailInfo .= ' (Account email failed: '.htmlspecialchars($sendRes2['error']).')';
-        }
-      }
-    } elseif ($before && !Mail::isEnabled()) {
-      $emailInfo .= ' (Account email not sent: SMTP disabled.)';
-    }
-  }
-
-  if ($baseMsg !== null) {
-    if ($ok) {
-      Helpers::flash('msg', $baseMsg.$emailInfo);
-    } else {
-      Helpers::flash('error', $baseMsg);
-    }
-  }
-  Helpers::redirect('admin_job_seekers.php');
-}
+// Actions are handled in the detail view page now.
 
 $pdo = Database::getConnection();
 $where = "role='job_seeker'";
@@ -226,7 +114,7 @@ include '../includes/nav.php';
             <th class="text-center">PWD ID (Last4)</th>
             <th class="text-center">PWD ID Status</th>
             <th class="text-center">Account</th>
-            <th class="text-end" style="width: 240px;">Actions</th>
+          
           </tr>
         </thead>
         <tbody>
@@ -245,22 +133,17 @@ include '../includes/nav.php';
               $acctBadge = $acct === 'Suspended' ? 'text-bg-danger' : 'text-bg-success';
             ?>
             <tr>
-              <td class="small fw-semibold"><a class="text-decoration-none" href="admin_job_seeker_view.php?user_id=<?php echo urlencode($r['user_id']); ?>"><?php echo Helpers::sanitizeOutput($r['name']); ?></a></td>
+              <td class="small fw-semibold"><?php echo Helpers::sanitizeOutput($r['name']); ?></td>
               <td class="small text-muted"><?php echo Helpers::sanitizeOutput($r['email']); ?></td>
               <td class="small text-center"><?php echo $r['pwd_id_last4'] ? '****'.$r['pwd_id_last4'] : '—'; ?></td>
               <td class="small text-center"><span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st); ?></span></td>
-              <td class="small text-center"><span class="badge <?php echo $acctBadge; ?>"><?php echo htmlspecialchars($acct); ?></span></td>
-              <td class="text-end small">
-                <div class="btn-group btn-group-sm">
-                  <a class="btn btn-outline-success" href="?action=verify&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Verify this PWD ID?');">Verify</a>
-                  <a class="btn btn-outline-warning" href="?action=pending&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Set back to Pending?');">Pending</a>
-                  <a class="btn btn-outline-danger" href="?action=reject&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Reject this PWD ID?');">Reject</a>
-                  <?php if ($acct === 'Suspended'): ?>
-                    <a class="btn btn-outline-primary" href="?action=activate_acct&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Activate this account?');">Activate</a>
-                  <?php else: ?>
-                    <a class="btn btn-outline-secondary" href="?action=suspend_acct&user_id=<?php echo urlencode($r['user_id']); ?>" onclick="return confirm('Suspend this account?');">Suspend</a>
-                  <?php endif; ?>
-                </div>
+              <td class="small text-end">
+                <form method="post" action="admin_job_seeker_view" class="d-inline">
+                  <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>View
+                  </button>
+                </form>
               </td>
             </tr>
           <?php endforeach; endif; ?>

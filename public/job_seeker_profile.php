@@ -151,6 +151,15 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div>
+              <?php if (!empty($target->profile_picture)): ?>
+                <img src="../<?php echo htmlspecialchars($target->profile_picture); ?>" alt="Profile" class="rounded-circle border" style="width:90px;height:90px;object-fit:cover;">
+              <?php else: ?>
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width:90px;height:90px;font-size:2rem;color:#888;"><i class="bi bi-person"></i></div>
+              <?php endif; ?>
+            </div>
+            <div class="flex-grow-1">
           <h2 class="h5 fw-semibold mb-3 d-flex flex-wrap align-items-center gap-2">
             <span><i class="bi bi-person-fill me-2"></i><?php echo htmlspecialchars($target->name ?: 'Unnamed User'); ?></span>
             <?php if (!empty($target->pwd_id_status)): ?>
@@ -166,6 +175,8 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
               <span class="badge text-bg-<?php echo $vClass; ?> small">PWD: <?php echo htmlspecialchars($vs); ?></span>
             <?php endif; ?>
           </h2>
+            </div>
+          </div>
           <dl class="row small mb-0">
             <dt class="col-5 text-muted">Email</dt><dd class="col-7"><?php echo htmlspecialchars($target->email); ?></dd>
             <dt class="col-5 text-muted">Disability</dt><dd class="col-7"><?php echo htmlspecialchars($disabilityLabel); ?></dd>

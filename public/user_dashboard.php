@@ -84,6 +84,12 @@ $pendingCount  = count(array_filter($apps, fn($a) => ($a['status'] ?? '') === 'P
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
+<?php if (!empty($_SESSION['flash'])): $flashes = Helpers::getFlashes(); foreach ($flashes as $k=>$m): $t=Helpers::mapFlashType($k); ?>
+  <div class="alert alert-<?php echo $t; ?> alert-dismissible fade show auto-dismiss">
+    <?php echo htmlspecialchars($m); ?>
+    <button class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<?php endforeach; endif; ?>
 
 <div class="row g-3">
   <!-- LEFT COLUMN -->

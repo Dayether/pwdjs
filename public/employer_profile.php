@@ -77,9 +77,20 @@ if (!empty($employer->created_at)) {
     <div class="col-lg-5">
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
-          <h2 class="h5 fw-semibold mb-3">
-            <i class="bi bi-building me-2"></i><?php echo htmlspecialchars($employer->company_name ?: $employer->name ?: 'Employer'); ?>
-          </h2>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div>
+              <?php if (!empty($employer->profile_picture)): ?>
+                <img src="../<?php echo htmlspecialchars($employer->profile_picture); ?>" alt="Profile" class="rounded-circle border" style="width:90px;height:90px;object-fit:cover;">
+              <?php else: ?>
+                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width:90px;height:90px;font-size:2rem;color:#888;"><i class="bi bi-person"></i></div>
+              <?php endif; ?>
+            </div>
+            <div class="flex-grow-1">
+              <h2 class="h5 fw-semibold mb-0">
+                <i class="bi bi-building me-2"></i><?php echo htmlspecialchars($employer->company_name ?: $employer->name ?: 'Employer'); ?>
+              </h2>
+            </div>
+          </div>
           <dl class="row small mb-0">
             <dt class="col-5 text-muted">Display Name</dt>
             <dd class="col-7"><?php echo htmlspecialchars($employer->name); ?></dd>

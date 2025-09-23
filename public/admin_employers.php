@@ -4,8 +4,7 @@ require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 
-Helpers::requireLogin();
-if (($_SESSION['role'] ?? '') !== 'admin') Helpers::redirect('index.php');
+Helpers::requireRole('admin');
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 Helpers::storeLastPage();
@@ -228,9 +227,12 @@ include '../includes/nav.php';
                 </span>
               </td>
               <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="admin_employer_view.php?user_id=<?php echo urlencode($r['user_id']); ?>">
-                  <i class="bi bi-eye me-1"></i>View
-                </a>
+                <form method="post" action="admin_employer_view" class="d-inline">
+                  <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye me-1"></i>View
+                  </button>
+                </form>
               </td>
             </tr>
           <?php endforeach; ?>
