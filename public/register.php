@@ -20,14 +20,13 @@ $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_raw     = $_POST['name'] ?? '';
     $email_raw    = $_POST['email'] ?? '';
-    $password     = $_POST['password'] ?? '';
-    $confirm      = $_POST['confirm'] ?? '';
+  // No password at registration; admin will issue upon approval/verification
 
     $role_raw     = $_POST['role'] ?? 'job_seeker';
     $dis_sel      = $_POST['disability'] ?? '';
     $dis_other    = trim($_POST['disability_other'] ?? '');
 
-    // Employer-only fields
+  // Employer-only fields
     $company_name    = trim($_POST['company_name'] ?? '');
     $business_email  = trim($_POST['business_email'] ?? '');
     $company_website = trim($_POST['company_website'] ?? '');
@@ -36,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // PWD ID (REQUIRED FOR JOB SEEKER)
     $pwd_id_number = trim($_POST['pwd_id_number'] ?? '');
+
+  // Phone (optional at registration)
+  $phone = trim($_POST['phone'] ?? '');
 
     // Normalize Name
     $displayName = Name::normalizeDisplayName($name_raw);
@@ -49,26 +51,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please enter a valid email address.';
     }
 
-    // Password
-    if (strlen($password) < 6) {
-        $errors[] = 'Password must be at least 6 characters.';
-    }
-    if ($password !== $confirm) {
-        $errors[] = 'Passwords do not match.';
-    }
+  // No password validation here
 
     // Role
     $allowedRoles = ['job_seeker','employer'];
     $role = in_array($role_raw, $allowedRoles, true) ? $role_raw : 'job_seeker';
 
-    // Disability handling
-    $disability = '';
-    $selectedDis = $dis_sel;
-    if ($dis_sel === 'Other') {
-        $disability = $dis_other;
-    } elseif ($dis_sel && $dis_sel !== 'None') {
-        $disability = $dis_sel;
-    }
+  // Disability handling (wheelchair-focused)
+  $disability = '';
+  $selectedDis = $dis_sel;
+  if ($dis_sel === 'Other Physical Disability') {
+    $disability = $dis_other;
+  } elseif ($dis_sel && $dis_sel !== 'None') {
+    $disability = $dis_sel;
+  }
 
     // Employer validations
     if ($role === 'employer') {
@@ -86,6 +82,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($company_website !== '' && !filter_var($company_website, FILTER_VALIDATE_URL)) {
             $errors[] = 'Invalid company website (include http:// or https://).';
         }
+    // Check uniqueness of Business Permit Number
+    if (!$errors && $business_permit_number !== '') {
+      try {
+        $pdoChk = Database::getConnection();
+        $st = $pdoChk->prepare("SELECT 1 FROM users WHERE business_permit_number = ? LIMIT 1");
+        $st->execute([$business_permit_number]);
+        if ($st->fetchColumn()) {
+          $errors[] = 'Business Permit Number is already registered.';
+        }
+      } catch (Throwable $e) { /* ignore and let insert handle errors */ }
+    }
     }
 
     // PWD ID VALIDATION (NOW STRICTLY REQUIRED FOR JOB SEEKER)
@@ -100,12 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
-        $ok = User::register([
+    $ok = User::register([
             'name' => $displayName,
             'email' => $email,
-            'password' => $password,
+            // 'password' omitted; set by admin upon approval/verification
             'role' => $role,
             'disability' => $disability ?: null,
+      'phone' => $phone,
 
             // Employer
             'company_name' => $role === 'employer' ? $company_name : '',
@@ -119,11 +127,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         if ($ok) {
-            if ($role === 'job_seeker') {
-                Helpers::flash('msg','Registration successful. Your PWD ID is pending admin verification before you can access the portal.');
-            } else {
-                Helpers::flash('msg','Registration successful. Employer account pending approval.');
-            }
+      if ($role === 'job_seeker') {
+        Helpers::flash('msg','Registration successful. Your PWD ID is pending admin verification. You will receive your initial password via email once approved.');
+      } else {
+        Helpers::flash('msg','Registration successful. Employer account pending review. You will receive your initial password via email once approved.');
+      }
       // Store email for login prefill
       $_SESSION['prefill_email'] = $email;
             Helpers::redirect('login.php');
@@ -160,13 +168,10 @@ include '../includes/nav.php';
             <label class="form-label">Email</label>
             <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
           </div>
+            <!-- Replace removed password fields with Phone -->
             <div class="col-md-6">
-              <label class="form-label">Password</label>
-              <input name="password" type="password" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Confirm Password</label>
-              <input name="confirm" type="password" class="form-control" required>
+              <label class="form-label">Phone (optional)</label>
+              <input name="phone" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
             </div>
 
           <div class="col-md-6">
@@ -182,7 +187,14 @@ include '../includes/nav.php';
             <select name="disability" id="disabilitySelect" class="form-select">
               <?php
                 $selected = $_POST['disability'] ?? 'None';
-                $opts = ['None','Visual','Hearing','Physical','Intellectual','Psychosocial','Learning','Speech','Other'];
+                $opts = [
+                  'None',
+                  'Spinal Cord Injury',
+                  'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
+                  'Amputee (lower limb)',
+                  'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
+                  'Other Physical Disability'
+                ];
                 foreach ($opts as $o) {
                     echo '<option value="'.htmlspecialchars($o).'" '.($selected===$o?'selected':'').'>'.$o.'</option>';
                 }
@@ -191,7 +203,7 @@ include '../includes/nav.php';
             <input type="text"
                    name="disability_other"
                    id="disabilityOtherInput"
-                   class="form-control mt-2 <?php echo ($selected==='Other')?'':'d-none'; ?>"
+                   class="form-control mt-2 <?php echo ($selected==='Other Physical Disability')?'':'d-none'; ?>"
                    placeholder="Specify disability"
                    value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
           </div>
@@ -241,6 +253,11 @@ include '../includes/nav.php';
               <i class="bi bi-person-plus me-1"></i>Create Account
             </button>
           </div>
+          <div class="col-12">
+            <div class="small text-muted mt-2">
+              An initial password will be emailed to you after your account is approved/verified.
+            </div>
+          </div>
         </form>
 
         <hr class="mt-4">
@@ -273,7 +290,7 @@ roleSelect.addEventListener('change', ()=>{
 });
 
 disabilitySelect.addEventListener('change', ()=>{
-  if (disabilitySelect.value === 'Other') {
+  if (disabilitySelect.value === 'Other Physical Disability') {
     disabilityOtherInput.classList.remove('d-none');
   } else {
     disabilityOtherInput.classList.add('d-none');

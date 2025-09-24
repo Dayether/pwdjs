@@ -6,7 +6,7 @@
    - Accessibility tags
    - Salary range display
    - Edit form with lock overlay for matching criteria after applicants exist (unless admin)
-   - Applicant table (progress bar, match score badge, approve/decline)
+  - Applicant table (progress bar, match score badge; status changes managed on employer_applicants page)
    - View profile links (job seeker & employer) with ?return= param for back button logic
    - Toast notifications (skips blank flashes)
    - Safe back URL resolution
@@ -146,8 +146,7 @@ if ($canEdit && $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_mode'] ??
     }
     $skillsCsvSubmitted = implode(', ', $merged);
 
-    $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-    if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
+  $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
 
     $title            = trim($_POST['title'] ?? '');
     $description      = trim($_POST['description'] ?? '');
@@ -449,10 +448,25 @@ include '../includes/nav.php';
 
         <!-- Apply Buttons -->
         <?php if (!empty($_SESSION['user_id']) && $viewerRole === 'job_seeker' && !$isEmployerSuspended): ?>
+          <?php
+            $alreadyApplied = false;
+            try {
+              $pdoTmp = Database::getConnection();
+              $chk = $pdoTmp->prepare("SELECT 1 FROM applications WHERE user_id=? AND job_id=? LIMIT 1");
+              $chk->execute([$_SESSION['user_id'], $job->job_id]);
+              $alreadyApplied = (bool)$chk->fetchColumn();
+            } catch (Throwable $e) { $alreadyApplied = false; }
+          ?>
           <hr>
-          <a class="btn btn-primary btn-lg" href="job_apply.php?job_id=<?php echo urlencode($job->job_id); ?>">
-            <i class="bi bi-send me-1"></i>Apply Now
-          </a>
+          <?php if ($alreadyApplied): ?>
+            <div class="alert alert-info mb-0">
+              <i class="bi bi-check2-circle me-1"></i>You have already applied to this job.
+            </div>
+          <?php else: ?>
+            <a class="btn btn-primary btn-lg" href="job_apply.php?job_id=<?php echo urlencode($job->job_id); ?>">
+              <i class="bi bi-send me-1"></i>Apply Now
+            </a>
+          <?php endif; ?>
         <?php elseif (!empty($_SESSION['user_id']) && $viewerRole === 'job_seeker' && $isEmployerSuspended): ?>
           <hr>
           <button class="btn btn-secondary btn-lg" disabled>
@@ -610,7 +624,6 @@ include '../includes/nav.php';
               <label class="form-label d-block">Accessibility Tags</label>
               <?php
                 $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
-                if (!in_array('PWD-Friendly', $currentTags, true)) $currentTags[] = 'PWD-Friendly';
               ?>
               <?php foreach ($accessTags as $tag): ?>
                 <div class="form-check form-check-inline">
@@ -656,6 +669,13 @@ include '../includes/nav.php';
           <?php if (!$applicants): ?>
             <div class="text-muted small">No applicants yet.</div>
           <?php else: ?>
+            <?php if ($isOwner && !$isEmployerSuspended): ?>
+              <div class="d-flex justify-content-end mb-2">
+                <a class="btn btn-outline-primary btn-sm" href="employer_applicants.php?job_id=<?php echo urlencode($job->job_id); ?>">
+                  <i class="bi bi-people"></i> Manage Applicants
+                </a>
+              </div>
+            <?php endif; ?>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead class="table-light">
@@ -666,7 +686,6 @@ include '../includes/nav.php';
                     <th>Education</th>
                     <th>Status</th>
                     <th>Applied</th>
-                    <th style="width:130px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -702,30 +721,6 @@ include '../includes/nav.php';
                       <td><?php echo Helpers::sanitizeOutput($edu); ?></td>
                       <td><span class="badge text-bg-<?php echo $badgeCls; ?>"><?php echo htmlspecialchars($status); ?></span></td>
                       <td><span class="small text-muted"><?php echo date('M j, Y', strtotime($a['created_at'])); ?></span></td>
-                      <td>
-                        <?php if ($canActOnApplicants): ?>
-                          <div class="btn-group btn-group-sm" role="group">
-                            <?php if ($status !== 'Approved'): ?>
-                              <a class="btn btn-outline-success"
-                                 href="applications.php?action=approve&application_id=<?php echo urlencode($a['application_id']); ?>"
-                                 onclick="return confirm('Approve this application?');"
-                                 title="Approve">
-                                <i class="bi bi-check2-circle"></i>
-                              </a>
-                            <?php endif; ?>
-                            <?php if ($status !== 'Declined'): ?>
-                              <a class="btn btn-outline-danger"
-                                 href="applications.php?action=decline&application_id=<?php echo urlencode($a['application_id']); ?>"
-                                 onclick="return confirm('Decline this application?');"
-                                 title="Decline">
-                                <i class="bi bi-x-circle"></i>
-                              </a>
-                            <?php endif; ?>
-                          </div>
-                        <?php else: ?>
-                          <span class="text-muted small">Locked</span>
-                        <?php endif; ?>
-                      </td>
                     </tr>
                   <?php endforeach; ?>
                 </tbody>

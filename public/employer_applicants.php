@@ -3,6 +3,8 @@ require_once '../config/config.php';
 require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
+require_once '../classes/Application.php';
+require_once '../classes/Mail.php';
 
 if (session_status()===PHP_SESSION_NONE) {
     session_start();
@@ -33,6 +35,69 @@ if (!$job) {
 if (Helpers::isEmployer() && $job['employer_id'] !== ($_SESSION['user_id'] ?? '')) {
     Helpers::flash('error','Unauthorized for this job.');
     Helpers::redirect('employer_dashboard.php');
+}
+
+// Handle POST decision with optional feedback
+if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'], $_POST['application_id'])) {
+  $action = $_POST['action'];
+  $appId  = (string)$_POST['application_id'];
+  $feedback = trim((string)($_POST['feedback'] ?? ''));
+  $map = ['approve'=>'Approved','decline'=>'Declined','pending'=>'Pending'];
+  if (isset($map[$action])) {
+    $newStatus = $map[$action];
+    $ok = Application::updateStatus($appId, $newStatus, $_SESSION['user_id'], $feedback);
+    if ($ok) {
+      $emailInfo = '';
+      try {
+        // Fetch applicant email + job details for notification
+        $pdoE = Database::getConnection();
+        $stE = $pdoE->prepare("SELECT a.application_id, a.user_id, a.job_id, u.email, u.name, j.title
+                    FROM applications a
+                    JOIN users u ON u.user_id = a.user_id
+                    JOIN jobs j  ON j.job_id  = a.job_id
+                    WHERE a.application_id = ? LIMIT 1");
+        $stE->execute([$appId]);
+        $rowE = $stE->fetch(PDO::FETCH_ASSOC);
+      } catch (Throwable $e) { $rowE = null; }
+
+      if ($rowE) {
+        $toEmail = $rowE['email'];
+        $toName  = $rowE['name'];
+        $jobTitle = $rowE['title'] ?: 'the job you applied to';
+        $subject = ($newStatus==='Approved' ? 'Application Approved: ' : ($newStatus==='Declined' ? 'Application Declined: ' : 'Application Update: ')) . $jobTitle;
+        $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
+        if ($newStatus==='Approved') {
+          $body .= '<p>Your application for <strong>'.htmlspecialchars($jobTitle).'</strong> has been <strong>approved</strong>.</p>';
+        } elseif ($newStatus==='Declined') {
+          $body .= '<p>Your application for <strong>'.htmlspecialchars($jobTitle).'</strong> has been <strong>declined</strong>.</p>';
+        } else {
+          $body .= '<p>Your application status has been updated to <strong>'.htmlspecialchars($newStatus).'</strong>.</p>';
+        }
+        if ($feedback !== '') {
+          $body .= '<p><strong>Message from the employer:</strong><br>'.nl2br(htmlspecialchars($feedback)).'</p>';
+        }
+        $body .= '<p>You can view your application here: <a href="'.BASE_URL.'/applications">'.BASE_URL.'/applications</a></p>';
+        $body .= '<p>Job link: <a href="'.BASE_URL.'/job_view?job_id='.urlencode($rowE['job_id']).'">'.BASE_URL.'/job_view?job_id='.htmlspecialchars($rowE['job_id'])."</a></p>";
+        $body .= '<p>Regards,<br>The Team</p>';
+
+        if (Mail::isEnabled()) {
+          $sendRes = Mail::send($toEmail, $toName, $subject, $body);
+          if ($sendRes['success']) {
+            $emailInfo = ' Email sent to applicant.';
+          } else {
+            $emailInfo = $sendRes['error']==='SMTP disabled' ? ' (Email not sent: SMTP disabled.)' : ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
+          }
+        } else {
+          $emailInfo = ' (Email not sent: SMTP disabled.)';
+        }
+      }
+
+      Helpers::flash('msg','Application updated.'.($emailInfo?:''));
+    } else {
+      Helpers::flash('error','Failed to update application.');
+    }
+  }
+  Helpers::redirect('employer_applicants.php?job_id='.urlencode($job_id));
 }
 
 $validStatuses = ['Pending','Approved','Declined'];
@@ -94,6 +159,28 @@ include '../includes/nav.php';
 /* ADDED: last page for back (default dashboard) */
 $backUrl = Helpers::getLastPage('employer_dashboard.php');
 ?>
+<!-- Toasts (status updates) -->
+<?php
+$rawFlash = $_SESSION['flash'] ?? [];
+if (isset($_SESSION['flash'])) unset($_SESSION['flash']);
+$toastMsgs = [];
+if (!empty($rawFlash['msg']) && trim($rawFlash['msg'])!=='') {
+  $toastMsgs[] = ['type'=>'success','icon'=>'bi-check-circle','message'=>htmlspecialchars($rawFlash['msg'])];
+}
+if (!empty($rawFlash['error']) && trim($rawFlash['error'])!=='') {
+  $toastMsgs[] = ['type'=>'danger','icon'=>'bi-exclamation-triangle','message'=>htmlspecialchars($rawFlash['error'])];
+}
+?>
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080;">
+  <?php foreach ($toastMsgs as $t): ?>
+    <div class="toast align-items-center text-bg-<?php echo $t['type']; ?> border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4200">
+      <div class="d-flex">
+        <div class="toast-body"><i class="bi <?php echo $t['icon']; ?> me-2"></i><?php echo $t['message']; ?></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  <?php endforeach; ?>
+  </div>
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
@@ -152,6 +239,7 @@ $backUrl = Helpers::getLastPage('employer_dashboard.php');
             <th>Applicant</th>
             <th>Match %</th>
             <th>Status</th>
+            <th>Actions</th>
             <th>Applied</th>
           </tr>
         </thead>
@@ -169,6 +257,20 @@ $backUrl = Helpers::getLastPage('employer_dashboard.php');
               ?>">
                 <?php echo Helpers::sanitizeOutput($ap['status']); ?>
               </span>
+            </td>
+            <td class="small">
+              <div class="d-flex gap-1">
+                <?php if ($ap['status']!=='Approved'): ?>
+                  <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="approve">
+                    <i class="bi bi-check2"></i>
+                  </button>
+                <?php endif; ?>
+                <?php if ($ap['status']!=='Declined'): ?>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="decline">
+                    <i class="bi bi-x"></i>
+                  </button>
+                <?php endif; ?>
+              </div>
             </td>
             <td class="small text-muted">
               <?php echo htmlspecialchars(date('M d, Y', strtotime($ap['created_at']))); ?>
@@ -199,4 +301,47 @@ $backUrl = Helpers::getLastPage('employer_dashboard.php');
   </div>
 </div>
 
+<!-- Feedback Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Application Decision</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="application_id" id="decisionAppId" value="">
+        <input type="hidden" name="action" id="decisionAction" value="">
+        <div class="mb-3">
+          <label class="form-label">Message for the applicant (optional)</label>
+          <textarea name="feedback" class="form-control" rows="4" placeholder="Provide next steps or notes..."></textarea>
+          <div class="form-text">This will be visible to the applicant in their Applications list.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Submit Decision</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const modal = document.getElementById('feedbackModal');
+modal.addEventListener('show.bs.modal', event => {
+  const btn = event.relatedTarget;
+  const appId = btn.getAttribute('data-app-id');
+  const action = btn.getAttribute('data-action');
+  document.getElementById('decisionAppId').value = appId;
+  document.getElementById('decisionAction').value = action;
+});
+</script>
+
 <?php include '../includes/footer.php'; ?>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('#toastContainer .toast').forEach(function(el){
+    try { bootstrap.Toast.getOrCreateInstance(el).show(); } catch(e){}
+  });
+});
+</script>

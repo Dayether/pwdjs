@@ -83,7 +83,7 @@ include '../includes/nav.php';
     <div class="table-responsive">
       <table class="table align-middle">
         <thead class="table-light">
-          <tr><th>Job Title</th><th>Status</th><th>Match Score</th><th>Applied On</th></tr>
+          <tr><th>Job Title</th><th>Status</th><th>Match</th><th>Applied On</th><th>Feedback</th></tr>
         </thead>
         <tbody>
           <?php foreach ($apps as $a): ?>
@@ -102,8 +102,18 @@ include '../includes/nav.php';
                 <?php endif; ?>
               </td>
               <td><?php echo Helpers::sanitizeOutput($a['status']); ?></td>
-              <td><span class="badge text-bg-primary"><?php echo number_format($a['match_score'],2); ?></span></td>
+              <td><span class="badge text-bg-primary"><?php echo number_format($a['match_score'],2); ?>%</span></td>
               <td><span class="text-muted small"><?php echo date('M j, Y', strtotime($a['created_at'])); ?></span></td>
+              <td class="small">
+                <?php if (!empty($a['employer_feedback'])): ?>
+                  <div><?php echo nl2br(Helpers::sanitizeOutput($a['employer_feedback'])); ?></div>
+                  <?php if (!empty($a['decision_at'])): ?>
+                    <div class="text-muted">— <?php echo htmlspecialchars(date('M j, Y', strtotime($a['decision_at']))); ?></div>
+                  <?php endif; ?>
+                <?php else: ?>
+                  <span class="text-muted">—</span>
+                <?php endif; ?>
+              </td>
             </tr>
           <?php endforeach; ?>
           <?php if (!$apps): ?>

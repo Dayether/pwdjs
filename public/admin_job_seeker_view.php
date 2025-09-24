@@ -5,6 +5,7 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Sensitive.php';
 require_once '../classes/Mail.php';
+require_once '../classes/Password.php';
 
 Helpers::requireRole('admin');
 
@@ -52,12 +53,30 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
           default    => 'Your PWD ID Status Updated'
         };
         $body = '<p>Hello '.htmlspecialchars($before['name']).',</p>';
-        if ($pwdFinal==='Verified') $body.='<p>Your PWD ID has been <strong>verified</strong>.</p>';
+        $issuedPass = null;
+        if ($pwdFinal==='Verified') {
+          $body.='<p>Your PWD ID has been <strong>verified</strong>.</p>';
+          try {
+            $issuedPass = PasswordHelper::assignInitialPasswordIfMissing($userId);
+          } catch (Throwable $e) { $issuedPass = null; }
+          if ($issuedPass) {
+            $body .= '<p>Your initial password is: <strong>'.htmlspecialchars($issuedPass).'</strong></p>';
+            $body .= '<p>You can now log in here: <a href="'.BASE_URL.'/login">'.BASE_URL.'/login</a></p>';
+          }
+        }
         elseif ($pwdFinal==='Rejected') $body.='<p>Your PWD ID verification was <strong>rejected</strong>.</p>';
         else $body.='<p>Your PWD ID status is now <strong>'.htmlspecialchars($pwdFinal).'</strong>.</p>';
         $body.='<p>Regards,<br>The Admin Team</p>';
-        $sr = Mail::send($before['email'],$before['name'],$subject,$body);
-        $emailInfo = $sr['success'] ? ' Email sent.' : (($sr['error']==='SMTP disabled') ? ' (Email not sent: SMTP disabled.)' : ' (Email failed: '.htmlspecialchars($sr['error']).')');
+        if (Mail::isEnabled()) {
+          $sr = Mail::send($before['email'],$before['name'],$subject,$body);
+          $emailInfo = $sr['success'] ? ' Email sent.' : (($sr['error']==='SMTP disabled') ? ' (Email not sent: SMTP disabled.)' : ' (Email failed: '.htmlspecialchars($sr['error']).')');
+        } else {
+          if ($issuedPass) {
+            $emailInfo = ' (SMTP disabled; initial password generated: '.htmlspecialchars($issuedPass).')';
+          } else {
+            $emailInfo = ' (Email not sent: SMTP disabled.)';
+          }
+        }
       } else {
         $emailInfo = ' (Email not sent: SMTP disabled.)';
       }

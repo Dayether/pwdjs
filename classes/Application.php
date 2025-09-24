@@ -174,7 +174,7 @@ class Application {
      *  - Admin can update any application.
      *  - Employer can update only if they own the job for that application.
      */
-    public static function updateStatus(string $application_id, string $newStatus, string $actingUserId): bool {
+    public static function updateStatus(string $application_id, string $newStatus, string $actingUserId, ?string $feedback = null): bool {
         $allowed = ['Approved','Declined','Pending'];
         if (!in_array($newStatus, $allowed, true)) return false;
 
@@ -205,8 +205,20 @@ class Application {
 
         if (!$can) return false;
 
-        // Perform update (idempotent)
-        $up = $pdo->prepare("UPDATE applications SET status = :st WHERE application_id = :id LIMIT 1");
-        return $up->execute([':st'=>$newStatus, ':id'=>$application_id]);
+        // Perform update (idempotent); set feedback and decision_at when not Pending
+        if ($newStatus === 'Pending') {
+            $up = $pdo->prepare("UPDATE applications SET status = :st WHERE application_id = :id LIMIT 1");
+            return $up->execute([':st'=>$newStatus, ':id'=>$application_id]);
+        } else {
+            $up = $pdo->prepare("UPDATE applications SET status = :st, employer_feedback = :fb, decision_at = NOW() WHERE application_id = :id LIMIT 1");
+            return $up->execute([':st'=>$newStatus, ':fb'=>$feedback, ':id'=>$application_id]);
+        }
+    }
+
+    public static function userHasApplied(string $user_id, string $job_id): bool {
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("SELECT 1 FROM applications WHERE user_id=? AND job_id=? LIMIT 1");
+        $stmt->execute([$user_id, $job_id]);
+        return (bool)$stmt->fetchColumn();
     }
 }

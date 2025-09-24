@@ -54,8 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
     }
     $skillsCsv = implode(', ', $merged);
 
-    $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-    if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
+  $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
 
     $data = [
         'title'                 => trim($_POST['title']),
@@ -254,7 +253,7 @@ include '../includes/nav.php';
           <label class="form-label d-block">Accessibility Tags</label>
           <?php foreach ($accessTags as $tag):
             $isPosted = isset($_POST['accessibility_tags']);
-            $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags'], true) : ($tag === 'PWD-Friendly');
+            $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags'], true) : false;
           ?>
             <div class="form-check form-check-inline">
               <input class="form-check-input" name="accessibility_tags[]" type="checkbox"

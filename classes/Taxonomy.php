@@ -112,14 +112,11 @@ class Taxonomy
     public static function accessibilityTags(): array
     {
         return [
-            'PWD-Friendly',
-            'Screen Reader Friendly',
             'Flexible Hours',
-            'Wheelchair Accessible',
-            'Assistive Tech Provided',
+            'Night Shift Option',
+            'Training Provided',
             'Internet Allowance',
-            'Asynchronous',
-            'Work From Home'
+            'Equipment Provided'
         ];
     }
 

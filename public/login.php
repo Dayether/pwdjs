@@ -20,7 +20,7 @@ if (!empty($_SESSION['prefill_email'])) {
 }
 
 $errors = [];
-$flashMessages = method_exists('Helpers','getFlashes') ? Helpers::getFlashes() : [];
+$flashMessages = method_exists('Helpers','getStructuredFlashes') ? Helpers::getStructuredFlashes() : [];
 
 // Per-email throttle (5 failed attempts -> 15 minutes cooldown)
 $THROTTLE_MAX_ATTEMPTS = 5;
@@ -30,10 +30,15 @@ if (!is_dir($throttleDir)) { @mkdir($throttleDir, 0777, true); }
 $cooldownRemaining = 0; // dynamic per email after POST
 $throttle = null; // will load after email known
 $throttleFile = null;
+$emailNotRegistered = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
-    $pass  = $_POST['password'] ?? '';
+  $email = trim($_POST['email'] ?? '');
+  $pass  = $_POST['password'] ?? '';
+
+  if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $errors[] = 'Please enter a valid email address.';
+  }
 
     $emailKey = strtolower($email);
   if ($emailKey !== '') {
@@ -68,13 +73,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please enter both email and password.';
     }
 
-    if (empty($errors)) {
+  if (empty($errors)) {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("SELECT * FROM users WHERE email=? LIMIT 1");
         $stmt->execute([$email]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row || !password_verify($pass, $row['password'])) {
+    if (!$row) {
+      $errors[] = 'Email is not registered.';
+      $emailNotRegistered = true;
+    }
+    // If user exists but no password issued yet, show clear message and do not count as failed attempt
+    elseif (empty($row['password'])) {
+      $errors[] = 'Your initial password has not been issued yet. Please wait for the approval email.';
+    } elseif (!password_verify($pass, $row['password'])) {
             // Only track if we have a throttleFile (i.e., email provided)
             if ($throttleFile) {
                 $currentAttempts = (int)($throttle['attempts'] ?? 0);
@@ -102,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (strtolower((string)$row['role']) === 'employer') {
         $estatus = trim((string)($row['employer_status'] ?? 'Pending'));
         if (strcasecmp($estatus, 'Approved') !== 0) {
-          $errors[] = 'Employer account not approved (status: '.$estatus.').';
+          $errors[] = 'Employer account not approved (status: '.$estatus.'). You will receive your password via email once approved.';
         }
       }
       // Job seeker gating (account suspension + PWD ID)
@@ -116,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $s = trim((string)($row['pwd_id_status'] ?? 'None'));
         if (strcasecmp($s, 'Verified') !== 0) {
           if (strcasecmp($s, 'Pending') === 0) {
-            $errors[] = 'Your PWD ID is pending admin verification.';
+            $errors[] = 'Your PWD ID is pending admin verification. You will receive your password via email once verified.';
           } elseif (strcasecmp($s, 'Rejected') === 0) {
             $errors[] = 'Your PWD ID was rejected.';
           } else {
@@ -178,6 +190,12 @@ include '../includes/nav.php';
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         <?php endforeach; ?>
+        <?php if ($emailNotRegistered): ?>
+          <div class="alert alert-info alert-dismissible fade show">
+            Email not registered. <a href="register.php" class="alert-link">Register here</a>.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        <?php endif; ?>
 
         <form method="post" novalidate>
           <div class="mb-3">

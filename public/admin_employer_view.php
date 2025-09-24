@@ -4,6 +4,7 @@ require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Mail.php';
+require_once '../classes/Password.php';
 
 Helpers::requireRole('admin');
 
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
           $stE->execute([$user_id]);
           $empRow = $stE->fetch(PDO::FETCH_ASSOC);
         } catch (Throwable $e) { $empRow = null; }
-        if ($empRow && Mail::isEnabled()) {
+        if ($empRow) {
           $toEmail = $empRow['email'];
           $toName  = $empRow['name'];
           $company = $empRow['company_name'] ?: 'your company';
@@ -77,8 +78,17 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
           };
           $body  = '<p>Hello '.htmlspecialchars($toName).',</p>';
           $body .= '<p>Your employer account for <strong>'.htmlspecialchars($company).'</strong> has been updated to status: <strong>'.htmlspecialchars($newStatus).'</strong>.</p>';
+          $issuedPass = null;
           if ($newStatus === 'Approved') {
-            $body .= '<p>You can now post jobs and manage applicants.</p>';
+            try {
+              $issuedPass = PasswordHelper::assignInitialPasswordIfMissing($user_id);
+            } catch (Throwable $e) { $issuedPass = null; }
+            if ($issuedPass) {
+              $body .= '<p>Your initial password is: <strong>'.htmlspecialchars($issuedPass).'</strong></p>';
+              $body .= '<p>You can now log in here: <a href="'.BASE_URL.'/login">'.BASE_URL.'/login</a></p>';
+            } else {
+              $body .= '<p>You can now post jobs and manage applicants.</p>';
+            }
           } elseif ($newStatus === 'Suspended') {
             $body .= '<p>Job posting and applicant management are temporarily disabled. Please contact support if you believe this is an error.</p>';
           } elseif ($newStatus === 'Rejected') {
@@ -87,18 +97,24 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
             $body .= '<p>Your application is pending review. We will notify you once a decision is made.</p>';
           }
           $body .= '<p>Regards,<br>The Admin Team</p>';
-          $sendRes = Mail::send($toEmail, $toName, $subject, $body);
-          if ($sendRes['success']) {
-            $emailInfo = ' Email notification sent.';
-          } else {
-            if ($sendRes['error'] === 'SMTP disabled') {
-              $emailInfo = ' (Email not sent: SMTP disabled.)';
+          if (Mail::isEnabled()) {
+            $sendRes = Mail::send($toEmail, $toName, $subject, $body);
+            if ($sendRes['success']) {
+              $emailInfo = ' Email notification sent.';
             } else {
-              $emailInfo = ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
+              if ($sendRes['error'] === 'SMTP disabled') {
+                $emailInfo = ' (Email not sent: SMTP disabled.)';
+              } else {
+                $emailInfo = ' (Email failed: '.htmlspecialchars($sendRes['error']).')';
+              }
+            }
+          } else {
+            if ($issuedPass) {
+              $emailInfo = ' (SMTP disabled; initial password generated: '.htmlspecialchars($issuedPass).')';
+            } else {
+              $emailInfo = ' (Email not sent: SMTP disabled.)';
             }
           }
-        } elseif ($empRow && !Mail::isEnabled()) {
-          $emailInfo = ' (Email not sent: SMTP disabled.)';
         }
       }
       Helpers::flash('msg', $baseMsg.$emailInfo);

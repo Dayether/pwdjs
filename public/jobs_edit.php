@@ -43,8 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $skillsCsv = implode(', ', $merged);
 
     // Accessibility tags
-    $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-    if (!in_array('PWD-Friendly', $tagsSelected, true)) $tagsSelected[] = 'PWD-Friendly';
+  $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
 
     // Other fields (unchanged structure)
     $title       = trim($_POST['title'] ?? '');
@@ -218,7 +217,6 @@ include '../includes/nav.php';
         <label class="form-label d-block">Accessibility Tags</label>
         <?php
           $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
-          if (!in_array('PWD-Friendly', $currentTags, true)) $currentTags[] = 'PWD-Friendly';
         ?>
         <?php foreach ($accessTags as $tag): ?>
           <div class="form-check form-check-inline">

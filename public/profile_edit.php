@@ -357,14 +357,21 @@ include '../includes/nav.php';
           <div class="col-md-6">
             <label class="form-label">Disability Type</label>
             <?php
-              $disabilityTypes = ['Visual','Hearing','Mobility','Intellectual','Learning','Psychosocial','Speech','Multiple','Other'];
+              $disabilityTypes = [
+                'None',
+                'Spinal Cord Injury',
+                'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
+                'Amputee (lower limb)',
+                'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
+                'Other Physical Disability'
+              ];
               $curDisType = $user->disability_type;
               $isOther = $curDisType && !in_array($curDisType,$disabilityTypes,true);
             ?>
             <select name="disability_type" id="disabilityTypeSelect" class="form-select mb-2">
               <option value="">Select</option>
               <?php foreach($disabilityTypes as $dt): ?>
-                <option value="<?php echo $dt==='Other'?'__other':htmlspecialchars($dt); ?>" <?php if(($dt!=='Other' && $curDisType===$dt) || ($dt==='Other' && $isOther)) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
+                <option value="<?php echo $dt==='Other Physical Disability'?'__other':htmlspecialchars($dt); ?>" <?php if(($dt!=='Other Physical Disability' && $curDisType===$dt) || ($dt==='Other Physical Disability' && $isOther)) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
               <?php endforeach; ?>
             </select>
             <input type="text" name="disability_type_other" id="disabilityTypeOther" class="form-control" placeholder="Specify other type" value="<?php echo $isOther?htmlspecialchars($curDisType):''; ?>" style="display: <?php echo $isOther?'block':'none'; ?>;">

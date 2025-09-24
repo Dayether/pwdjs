@@ -142,12 +142,13 @@ class User {
         $stmt->execute([$input['email']]);
         if ($stmt->fetch()) return false;
 
-        $user_id = Helpers::generateSmartId('USR');
-        $hash = password_hash($input['password'], PASSWORD_DEFAULT);
+    $user_id = Helpers::generateSmartId('USR');
+    $hash = null; // password to be issued by admin upon approval/verification
 
-        $experience = 0;
-        $education  = '';
-        $disability = $input['disability'] ?? null;
+    $experience = 0;
+    $education  = '';
+    $disability = $input['disability'] ?? null;
+    $phone      = trim((string)($input['phone'] ?? '')) ?: null;
 
         // Employer defaults
         $company = '';
@@ -194,10 +195,11 @@ class User {
             INSERT INTO users
             (user_id, name, email, password, role, experience, education, disability,
              company_name, business_email, business_permit_number, employer_status, employer_doc,
-             pwd_id_number, pwd_id_last4, pwd_id_status)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             pwd_id_number, pwd_id_last4, pwd_id_status, phone)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
 
+            try {
         return $stmt->execute([
             $user_id,
             trim($input['name']),
@@ -214,8 +216,16 @@ class User {
             $empDoc,
             $pwdIdEncrypted,
             $pwdIdLast4,
-            $pwdStatus
+            $pwdStatus,
+            $phone
         ]);
+            } catch (PDOException $e) {
+                // Duplicate business permit unique key
+                if (strpos($e->getMessage(), 'uniq_business_permit') !== false) {
+                    return false;
+                }
+                throw $e;
+            }
     }
 
     /* ===================== ADMIN HELPERS FOR JOB SEEKERS ===================== */
