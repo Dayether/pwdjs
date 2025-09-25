@@ -7,6 +7,7 @@ require_once '../classes/User.php';
 require_once '../classes/Job.php';
 
 Helpers::requireLogin();
+// Primary view is for job seekers; employers may hit this only with explicit actions.
 
 $role = $_SESSION['role'] ?? '';
 
@@ -39,8 +40,9 @@ if ((Helpers::isEmployer() || $role === 'admin') && isset($_GET['action'], $_GET
 if (Helpers::isJobSeeker()) {
     $apps = Application::listByUser($_SESSION['user_id']);
 } else {
-    // Employers hitting this without action: redirect to dashboard
-    Helpers::redirect('employer_dashboard.php');
+  // Employers/admins hitting this view without action aren't allowed to view user-facing list
+  Helpers::flash('error','You do not have permission to access that page.');
+  Helpers::redirectToRoleDashboard();
 }
 
 // Map job_id => job status (Open, Suspended, Closed)

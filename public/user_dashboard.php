@@ -9,9 +9,7 @@ require_once '../classes/Experience.php';
 require_once '../classes/Certification.php';
 
 Helpers::requireLogin();
-if (!Helpers::isJobSeeker()) {
-    Helpers::redirect('index.php');
-}
+Helpers::requireRole('job_seeker');
 
 $user = User::findById($_SESSION['user_id']);
 

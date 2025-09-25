@@ -10,8 +10,10 @@ if (session_status()===PHP_SESSION_NONE) {
     session_start();
 }
 Helpers::requireLogin();
+// Allow employers; admins can also view. If neither, flash + redirect to their dashboard.
 if (!Helpers::isEmployer() && !Helpers::isAdmin()) {
-    Helpers::redirect('index.php');
+  Helpers::flash('error','You do not have permission to access that page.');
+  Helpers::redirectToRoleDashboard();
 }
 
 /* ADDED: store page */

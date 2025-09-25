@@ -5,7 +5,7 @@ require_once '../classes/Helpers.php';
 require_once '../classes/Job.php';
 
 Helpers::requireLogin();
-if (!Helpers::isEmployer()) Helpers::redirect('index.php');
+Helpers::requireRole('employer');
 
 $job_id = $_GET['job_id'] ?? '';
 if ($job_id === '') {

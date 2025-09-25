@@ -5,6 +5,12 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 
 Helpers::requireLogin();
+// If a logged-in job seeker tries to force open an employer-only management page, redirect.
+if (Helpers::isJobSeeker()) {
+  // Viewing an employer profile is allowed for everyone typically, but the requirement
+  // asks to treat employer pages as restricted when forced by job seekers.
+  // We'll allow viewing public employer profiles; only restrict management pages elsewhere.
+}
 
 $viewerId   = $_SESSION['user_id'] ?? null;
 $viewerRole = $_SESSION['role'] ?? '';

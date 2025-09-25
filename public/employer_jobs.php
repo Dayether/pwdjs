@@ -8,6 +8,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Require login so we can enforce role-based access
+Helpers::requireLogin();
+
+// Job seekers should not access employer pages directly
+if (Helpers::isJobSeeker()) {
+  Helpers::flash('error','You do not have permission to access that page.');
+  Helpers::redirectToRoleDashboard();
+}
+
 /* ADDED: store last page */
 Helpers::storeLastPage();
 

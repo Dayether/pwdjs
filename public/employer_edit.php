@@ -5,9 +5,7 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 
 Helpers::requireLogin();
-if (($_SESSION['role'] ?? '') !== 'employer') {
-    Helpers::redirect('index.php');
-}
+Helpers::requireRole('employer');
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();

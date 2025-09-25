@@ -10,7 +10,8 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 Helpers::requireLogin();
-if (!Helpers::isEmployer()) Helpers::redirect('index.php');
+// Enforce employer role with friendly flash + redirect fallback
+Helpers::requireRole('employer');
 
 Helpers::storeLastPage();
 

@@ -8,7 +8,7 @@ require_once '../classes/Taxonomy.php';
 require_once '../classes/User.php';
 
 Helpers::requireLogin();
-if (!Helpers::isEmployer()) Helpers::redirect('index.php');
+Helpers::requireRole('employer');
 
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);

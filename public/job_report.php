@@ -6,7 +6,7 @@ require_once '../classes/Report.php';
 require_once '../classes/Job.php';
 
 Helpers::requireLogin();
-if (!Helpers::isJobSeeker()) Helpers::redirect('index.php');
+Helpers::requireRole('job_seeker');
 
 $job_id = $_GET['job_id'] ?? ($_POST['job_id'] ?? '');
 $job = Job::findById($job_id);

@@ -6,10 +6,7 @@ require_once '../classes/Report.php';
 require_once '../classes/Job.php';
 
 Helpers::requireLogin();
-if (!Helpers::isJobSeeker()) {
-    Helpers::flash('error','Only job seekers can report jobs.');
-    Helpers::redirect('index.php');
-}
+Helpers::requireRole('job_seeker');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Helpers::redirect('index.php');

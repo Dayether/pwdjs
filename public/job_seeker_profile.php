@@ -65,9 +65,9 @@ include '../includes/header.php';
 include '../includes/nav.php';
 
 if (!$authorized) {
-    echo '<div class="container py-5"><div class="alert alert-warning">You are not authorized to view this job seeker profile.</div></div>';
-    include '../includes/footer.php';
-    exit;
+  // Consistent behavior: show flash and redirect to the user's dashboard
+  Helpers::flash('error','You do not have permission to access that page.');
+  Helpers::redirectToRoleDashboard();
 }
 
 /* Applications visible to viewer */

@@ -10,12 +10,9 @@ require_once '../classes/Taxonomy.php';
 require_once '../classes/Sensitive.php';
 
 Helpers::requireLogin();
+Helpers::requireRole('job_seeker');
 $user = User::findById($_SESSION['user_id']);
 if (!$user) Helpers::redirect('login.php');
-// Prevent admin users from using the job seeker profile edit page
-if (($_SESSION['role'] ?? '') === 'admin') {
-  Helpers::redirect('index.php');
-}
 
 $errors = [];
 $flashRedirect = null; // where to redirect after successful sub-action
@@ -126,6 +123,17 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='profile') {
     $rawDisType = trim($_POST['disability_type_other'] ?? '');
   }
   $update['disability_type'] = trim($rawDisType);
+  // Enforce: Job seekers must have a specific disability type (no None/empty). If __other used, text is required.
+  if (Helpers::isJobSeeker()) {
+    if ($update['disability_type'] === '' || strcasecmp($update['disability_type'], 'None') === 0) {
+      $errors[] = 'Please select your physical disability (None is not allowed for Job Seeker accounts).';
+    }
+    if (isset($_POST['disability_type']) && $_POST['disability_type'] === '__other') {
+      if ($update['disability_type'] === '' || mb_strlen($update['disability_type']) < 3 || mb_strlen($update['disability_type']) > 120) {
+        $errors[] = 'Please provide a valid disability type description (3–120 characters).';
+      }
+    }
+  }
     $update['disability_severity']  = $_POST['disability_severity'] ?: null;
     $update['assistive_devices']    = trim($_POST['assistive_devices'] ?? '');
 
@@ -358,7 +366,6 @@ include '../includes/nav.php';
             <label class="form-label">Disability Type</label>
             <?php
               $disabilityTypes = [
-                'None',
                 'Spinal Cord Injury',
                 'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
                 'Amputee (lower limb)',
@@ -593,7 +600,12 @@ include '../includes/nav.php';
   const sel = document.getElementById('disabilityTypeSelect');
   const other = document.getElementById('disabilityTypeOther');
   if(sel && other){
-    sel.addEventListener('change',()=>{ other.style.display = sel.value==='__other' ? 'block':'none'; if(sel.value!=='__other'){ other.value=''; } });
+    sel.addEventListener('change',()=>{
+      const isOther = sel.value==='__other';
+      other.style.display = isOther ? 'block':'none';
+      if(!isOther){ other.value=''; other.removeAttribute('required'); }
+      else { other.setAttribute('required','required'); }
+    });
   }
 })();
 </script>

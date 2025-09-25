@@ -9,7 +9,7 @@ require_once '../classes/Application.php';
 require_once '../classes/Taxonomy.php';
 
 Helpers::requireLogin();
-if (!Helpers::isJobSeeker()) Helpers::redirect('index.php');
+Helpers::requireRole('job_seeker');
 
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);
