@@ -22,6 +22,7 @@ class Job {
     public ?int $salary_min = null;
     public ?int $salary_max = null;
     public string $salary_period = 'monthly';
+    public ?string $job_image = null; // path relative to public root
 
     public string $status = 'Open'; // Open, Suspended, Closed
     public string $created_at = '';
@@ -45,6 +46,7 @@ class Job {
         $this->salary_min      = array_key_exists('salary_min', $row) ? (is_null($row['salary_min']) ? null : (int)$row['salary_min']) : null;
         $this->salary_max      = array_key_exists('salary_max', $row) ? (is_null($row['salary_max']) ? null : (int)$row['salary_max']) : null;
         $this->salary_period   = $row['salary_period'] ?? 'monthly';
+    $this->job_image       = $row['job_image'] ?? null;
 
         $this->status          = $row['status'] ?? 'Open';
         $this->created_at      = $row['created_at'] ?? '';
@@ -88,14 +90,14 @@ class Job {
               required_experience, required_education, required_skills_input, accessibility_tags,
               location_city, location_region,
               remote_option, employment_type,
-              salary_currency, salary_min, salary_max, salary_period,
+                            salary_currency, salary_min, salary_max, salary_period, job_image,
               status
             ) VALUES (
               :job_id, :employer_id, :title, :description,
               :required_experience, :required_education, :required_skills_input, :accessibility_tags,
               :location_city, :location_region,
               :remote_option, :employment_type,
-              :salary_currency, :salary_min, :salary_max, :salary_period,
+                            :salary_currency, :salary_min, :salary_max, :salary_period, :job_image,
               :status
             )
         ");
@@ -118,6 +120,7 @@ class Job {
             ':salary_max'           => ($data['salary_max'] ?? null) !== '' ? $data['salary_max'] : null,
             ':salary_period'        => $data['salary_period'] ?? 'monthly',
             ':status'               => $status,
+            ':job_image'            => $data['job_image'] ?? null,
         ]);
 
         if ($ok) {
@@ -150,7 +153,8 @@ class Job {
               salary_currency = :salary_currency,
               salary_min = :salary_min,
               salary_max = :salary_max,
-              salary_period = :salary_period
+                            salary_period = :salary_period,
+                            job_image = :job_image
             WHERE job_id = :job_id AND employer_id = :employer_id
             LIMIT 1
         ");
@@ -172,6 +176,7 @@ class Job {
             ':salary_period'       => $data['salary_period'] ?? 'monthly',
             ':job_id'              => $job_id,
             ':employer_id'         => $employer_id,
+            ':job_image'           => $data['job_image'] ?? null,
         ]);
 
         if ($ok) {

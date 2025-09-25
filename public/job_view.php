@@ -318,6 +318,14 @@ include '../includes/nav.php';
   background:#ffc107; color:#212529; font-size:.65rem;
   padding:2px 6px; border-radius:3px; letter-spacing:.5px; font-weight:600;
 }
+/* Job image styles */
+.job-hero {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border-radius: .5rem;
+  border: 1px solid rgba(0,0,0,.05);
+}
 </style>
 
 <!-- Toasts -->
@@ -353,6 +361,11 @@ include '../includes/nav.php';
     <!-- Job Overview Card -->
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-4">
+        <?php if (!empty($job->job_image)): ?>
+          <div class="mb-3">
+            <img class="job-hero" src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Job image">
+          </div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between align-items-start flex-wrap">
           <div class="me-3">
             <h1 class="h4 fw-semibold mb-1">

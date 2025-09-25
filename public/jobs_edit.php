@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $salary_max  = ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null;
     $salary_period = in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true)
         ? $_POST['salary_period'] : 'monthly';
+  $job_image = $job->job_image; // default keep existing
 
     if ($title === '') $errors[] = 'Title required';
     if ($description === '') $errors[] = 'Description required';
@@ -65,6 +66,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Salary min cannot be greater than salary max.';
     }
     if (!in_array($employment, $employmentTypes, true)) $employment = 'Full time';
+
+  // Optional: image upload
+  if (!empty($_FILES['job_image']['name'])) {
+    $okType = ['image/jpeg','image/jpg','image/png','image/gif','image/webp'];
+    $mime = $_FILES['job_image']['type'] ?? '';
+    if (!in_array($mime, $okType, true)) {
+      $errors[] = 'Job image must be JPG, PNG, GIF, or WEBP.';
+    } elseif ($_FILES['job_image']['size'] > 2*1024*1024) {
+      $errors[] = 'Job image too large (max 2MB).';
+    } else {
+      if (!is_dir('../uploads/job_images')) @mkdir('../uploads/job_images', 0775, true);
+      $ext = pathinfo($_FILES['job_image']['name'], PATHINFO_EXTENSION);
+      $fname = 'uploads/job_images/'.uniqid('job_').'.'.strtolower($ext ?: 'jpg');
+      if (move_uploaded_file($_FILES['job_image']['tmp_name'], '../'.$fname)) {
+        $job_image = $fname;
+      } else {
+        $errors[] = 'Failed to upload job image.';
+      }
+    }
+  }
 
     $data = [
         'title' => $title,
@@ -80,7 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'salary_currency' => $salary_currency ?: 'PHP',
         'salary_min' => $salary_min,
         'salary_max' => $salary_max,
-        'salary_period' => $salary_period
+    'salary_period' => $salary_period,
+    'job_image'     => $job_image
     ];
 
     if (!$errors) {
@@ -125,7 +147,7 @@ include '../includes/nav.php';
       <div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div>
     <?php endif; ?>
 
-    <form method="post" class="row g-3">
+  <form method="post" class="row g-3" enctype="multipart/form-data">
       <div class="col-12">
         <label class="form-label fw-semibold">Title</label>
         <input name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>">
@@ -148,6 +170,17 @@ include '../includes/nav.php';
           <input name="location_city" class="form-control" placeholder="City" value="<?php echo htmlspecialchars($job->location_city); ?>">
           <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($job->location_region); ?>">
         </div>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Job Image (optional)</label>
+        <?php if (!empty($job->job_image)): ?>
+          <div class="mb-2">
+            <img src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Current Job Image" class="rounded border" style="max-height:120px">
+          </div>
+        <?php endif; ?>
+        <input type="file" name="job_image" class="form-control" accept="image/*">
+        <div class="form-text">JPG/PNG/GIF/WEBP up to 2MB. Uploading a new image will replace the current one.</div>
       </div>
 
       <div class="col-md-3">

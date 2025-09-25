@@ -30,7 +30,7 @@ if (!$emp || $emp->role !== 'employer' || ($emp->employer_status ?? 'Pending') !
 
 $stmt = $pdo->prepare("
   SELECT job_id, title, created_at, location_city, location_region, employment_type,
-         salary_currency, salary_min, salary_max, salary_period
+         salary_currency, salary_min, salary_max, salary_period, job_image
   FROM jobs
   WHERE employer_id = ? AND remote_option = 'Work From Home'
   ORDER BY created_at DESC
@@ -44,10 +44,13 @@ include '../includes/nav.php';
 function fmt_salary($cur, $min, $max, $period) {
   if ($min === null && $max === null) return 'Salary not specified';
   $fmt = function($n){ return number_format((int)$n); };
-  $range = ($min !== null && $max !== null && $min != $max)
-    ? "{$fmt($min)}–{$fmt($max)}"
-    : $fmt($min ?? $max);
-  return "{$cur} {$range} / " . ucfirst($period ?: 'monthly');
+  if ($min !== null && $max !== null && $min != $max) {
+    $range = $fmt($min) . '–' . $fmt($max);
+  } else {
+    $value = ($min ?? $max);
+    $range = $fmt($value);
+  }
+  return $cur . ' ' . $range . ' / ' . ucfirst($period ?: 'monthly');
 }
 
 /* ADDED: use last_page override for Back */
@@ -58,10 +61,16 @@ $backUrl = Helpers::getLastPage('index.php');
   <a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($backUrl); ?>"><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
 
+<style>
+.job-card-thumb{width:100%;height:140px;object-fit:cover;border-top-left-radius:.5rem;border-top-right-radius:.5rem}
+</style>
 <div class="row g-3">
   <?php foreach ($jobs as $job): ?>
     <div class="col-md-6 col-lg-4">
       <div class="card border-0 shadow-sm h-100">
+        <?php if (!empty($job['job_image'])): ?>
+          <img class="job-card-thumb" src="../<?php echo htmlspecialchars($job['job_image']); ?>" alt="Job image">
+        <?php endif; ?>
         <div class="card-body">
           <h3 class="h6 fw-semibold mb-1">
             <a class="text-decoration-none" href="job_view.php?job_id=<?php echo urlencode($job['job_id']); ?>">

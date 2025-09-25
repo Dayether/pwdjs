@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
 
   $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
 
-    $data = [
+  $data = [
         'title'                 => trim($_POST['title']),
         'description'           => trim($_POST['description']),
         'required_skills_input' => $skillsCsv,
@@ -70,8 +70,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errors) {
         'salary_currency'       => strtoupper(trim($_POST['salary_currency'] ?? 'PHP')),
         'salary_min'            => ($_POST['salary_min'] !== '') ? max(0, (int)$_POST['salary_min']) : null,
         'salary_max'            => ($_POST['salary_max'] !== '') ? max(0, (int)$_POST['salary_max']) : null,
-        'salary_period'         => in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true) ? $_POST['salary_period'] : 'monthly',
+    'salary_period'         => in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true) ? $_POST['salary_period'] : 'monthly',
+    'job_image'             => null,
     ];
+
+  // Handle optional image upload
+  if (!empty($_FILES['job_image']['name'])) {
+    $okType = ['image/jpeg','image/jpg','image/png','image/gif','image/webp'];
+    $mime = $_FILES['job_image']['type'] ?? '';
+    if (!in_array($mime, $okType, true)) {
+      $errors[] = 'Job image must be JPG, PNG, GIF, or WEBP.';
+    } elseif ($_FILES['job_image']['size'] > 2*1024*1024) {
+      $errors[] = 'Job image too large (max 2MB).';
+    } else {
+      if (!is_dir('../uploads/job_images')) @mkdir('../uploads/job_images', 0775, true);
+      $ext = pathinfo($_FILES['job_image']['name'], PATHINFO_EXTENSION);
+      $fname = 'uploads/job_images/'.uniqid('job_').'.'.strtolower($ext ?: 'jpg');
+      if (move_uploaded_file($_FILES['job_image']['tmp_name'], '../'.$fname)) {
+        $data['job_image'] = $fname;
+      } else {
+        $errors[] = 'Failed to upload job image.';
+      }
+    }
+  }
 
     if (!$data['title'])       $errors[] = 'Title required';
     if (!$data['description']) $errors[] = 'Description required';
@@ -148,7 +169,7 @@ include '../includes/nav.php';
         Once your employer account is approved you may post jobs.
       </div>
     <?php else: ?>
-      <form method="post" class="row g-3">
+  <form method="post" class="row g-3" enctype="multipart/form-data">
         <?php if ($duplicatePending): ?>
           <input type="hidden" name="confirm_duplicate" value="1">
         <?php endif; ?>
@@ -178,6 +199,12 @@ include '../includes/nav.php';
             <input name="location_region" class="form-control" placeholder="Region/Province"
                    value="<?php echo htmlspecialchars($_POST['location_region'] ?? ''); ?>">
           </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Job Image (optional)</label>
+          <input type="file" name="job_image" class="form-control" accept="image/*">
+          <div class="form-text">JPG/PNG/GIF/WEBP up to 2MB. Shown on listings.</div>
         </div>
 
         <div class="col-md-4">

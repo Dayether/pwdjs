@@ -73,9 +73,10 @@ $total = (int)$stmt->fetchColumn();
 // Page
 $sqlList = "
   SELECT j.job_id, j.title, j.created_at, j.required_experience, j.required_education,
-         j.location_city, j.location_region, j.employment_type,
-         j.salary_currency, j.salary_min, j.salary_max, j.salary_period,
-         j.accessibility_tags, u.company_name, u.user_id AS employer_id
+    j.location_city, j.location_region, j.employment_type,
+    j.salary_currency, j.salary_min, j.salary_max, j.salary_period,
+    j.accessibility_tags, j.job_image,
+    u.company_name, u.user_id AS employer_id
   FROM jobs j
   JOIN users u ON u.user_id = j.employer_id
   WHERE $whereSql
@@ -125,7 +126,7 @@ function fmt_salary($cur, $min, $max, $period) {
       select.filter-bold option { font-weight:500; }
     </style>
 
-    <form class="row g-2 align-items-end" method="get">
+  <form class="row g-2 align-items-end" method="get">
       <div class="col-lg-4">
         <label class="form-label filter-bold-label">Keyword</label>
         <input type="text" name="q" class="form-control filter-bold" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>">
@@ -181,42 +182,50 @@ function fmt_salary($cur, $min, $max, $period) {
   </div>
 </div>
 
+<style>
+.job-card { border-radius: 12px; overflow:hidden; }
+.job-thumb { width: 100%; height: 140px; object-fit: cover; background:#f6f7f9; }
+.job-meta { font-size: .85rem; }
+.tag-badge { font-size:.7rem; border:1px solid #e4e7eb; background:#f8fafc; }
+</style>
+
 <div class="row g-3">
   <?php foreach ($jobs as $job): ?>
     <div class="col-md-6 col-lg-4">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <h3 class="h6 fw-semibold mb-1">
-            <a class="text-decoration-none" href="job_view.php?job_id=<?php echo urlencode($job['job_id']); ?>">
-              <?php echo Helpers::sanitizeOutput($job['title']); ?>
-            </a>
-          </h3>
-          <div class="text-muted small mb-1">
-            <?php echo Helpers::sanitizeOutput($job['company_name'] ?? ''); ?> ·
-            <a class="text-decoration-none" href="employer_jobs.php?employer_id=<?php echo urlencode($job['employer_id']); ?>">View all jobs</a>
+      <div class="card job-card shadow-sm h-100 border-0">
+        <?php if (!empty($job['job_image'])): ?>
+          <img class="job-thumb" src="../<?php echo htmlspecialchars($job['job_image']); ?>" alt="Job image">
+        <?php else: ?>
+          <div class="job-thumb d-flex align-items-center justify-content-center text-muted">
+            <i class="bi bi-briefcase" style="font-size:1.5rem"></i>
           </div>
-          <div class="small mb-2">
-            <i class="bi bi-geo-alt me-1"></i>Original office:
-            <?php
-              $cityTxt   = $job['location_city'] ?: '';
-              $regionTxt = $job['location_region'] ?: '';
-              $sep = ($cityTxt && $regionTxt) ? ', ' : '';
-              echo Helpers::sanitizeOutput($cityTxt . $sep . $regionTxt);
-            ?>
+        <?php endif; ?>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h3 class="h6 fw-semibold mb-0 me-2">
+              <a class="text-decoration-none" href="job_view.php?job_id=<?php echo urlencode($job['job_id']); ?>"><?php echo Helpers::sanitizeOutput($job['title']); ?></a>
+            </h3>
+            <div class="text-muted small job-meta"><?php echo date('M j, Y', strtotime($job['created_at'])); ?></div>
+          </div>
+          <div class="text-muted small mb-2">
+            <?php echo Helpers::sanitizeOutput($job['company_name'] ?? ''); ?> ·
+            <a class="text-decoration-none" href="employer_jobs.php?employer_id=<?php echo urlencode($job['employer_id']); ?>">View all</a>
           </div>
           <div class="d-flex flex-wrap gap-1 mb-2">
-            <span class="badge text-bg-light border"><i class="bi bi-house-door me-1"></i>Work From Home</span>
-            <span class="badge text-bg-light border"><i class="bi bi-briefcase me-1"></i><?php echo Helpers::sanitizeOutput($job['employment_type']); ?></span>
+            <span class="badge tag-badge"><i class="bi bi-house-door me-1"></i>WFH</span>
+            <span class="badge tag-badge"><i class="bi bi-briefcase me-1"></i><?php echo Helpers::sanitizeOutput($job['employment_type']); ?></span>
+            <?php if (!empty($job['accessibility_tags'])): $firstTag = explode(',', $job['accessibility_tags'])[0]; ?>
+              <span class="badge tag-badge"><?php echo htmlspecialchars(trim($firstTag)); ?></span>
+            <?php endif; ?>
           </div>
-          <div class="mb-2 small">
-            <?php
-              $cur = $job['salary_currency'] ?: 'PHP';
-              $min = $job['salary_min']; $max = $job['salary_max'];
-              $per = $job['salary_period'] ?: 'monthly';
-              echo '<i class="bi bi-cash-coin me-1"></i>' . htmlspecialchars(fmt_salary($cur, $min, $max, $per));
-            ?>
+          <div class="small mb-2">
+            <?php $cur=$job['salary_currency']?:'PHP'; $min=$job['salary_min']; $max=$job['salary_max']; $per=$job['salary_period']?:'monthly'; ?>
+            <i class="bi bi-cash-coin me-1"></i><?php echo htmlspecialchars(fmt_salary($cur,$min,$max,$per)); ?>
           </div>
-          <div class="text-muted small"><?php echo date('M j, Y', strtotime($job['created_at'])); ?></div>
+          <div class="small text-muted">
+            <i class="bi bi-geo-alt me-1"></i>
+            <?php $cityTxt=$job['location_city']?:''; $regionTxt=$job['location_region']?:''; $sep=($cityTxt&&$regionTxt)?', ':''; echo Helpers::sanitizeOutput($cityTxt.$sep.$regionTxt); ?>
+          </div>
         </div>
         <div class="card-footer bg-white border-0 pt-0 pb-3 px-3">
           <a class="btn btn-sm btn-outline-primary w-100" href="job_view.php?job_id=<?php echo urlencode($job['job_id']); ?>">View</a>
@@ -225,9 +234,7 @@ function fmt_salary($cur, $min, $max, $period) {
     </div>
   <?php endforeach; ?>
   <?php if (!$jobs): ?>
-    <div class="col-12">
-      <div class="alert alert-secondary">No jobs found. Try different filters.</div>
-    </div>
+    <div class="col-12"><div class="alert alert-secondary">No jobs found. Try different filters.</div></div>
   <?php endif; ?>
 </div>
 
