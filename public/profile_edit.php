@@ -248,13 +248,11 @@ include '../includes/nav.php';
   .age-badge { font-size:.7rem; }
 </style>
 
-<div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-  <h1 class="h5 fw-semibold mb-2 mb-lg-0">
-    <i class="bi bi-person-badge me-2"></i>Edit Profile
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-3 fade-up fade-delay-1" style="padding-left:.25rem;">
+  <h1 class="h4 fw-bold mb-2 mb-lg-0" style="letter-spacing:-.5px; margin-left:4px;">
+    Edit Profile
   </h1>
-  <a class="btn btn-outline-secondary btn-sm" href="user_dashboard.php">
-    <i class="bi bi-arrow-left me-1"></i>Back
-  </a>
+  <a class="btn btn-outline-secondary btn-sm" href="user_dashboard.php"><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
 
 <?php if ($flashMsg): ?>
@@ -271,226 +269,200 @@ include '../includes/nav.php';
   </div>
 <?php endforeach; ?>
 
-<!-- MAIN PROFILE FORM -->
-<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm mb-4">
+<form method="post" enctype="multipart/form-data" class="pe-shell mb-4 fade-up fade-delay-2" id="profileEditForm">
   <input type="hidden" name="form" value="profile">
-  <div class="card-body p-4">
-    <ul class="nav nav-tabs mb-3" role="tablist">
-      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-basic" type="button">Basic Info</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-disability" type="button">Disability</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button">Documents</button></li>
-    </ul>
-
-    <div class="tab-content">
-      <!-- BASIC -->
-      <div class="tab-pane fade show active" id="tab-basic">
-        <div class="row g-3">
-          <div class="col-md-3 text-center">
-            <label class="form-label d-block">Profile Picture</label>
-            <div class="mb-2">
-              <?php if (!empty($user->profile_picture)): ?>
-                <img src="../<?php echo htmlspecialchars($user->profile_picture); ?>" alt="Profile" class="rounded-circle border" style="width:100px;height:100px;object-fit:cover;">
-              <?php else: ?>
-                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width:100px;height:100px;font-size:2rem;color:#888;"> <i class="bi bi-person"></i> </div>
-              <?php endif; ?>
-            </div>
-            <input type="file" name="profile_picture" accept="image/*" class="form-control form-control-sm">
-            <div class="form-text">JPG/PNG/GIF max 2MB</div>
-          </div>
-          <div class="col-md-9">
-          <div class="col-md-6">
-            <label class="form-label">Full Name</label>
-            <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($user->name); ?>" required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Date of Birth</label>
-            <div class="d-flex align-items-center gap-2">
-              <input type="date" name="date_of_birth" id="dobInput" class="form-control" value="<?php echo htmlspecialchars($user->date_of_birth); ?>">
-              <span id="ageBadge" class="badge text-bg-secondary age-badge"></span>
-            </div>
-          </div>
-            <div class="col-md-3">
-            <label class="form-label">Gender</label>
-            <select name="gender" class="form-select">
-              <option value="">Select</option>
-              <?php foreach (['Male','Female','Non-binary','Prefer not to say'] as $g): ?>
-                <option value="<?php echo $g; ?>" <?php if ($user->gender===$g) echo 'selected'; ?>><?php echo $g; ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Phone</label>
-            <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars($user->phone); ?>">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Region</label>
-            <input type="text" name="region" class="form-control" value="<?php echo htmlspecialchars($user->region); ?>">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Province</label>
-            <input type="text" name="province" class="form-control" value="<?php echo htmlspecialchars($user->province); ?>">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">City</label>
-            <input type="text" name="city" class="form-control" value="<?php echo htmlspecialchars($user->city); ?>">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Full Address</label>
-            <input type="text" name="full_address" class="form-control" value="<?php echo htmlspecialchars($user->full_address); ?>">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Educational Attainment</label>
-            <select name="education_level" class="form-select">
-              <option value="">Select</option>
-              <?php foreach (Taxonomy::educationLevels() as $lvl): ?>
-                <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($user->education_level===$lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-12">
-            <label class="form-label">Primary Skill Summary / Bio</label>
-            <textarea name="primary_skill_summary" class="form-control" rows="4"><?php echo htmlspecialchars($user->primary_skill_summary); ?></textarea>
-          </div>
-          </div><!-- /.col-md-9 -->
-        </div>
-      </div>
-
-      <!-- DISABILITY -->
-      <div class="tab-pane fade" id="tab-disability">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Disability (short desc)</label>
-            <input type="text" name="disability" class="form-control" value="<?php echo htmlspecialchars($user->disability); ?>">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">Disability Type</label>
-            <?php
-              $disabilityTypes = [
-                'Spinal Cord Injury',
-                'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
-                'Amputee (lower limb)',
-                'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
-                'Other Physical Disability'
-              ];
-              $curDisType = $user->disability_type;
-              $isOther = $curDisType && !in_array($curDisType,$disabilityTypes,true);
-            ?>
-            <select name="disability_type" id="disabilityTypeSelect" class="form-select mb-2">
-              <option value="">Select</option>
-              <?php foreach($disabilityTypes as $dt): ?>
-                <option value="<?php echo $dt==='Other Physical Disability'?'__other':htmlspecialchars($dt); ?>" <?php if(($dt!=='Other Physical Disability' && $curDisType===$dt) || ($dt==='Other Physical Disability' && $isOther)) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
-              <?php endforeach; ?>
-            </select>
-            <input type="text" name="disability_type_other" id="disabilityTypeOther" class="form-control" placeholder="Specify other type" value="<?php echo $isOther?htmlspecialchars($curDisType):''; ?>" style="display: <?php echo $isOther?'block':'none'; ?>;">
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Severity</label>
-            <select name="disability_severity" class="form-select">
-              <option value="">Select</option>
-              <?php foreach (['Mild','Moderate','Severe'] as $sev): ?>
-                <option value="<?php echo $sev; ?>" <?php if ($user->disability_severity===$sev) echo 'selected'; ?>><?php echo $sev; ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="col-md-8">
-            <label class="form-label">Assistive Devices (comma separated)</label>
-            <input type="text" name="assistive_devices" class="form-control" value="<?php echo htmlspecialchars($user->assistive_devices); ?>">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">PWD ID Number</label>
-            <?php if ($user->pwd_id_last4): ?>
-              <div class="form-control bg-light" tabindex="-1" style="cursor:not-allowed;">
-                ****<?php echo htmlspecialchars($user->pwd_id_last4); ?> (locked)
-              </div>
-              <div class="form-text">For security, the PWD ID cannot be changed once saved. Contact support if correction is needed.</div>
+  <!-- LEFT COLUMN -->
+  <div class="pe-card">
+    <div class="pe-card-inner">
+      <h2 class="pe-head"><span class="icon"><i class="bi bi-person"></i></span>Basic Information</h2>
+      <div class="d-flex flex-wrap gap-4 align-items-start mb-3">
+        <div class="avatar-upload-zone" id="avatarZone">
+          <div class="preview" id="avatarPreview">
+            <?php if (!empty($user->profile_picture)): ?>
+              <img src="../<?php echo htmlspecialchars($user->profile_picture); ?>" alt="Current profile picture">
             <?php else: ?>
-              <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter your PWD ID for verification" autocomplete="off">
-              <div class="form-text">Will be encrypted and locked after saving.</div>
+              <i class="bi bi-person"></i>
             <?php endif; ?>
+          </div>
+          <label class="avatar-upload-trigger" for="profilePictureInput"><i class="bi bi-upload"></i>Upload</label>
+          <input type="file" id="profilePictureInput" name="profile_picture" accept="image/*">
+          <div class="form-text mt-1">JPG/PNG/GIF max 2MB</div>
+        </div>
+        <div class="flex-grow-1" style="min-width:260px;">
+          <div class="row g-3">
+            <div class="col-sm-8">
+              <label class="form-label">Full Name</label>
+              <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($user->name); ?>" required>
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Gender</label>
+              <select name="gender" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (['Male','Female','Non-binary','Prefer not to say'] as $g): ?>
+                  <option value="<?php echo $g; ?>" <?php if ($user->gender===$g) echo 'selected'; ?>><?php echo $g; ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label">Date of Birth</label>
+              <div class="d-flex align-items-center gap-2"><input type="date" name="date_of_birth" id="dobInput" class="form-control" value="<?php echo htmlspecialchars($user->date_of_birth); ?>"><span id="ageBadge" class="badge text-bg-secondary age-badge"></span></div>
+            </div>
+            <div class="col-sm-7">
+              <label class="form-label">Phone</label>
+              <input type="text" name="phone" class="form-control" value="<?php echo htmlspecialchars($user->phone); ?>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Region</label>
+              <input type="text" name="region" class="form-control" value="<?php echo htmlspecialchars($user->region); ?>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Province</label>
+              <input type="text" name="province" class="form-control" value="<?php echo htmlspecialchars($user->province); ?>">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">City</label>
+              <input type="text" name="city" class="form-control" value="<?php echo htmlspecialchars($user->city); ?>">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Full Address</label>
+              <input type="text" name="full_address" class="form-control" value="<?php echo htmlspecialchars($user->full_address); ?>">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Educational Attainment</label>
+              <select name="education_level" class="form-select">
+                <option value="">Select</option>
+                <?php foreach (Taxonomy::educationLevels() as $lvl): ?>
+                  <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($user->education_level===$lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label d-flex justify-content-between align-items-center">Primary Skill Summary / Bio <span class="char-counter" id="summaryCounter">0 / 600</span></label>
+              <textarea name="primary_skill_summary" id="summaryInput" class="form-control" rows="4" maxlength="600" aria-describedby="summaryHelp"><?php echo htmlspecialchars($user->primary_skill_summary); ?></textarea>
+              <div id="summaryHelp" class="form-text">Highlight strengths, roles, tools, and impact (max 600 characters).</div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- DOCUMENTS -->
-      <div class="tab-pane fade" id="tab-docs">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <label class="form-label">Resume (PDF)</label>
-            <input type="file" name="resume" accept="application/pdf" class="form-control">
-            <?php if ($user->resume): ?>
-              <div class="form-text">
-                <a href="../<?php echo htmlspecialchars($user->resume); ?>" target="_blank">Current resume</a>
-              </div>
-            <?php endif; ?>
+  <!-- RIGHT COLUMN -->
+  <div class="pe-card">
+    <div class="pe-card-inner">
+      <h2 class="pe-head"><span class="icon"><i class="bi bi-activity"></i></span>Disability & Support</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Disability (short desc)</label>
+          <input type="text" name="disability" class="form-control" value="<?php echo htmlspecialchars($user->disability); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Disability Type</label>
+          <?php
+            $disabilityTypes = [
+              'Spinal Cord Injury',
+              'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
+              'Amputee (lower limb)',
+              'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
+              'Other Physical Disability'
+            ];
+            $curDisType = $user->disability_type;
+            $isOther = $curDisType && !in_array($curDisType,$disabilityTypes,true);
+          ?>
+          <select name="disability_type" id="disabilityTypeSelect" class="form-select mb-2">
+            <option value="">Select</option>
+            <?php foreach($disabilityTypes as $dt): ?>
+              <option value="<?php echo $dt==='Other Physical Disability'?'__other':htmlspecialchars($dt); ?>" <?php if(($dt!=='Other Physical Disability' && $curDisType===$dt) || ($dt==='Other Physical Disability' && $isOther)) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
+            <?php endforeach; ?>
+          </select>
+          <input type="text" name="disability_type_other" id="disabilityTypeOther" class="form-control" placeholder="Specify other type" value="<?php echo $isOther?htmlspecialchars($curDisType):''; ?>" style="display: <?php echo $isOther?'block':'none'; ?>;">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Severity</label>
+          <select name="disability_severity" class="form-select">
+            <option value="">Select</option>
+            <?php foreach (['Mild','Moderate','Severe'] as $sev): ?>
+              <option value="<?php echo $sev; ?>" <?php if ($user->disability_severity===$sev) echo 'selected'; ?>><?php echo $sev; ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Assistive Devices (comma separated)</label>
+          <input type="text" name="assistive_devices" class="form-control" value="<?php echo htmlspecialchars($user->assistive_devices); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">PWD ID Number</label>
+          <?php if ($user->pwd_id_last4): ?>
+            <div class="form-control bg-light" tabindex="-1" style="cursor:not-allowed;">****<?php echo htmlspecialchars($user->pwd_id_last4); ?> (locked)</div>
+            <div class="form-text">Cannot be changed after saving.</div>
+          <?php else: ?>
+            <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter your PWD ID for verification" autocomplete="off">
+            <div class="form-text">Encrypted & locked after saving.</div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div class="mini-divider"></div>
+      <h2 class="pe-head" style="margin-top:.25rem;"><span class="icon"><i class="bi bi-folder2-open"></i></span>Documents</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="file-block" data-target="resumeInput" id="resumeBlock">
+            <span class="fb-icon"><i class="bi bi-file-earmark-text"></i></span>
+            <span class="fb-label">Resume (PDF)</span>
+            <small>Click or drop PDF here</small>
+            <input type="file" id="resumeInput" name="resume" accept="application/pdf">
+            <div class="file-feedback" id="resumeFeedback"><?php if ($user->resume): ?>Current: <a href="../<?php echo htmlspecialchars($user->resume); ?>" target="_blank">View</a><?php endif; ?></div>
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Video Intro (MP4/WebM/Ogg)</label>
-            <input type="file" name="video_intro" accept="video/*" class="form-control">
-            <?php if ($user->video_intro): ?>
-              <div class="form-text">
-                <a href="../<?php echo htmlspecialchars($user->video_intro); ?>" target="_blank">Current video</a>
-              </div>
-            <?php endif; ?>
+        </div>
+        <div class="col-md-6">
+          <div class="file-block" data-target="videoInput" id="videoBlock">
+            <span class="fb-icon"><i class="bi bi-camera-video"></i></span>
+            <span class="fb-label">Video Intro</span>
+            <small>MP4/WebM/Ogg</small>
+            <input type="file" id="videoInput" name="video_intro" accept="video/*">
+            <div class="file-feedback" id="videoFeedback"><?php if ($user->video_intro): ?>Current: <a href="../<?php echo htmlspecialchars($user->video_intro); ?>" target="_blank">View</a><?php endif; ?></div>
           </div>
         </div>
       </div>
-
-    </div><!-- tab-content -->
-
-    <div class="mt-4 d-flex gap-2">
-      <button class="btn btn-primary">
-        <i class="bi bi-save me-1"></i>Save Changes
-      </button>
-      <a href="user_dashboard.php" class="btn btn-outline-secondary">Cancel</a>
+      <div class="sticky-save pe-actions">
+        <button class="btn btn-gradient"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Changes</button>
+        <a href="user_dashboard.php" class="btn btn-outline-secondary">Cancel</a>
+      </div>
     </div>
   </div>
 </form>
 
-<!-- EMPLOYMENT & SKILLS (Separate Section) -->
-<div class="card border-0 shadow-sm mb-4" id="employment-section">
-  <div class="card-body p-4">
-    <h6 class="fw-semibold mb-3"><i class="bi bi-briefcase me-1"></i>Work Experience</h6>
+<div class="pe-card mb-4 fade-up fade-delay-3" id="employment-section">
+  <div class="pe-card-inner">
+    <h2 class="pe-head"><span class="icon"><i class="bi bi-briefcase"></i></span>Work Experience</h2>
 
     <?php if ($experiences): ?>
-      <ul class="list-group mb-3">
+      <ul class="list-modern mb-3">
         <?php foreach ($experiences as $exp): ?>
-          <li class="list-group-item d-flex justify-content-between align-items-start exp-item">
-            <div>
-              <div class="fw-semibold">
-                <?php echo htmlspecialchars($exp['position']); ?> @ <?php echo htmlspecialchars($exp['company']); ?>
+          <li class="d-flex justify-content-between gap-3">
+            <div class="flex-grow-1">
+              <div class="fw-semibold mb-1"><?php echo htmlspecialchars($exp['position']); ?> <span class="text-muted">@ <?php echo htmlspecialchars($exp['company']); ?></span></div>
+              <div class="small text-muted mb-1">
+                <?php $sd = htmlspecialchars($exp['start_date']); $ed = $exp['is_current'] ? 'Present' : ($exp['end_date'] ?: '—'); echo $sd . ' - ' . htmlspecialchars($ed); ?>
               </div>
-              <div class="small text-muted">
-                <?php
-                  $sd = htmlspecialchars($exp['start_date']);
-                  $ed = $exp['is_current'] ? 'Present' : ($exp['end_date'] ?: '—');
-                  echo $sd . ' - ' . htmlspecialchars($ed);
-                ?>
-              </div>
-              <?php if (!empty($exp['description'])): ?>
-                <div class="small mt-1"><?php echo nl2br(htmlspecialchars($exp['description'])); ?></div>
-              <?php endif; ?>
+              <?php if (!empty($exp['description'])): ?><div class="small text-muted"><?php echo nl2br(htmlspecialchars($exp['description'])); ?></div><?php endif; ?>
             </div>
-            <a class="btn btn-sm btn-outline-danger"
-               href="profile_edit.php?del_exp=<?php echo (int)$exp['id']; ?>"
-               onclick="return confirm('Delete this experience?')">
-              <i class="bi bi-trash"></i>
-            </a>
+            <div class="list-modern-actions">
+              <a class="btn btn-sm btn-outline-danger" href="profile_edit.php?del_exp=<?php echo (int)$exp['id']; ?>" onclick="return confirm('Delete this experience?')"><i class="bi bi-trash"></i></a>
+            </div>
           </li>
         <?php endforeach; ?>
       </ul>
-    <?php else: ?>
-      <div class="text-muted small mb-3">No experience added yet.</div>
-    <?php endif; ?>
+    <?php else: ?><div class="text-muted small mb-3">No experience added yet.</div><?php endif; ?>
 
-    <div class="border rounded p-3 mb-4">
-      <h6 class="small fw-semibold text-uppercase mb-2">Add Experience</h6>
-      <form method="post" class="row g-2">
+    <div class="add-inline-form mb-4">
+      <h3>Add Experience</h3>
+      <form method="post" class="row g-2 align-items-end">
         <input type="hidden" name="form" value="add_experience">
-        <div class="col-md-4">
-          <input type="text" name="exp_company" class="form-control form-control-sm" placeholder="Company" required>
+        <div class="col-md-4 col-sm-6">
+          <input type="text" name="exp_company" class="form-control form-control-sm" placeholder="Company *" required>
         </div>
-        <div class="col-md-4">
-          <input type="text" name="exp_position" class="form-control form-control-sm" placeholder="Position" required>
+        <div class="col-md-4 col-sm-6">
+          <input type="text" name="exp_position" class="form-control form-control-sm" placeholder="Position *" required>
         </div>
         <div class="col-md-2">
           <input type="date" name="exp_start_date" class="form-control form-control-sm" required>
@@ -504,55 +476,36 @@ include '../includes/nav.php';
             <label class="form-check-label small" for="exp_is_current">Current</label>
           </div>
           <input type="text" name="exp_description" class="form-control form-control-sm" placeholder="Short description">
-          <button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i></button>
+          <button class="btn btn-sm btn-gradient" title="Add Experience"><i class="bi bi-plus-lg"></i></button>
         </div>
       </form>
     </div>
 
-    <h6 class="fw-semibold mb-2"><i class="bi bi-patch-check me-1"></i>Certifications</h6>
+    <h2 class="pe-head"><span class="icon"><i class="bi bi-patch-check"></i></span>Certifications</h2>
     <?php if ($certs): ?>
-      <ul class="list-group mb-3">
+      <ul class="list-modern mb-3">
         <?php foreach ($certs as $ct): ?>
-          <li class="list-group-item d-flex justify-content-between align-items-start">
-            <div>
-              <div class="fw-semibold"><?php echo htmlspecialchars($ct['name']); ?></div>
-              <div class="small text-muted">
-                <?php
-                  $issuer = $ct['issuer'] ?: 'Unknown issuer';
-                  $issued = $ct['issued_date'] ?: '—';
-                  $expiry = $ct['expiry_date'] ?: 'No expiry';
-                  echo htmlspecialchars($issuer) . ' | ' . htmlspecialchars($issued) . ' - ' . htmlspecialchars($expiry);
-                ?>
-              </div>
-              <?php if ($ct['credential_id']): ?>
-                <div class="small">Credential: <?php echo htmlspecialchars($ct['credential_id']); ?></div>
-              <?php endif; ?>
-              <?php if ($ct['attachment_path']): ?>
-                <div class="small">
-                  <a href="../<?php echo htmlspecialchars($ct['attachment_path']); ?>" target="_blank">
-                    <i class="bi bi-paperclip"></i>Attachment
-                  </a>
-                </div>
-              <?php endif; ?>
+          <li class="d-flex justify-content-between gap-3">
+            <div class="flex-grow-1">
+              <div class="fw-semibold mb-1"><?php echo htmlspecialchars($ct['name']); ?><?php if ($ct['issuer']): ?> <span class="text-muted">· <?php echo htmlspecialchars($ct['issuer']); ?></span><?php endif; ?></div>
+              <div class="small text-muted mb-1">Issued: <?php echo $ct['issued_date']?htmlspecialchars($ct['issued_date']):'—'; ?> | Expiry: <?php echo $ct['expiry_date']?htmlspecialchars($ct['expiry_date']):'None'; ?></div>
+              <?php if ($ct['credential_id']): ?><div class="small text-muted">Credential: <?php echo htmlspecialchars($ct['credential_id']); ?></div><?php endif; ?>
+              <?php if ($ct['attachment_path']): ?><div class="small"><a class="text-decoration-none" href="../<?php echo htmlspecialchars($ct['attachment_path']); ?>" target="_blank"><i class="bi bi-paperclip me-1"></i>Attachment</a></div><?php endif; ?>
             </div>
-            <a class="btn btn-sm btn-outline-danger"
-               href="profile_edit.php?del_cert=<?php echo (int)$ct['id']; ?>"
-               onclick="return confirm('Delete this certification?')">
-              <i class="bi bi-trash"></i>
-            </a>
+            <div class="list-modern-actions">
+              <a class="btn btn-sm btn-outline-danger" href="profile_edit.php?del_cert=<?php echo (int)$ct['id']; ?>" onclick="return confirm('Delete this certification?')"><i class="bi bi-trash"></i></a>
+            </div>
           </li>
         <?php endforeach; ?>
       </ul>
-    <?php else: ?>
-      <div class="text-muted small mb-3">No certifications added yet.</div>
-    <?php endif; ?>
+    <?php else: ?><div class="text-muted small mb-3">No certifications added yet.</div><?php endif; ?>
 
-    <div class="border rounded p-3">
-      <h6 class="small fw-semibold text-uppercase mb-2">Add Certification</h6>
-      <form method="post" enctype="multipart/form-data" class="row g-2">
+    <div class="add-inline-form">
+      <h3>Add Certification</h3>
+      <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
         <input type="hidden" name="form" value="add_cert">
-        <div class="col-md-4">
-          <input type="text" name="cert_name" class="form-control form-control-sm" placeholder="Name" required>
+        <div class="col-md-4 col-sm-6">
+          <input type="text" name="cert_name" class="form-control form-control-sm" placeholder="Name *" required>
         </div>
         <div class="col-md-3">
           <input type="text" name="cert_issuer" class="form-control form-control-sm" placeholder="Issuer">
@@ -570,7 +523,7 @@ include '../includes/nav.php';
           <input type="file" name="cert_attachment" class="form-control form-control-sm">
         </div>
         <div class="col-md-2 d-grid">
-          <button class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> Add</button>
+          <button class="btn btn-sm btn-gradient"><i class="bi bi-plus"></i> Add</button>
         </div>
       </form>
     </div>
@@ -581,31 +534,96 @@ include '../includes/nav.php';
 <?php include '../includes/footer.php'; ?>
 <script>
 (function(){
-  // Age computation
-  function computeAge(dob){
-    if(!dob) return '';
-    const d=new Date(dob); if(isNaN(d)) return '';
-    const today=new Date();
-    let age=today.getFullYear()-d.getFullYear();
-    const m=today.getMonth()-d.getMonth();
-    if(m<0 || (m===0 && today.getDate()<d.getDate())) age--;
-    return age>=0?age+' yrs':'';
-  }
-  const dobInput=document.getElementById('dobInput');
-  const ageBadge=document.getElementById('ageBadge');
-  function refreshAge(){ ageBadge.textContent=computeAge(dobInput.value); }
-  if(dobInput){ dobInput.addEventListener('change',refreshAge); refreshAge(); }
+  const dobInput = document.getElementById('dobInput');
+  const ageBadge = document.getElementById('ageBadge');
+  const summaryInput = document.getElementById('summaryInput');
+  const summaryCounter = document.getElementById('summaryCounter');
+  const disabilityTypeSelect = document.getElementById('disabilityTypeSelect');
+  const disabilityTypeOther = document.getElementById('disabilityTypeOther');
+  const avatarInput = document.getElementById('profilePictureInput');
+  const avatarPreview = document.getElementById('avatarPreview');
+  const avatarZone = document.getElementById('avatarZone');
+  const resumeBlock = document.getElementById('resumeBlock');
+  const videoBlock = document.getElementById('videoBlock');
+  const resumeInput = document.getElementById('resumeInput');
+  const videoInput = document.getElementById('videoInput');
+  const resumeFeedback = document.getElementById('resumeFeedback');
+  const videoFeedback = document.getElementById('videoFeedback');
 
-  // Disability type other toggle
-  const sel = document.getElementById('disabilityTypeSelect');
-  const other = document.getElementById('disabilityTypeOther');
-  if(sel && other){
-    sel.addEventListener('change',()=>{
-      const isOther = sel.value==='__other';
-      other.style.display = isOther ? 'block':'none';
-      if(!isOther){ other.value=''; other.removeAttribute('required'); }
-      else { other.setAttribute('required','required'); }
+  function calcAge() {
+    if (!dobInput || !ageBadge || !dobInput.value) { ageBadge && (ageBadge.textContent=''); return; }
+    const dob = new Date(dobInput.value);
+    if (isNaN(dob.getTime())) { ageBadge.textContent=''; return; }
+    const diff = Date.now() - dob.getTime();
+    const ageDate = new Date(diff);
+    const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+    ageBadge.textContent = age + ' yrs';
+  }
+  dobInput && dobInput.addEventListener('change', calcAge);
+  calcAge();
+
+  function updateCounter(){
+    if(!summaryInput || !summaryCounter) return;
+    const val = summaryInput.value.trim();
+    summaryCounter.textContent = val.length + ' / 600';
+    summaryCounter.classList.toggle('text-danger', val.length > 600);
+  }
+  summaryInput && ['input','change'].forEach(ev=>summaryInput.addEventListener(ev, updateCounter));
+  updateCounter();
+
+  disabilityTypeSelect && disabilityTypeSelect.addEventListener('change', function(){
+    if (this.value === '__other') {
+      disabilityTypeOther.style.display='block';
+      disabilityTypeOther.focus();
+    } else {
+      disabilityTypeOther.style.display='none';
+      disabilityTypeOther.value='';
+    }
+  });
+
+  // Avatar preview & drag highlight
+  function handleAvatarFile(file){
+    if(!file || !file.type.match(/^image\//)) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      avatarPreview.innerHTML = '<img src="'+e.target.result+'" alt="New profile preview">';
+    };
+    reader.readAsDataURL(file);
+  }
+  avatarInput && avatarInput.addEventListener('change', e=>{
+    handleAvatarFile(e.target.files[0]);
+  });
+  ['dragenter','dragover'].forEach(ev=>{
+    avatarZone && avatarZone.addEventListener(ev, e=>{e.preventDefault(); avatarZone.classList.add('dragging');});
+  });
+  ['dragleave','drop'].forEach(ev=>{
+    avatarZone && avatarZone.addEventListener(ev, e=>{e.preventDefault(); avatarZone.classList.remove('dragging');});
+  });
+  avatarZone && avatarZone.addEventListener('drop', e=>{
+    if(e.dataTransfer.files && e.dataTransfer.files[0]){
+      avatarInput.files = e.dataTransfer.files;
+      handleAvatarFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  function wireFileBlock(block, input, feedback){
+    if(!block || !input) return;
+    block.addEventListener('click', () => input.click());
+    input.addEventListener('change', ()=>{
+      if(!input.files[0]) return;
+      feedback && (feedback.innerHTML = 'Selected: <strong>'+ input.files[0].name +'</strong>');
+    });
+    ['dragenter','dragover'].forEach(ev=>block.addEventListener(ev, e=>{e.preventDefault(); block.classList.add('dragging');}));
+    ['dragleave','drop'].forEach(ev=>block.addEventListener(ev, e=>{e.preventDefault(); block.classList.remove('dragging');}));
+    block.addEventListener('drop', e=>{
+      if(e.dataTransfer.files && e.dataTransfer.files[0]){
+        input.files = e.dataTransfer.files;
+        const f = e.dataTransfer.files[0];
+        feedback && (feedback.innerHTML = 'Selected: <strong>'+ f.name +'</strong>');
+      }
     });
   }
+  wireFileBlock(resumeBlock, resumeInput, resumeFeedback);
+  wireFileBlock(videoBlock, videoInput, videoFeedback);
 })();
 </script>

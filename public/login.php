@@ -161,12 +161,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
-<div class="row justify-content-center">
-  <div class="col-lg-8 col-xl-6">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <h2 class="h5 fw-semibold mb-3"><i class="bi bi-box-arrow-in-right me-2"></i>Login</h2>
-
+<div class="auth-page fade-up">
+  <div class="auth-shell panels-touch">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <div class="title-icon"><i class="bi bi-box-arrow-in-right"></i></div>
+        <h2 class="h4 mb-1">Welcome Back</h2>
+        <p class="text-muted mb-0 small">Access your account to continue your journey.</p>
+      </div>
+      <div class="auth-card-body">
         <?php foreach ($flashMessages as $f): ?>
           <div class="alert alert-<?php echo htmlspecialchars($f['type']); ?> alert-dismissible fade show">
             <?php echo $f['message']; ?>
@@ -177,11 +180,10 @@ include '../includes/nav.php';
         <?php if ($cooldownRemaining > 0): ?>
           <?php $m = (int)floor($cooldownRemaining/60); $s=$cooldownRemaining%60; ?>
           <div class="alert alert-danger alert-dismissible fade show" id="loginCooldownAlert">
-            Too many failed login attempts for this email. Please try again in
-            <strong><span id="loginCooldownTimer" data-remaining="<?php echo (int)$cooldownRemaining; ?>"><?php echo $m; ?>m <?php echo $s; ?>s</span></strong>.
+            Too many failed login attempts. Try again in <strong><span id="loginCooldownTimer" data-remaining="<?php echo (int)$cooldownRemaining; ?>"><?php echo $m; ?>m <?php echo $s; ?>s</span></strong>.
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
-          <?php $errors = []; // suppress duplicate static errors when showing dynamic countdown ?>
+          <?php $errors = []; ?>
         <?php endif; ?>
 
         <?php foreach ($errors as $e): ?>
@@ -197,28 +199,44 @@ include '../includes/nav.php';
           </div>
         <?php endif; ?>
 
-        <form method="post" novalidate>
-          <div class="mb-3">
-            <label class="form-label">Email</label>
+        <form method="post" novalidate class="mt-2">
+          <div class="mb-3 input-floating-label">
+            <label>Email</label>
             <input type="email" name="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ($prefillEmail ?? '')); ?>">
           </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input type="password" name="password" class="form-control" required>
+          <div class="mb-3 position-relative input-floating-label">
+            <label>Password</label>
+            <input type="password" name="password" id="loginPassword" class="form-control" required>
+            <span class="password-toggle" id="togglePassword"><i class="bi bi-eye"></i></span>
           </div>
-          <div class="d-grid">
-            <button class="btn btn-primary">
+          <div class="d-grid mt-4">
+            <button class="btn btn-gradient py-2">
               <i class="bi bi-box-arrow-in-right me-1"></i>Login
             </button>
           </div>
         </form>
 
-        <div class="mt-3 small">
-          Don't have an account? <a href="register.php">Register</a>
+        <div class="form-sep">Account</div>
+        <div class="auth-links small text-center mb-2">
+          Don't have an account? <a href="register.php">Create one</a>
         </div>
-        <div class="alert alert-info mt-3 py-2 small mb-0">
-          Need help with your account? <a href="support_contact.php" class="fw-semibold text-decoration-none">Contact Support</a>.
+        <div class="text-center">
+          <div class="form-note">Need help? <a href="support_contact.php">Contact Support</a></div>
         </div>
+      </div>
+    </div>
+
+    <div class="auth-side-panel d-none d-md-flex flex-column justify-content-center text-center side-panel-centered">
+      <div class="side-panel-inner">
+        <h3 class="h4 fw-bold mb-3">Empowering Inclusive Careers</h3>
+        <p class="mb-4 text-white-75 small">Connect with employers, showcase your skills, and access opportunities designed for the PWD community.</p>
+        <ul class="auth-feature-list small">
+          <li><span class="fi-icon"><i class="bi bi-shield-check"></i></span><span>Secure & role-based access</span></li>
+          <li><span class="fi-icon"><i class="bi bi-briefcase"></i></span><span>Curated accessible job listings</span></li>
+          <li><span class="fi-icon"><i class="bi bi-person-vcard"></i></span><span>Verified PWD identity framework</span></li>
+          <li><span class="fi-icon"><i class="bi bi-stars"></i></span><span>Skill-focused profile building</span></li>
+        </ul>
+        <div class="small text-white-50 mt-4 pt-2">&copy; <?php echo date('Y'); ?> PWD Employment & Skills Portal</div>
       </div>
     </div>
   </div>
@@ -242,3 +260,29 @@ include '../includes/nav.php';
 })();
 </script>
 <?php endif; ?>
+<script>
+// Password toggle
+document.addEventListener('DOMContentLoaded', function(){
+  const pw = document.getElementById('loginPassword');
+  const tgl = document.getElementById('togglePassword');
+  if (pw && tgl) {
+    tgl.addEventListener('click', ()=>{
+      const is = pw.getAttribute('type') === 'password';
+      pw.setAttribute('type', is ? 'text':'password');
+      tgl.innerHTML = is ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    });
+  }
+  // Floating labels (mark filled or focused)
+  document.querySelectorAll('.input-floating-label input, .input-floating-label select').forEach(inp => {
+    const wrap = inp.closest('.input-floating-label');
+    function sync(){
+      if (!wrap) return;
+      if ((inp.value||'').trim() !== '') wrap.classList.add('filled'); else wrap.classList.remove('filled');
+    }
+    inp.addEventListener('focus', ()=> wrap && wrap.classList.add('focused'));
+    inp.addEventListener('blur', ()=> wrap && wrap.classList.remove('focused'));
+    inp.addEventListener('input', sync);
+    sync();
+  });
+});
+</script>

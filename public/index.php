@@ -89,6 +89,29 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $jobs = $stmt->fetchAll();
 
+// =============================
+// Landing Hero Stats (aggregates)
+// =============================
+try {
+  // Total approved employers
+  $stmtEmp = $pdo->query("SELECT COUNT(*) FROM users WHERE role='employer' AND employer_status='Approved'");
+  $totalEmployers = (int)$stmtEmp->fetchColumn();
+
+  // Total active jobs (all employment types) by approved employers
+  $stmtJobsAll = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved'");
+  $totalJobsAll = (int)$stmtJobsAll->fetchColumn();
+
+  // Total WFH jobs (even if not filtered)
+  $stmtJobsWFH = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home'");
+  $totalWFHJobs = (int)$stmtJobsWFH->fetchColumn();
+
+  // Distinct regions represented by WFH jobs
+  $stmtRegions = $pdo->query("SELECT COUNT(DISTINCT CONCAT(IFNULL(j.location_region,''), '|', IFNULL(j.location_city,''))) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home'");
+  $totalLocations = (int)$stmtRegions->fetchColumn();
+} catch (Exception $e) {
+  $totalEmployers = $totalJobsAll = $totalWFHJobs = $totalLocations = 0; // fail gracefully
+}
+
 // Pagination links
 $qs = $_GET; unset($qs['p']);
 $baseQS = http_build_query($qs);
@@ -105,99 +128,117 @@ function fmt_salary($cur, $min, $max, $period) {
   return "{$cur} {$range} / " . ucfirst($period);
 }
 ?>
-<div class="card border-0 shadow-sm mb-3">
-  <div class="card-body p-3 p-md-4">
+<!-- Landing Hero Section -->
+<section class="landing-hero hero-white-text parallax" style="background: linear-gradient(135deg, rgba(13,110,253,.65), rgba(102,16,242,.72)), url('assets/images/hero/bg5.jpg') center top / contain no-repeat, linear-gradient(135deg, #f0f7ff 0%, #ffffff 65%); background-color:#0d6efd;">
+  <div class="container hero-content">
+    <div class="row align-items-center g-4">
+      <div class="col-12">
+  <h1 class="hero-title mt-3 mb-3 fade-up fade-delay-2" style="color:#fff !important; -webkit-text-fill-color:#fff !important;">Find Accessible <span class="text-gradient-brand" style="color:#fff !important; -webkit-text-fill-color:#fff !important; background:none !important;">Work From Home</span> Jobs</h1>
+        <p class="hero-lead mb-4 fade-up fade-delay-3">Browse curated Work From Home roles from verified, accessibility‑conscious employers. Search, filter, and apply to jobs that value your skills and support your success.</p>
+        <!-- CTAs removed per request: only text retained in hero -->
+        
+      </div>
+    </div>
+  </div>
+</section>
 
-    <style>
-      /* Emphasis styling for filter labels & inputs */
-      .filter-bold-label { font-weight:600 !important; }
-      .filter-bold {
-        font-weight:600;
-      }
-      .filter-bold::placeholder {
-        font-weight:500;
-        color:#6c757d;
-      }
-      .filter-bold:focus {
-        border-width:2px;
-        box-shadow:none;
-      }
-      /* Optional: make select text bold as well */
-      select.filter-bold option { font-weight:500; }
-    </style>
-
-  <form class="row g-2 align-items-end" method="get">
+<div class="job-filters-card mb-4">
+  <div class="job-filters-inner p-3 p-md-4">
+    <a id="job-filters"></a>
+    <div class="filters-heading">
+      <div class="fh-icon" aria-hidden="true"><i class="bi bi-funnel"></i></div>
+      <h2 id="filters-title" class="mb-0">Refine Your Search</h2>
+    </div>
+    <p class="filters-sub" id="filters-desc">Use filters to narrow down Work From Home roles from approved employers.</p>
+    <form class="row g-2 align-items-end" method="get" role="search" aria-labelledby="filters-title" aria-describedby="filters-desc filters-results-line">
       <div class="col-lg-4">
-        <label class="form-label filter-bold-label">Keyword</label>
-        <input type="text" name="q" class="form-control filter-bold" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>">
+        <label class="form-label filter-bold-label" for="filter-keyword">Keyword</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-search"></i></span>
+          <input id="filter-keyword" type="text" name="q" class="form-control filter-bold" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>">
+        </div>
       </div>
       <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">Education</label>
-        <select name="edu" class="form-select filter-bold">
-          <option value="">Any</option>
-          <?php foreach ($eduLevels as $lvl): ?>
-            <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>>
-              <?php echo htmlspecialchars($lvl); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">Max exp (yrs)</label>
-        <input type="number" name="max_exp" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($maxExp); ?>">
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">Region</label>
-        <input name="region" class="form-control filter-bold" placeholder="e.g., Metro Manila" value="<?php echo htmlspecialchars($region); ?>">
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">City</label>
-        <input name="city" class="form-control filter-bold" placeholder="e.g., Parañaque City" value="<?php echo htmlspecialchars($city); ?>">
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">Min monthly pay (PHP)</label>
-        <input type="number" name="min_pay" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($minPay); ?>">
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label">Accessibility</label>
-        <select name="tag" class="form-select filter-bold">
-          <option value="">Any</option>
-            <?php foreach ($accessTags as $t): ?>
-              <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>>
-                <?php echo htmlspecialchars($t); ?>
+        <label class="form-label filter-bold-label" for="filter-edu">Education</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
+          <select id="filter-edu" name="edu" class="form-select filter-bold">
+            <option value="">Any</option>
+            <?php foreach ($eduLevels as $lvl): ?>
+              <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>>
+                <?php echo htmlspecialchars($lvl); ?>
               </option>
             <?php endforeach; ?>
-        </select>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label" for="filter-exp">Max exp (yrs)</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></span>
+          <input id="filter-exp" type="number" name="max_exp" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($maxExp); ?>">
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label" for="filter-region">Region</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-geo"></i></span>
+          <input id="filter-region" name="region" class="form-control filter-bold" placeholder="e.g., Metro Manila" value="<?php echo htmlspecialchars($region); ?>">
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label" for="filter-city">City</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-buildings"></i></span>
+          <input id="filter-city" name="city" class="form-control filter-bold" placeholder="e.g., Parañaque City" value="<?php echo htmlspecialchars($city); ?>">
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label" for="filter-pay">Min monthly pay (PHP)</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-cash-coin"></i></span>
+          <input id="filter-pay" type="number" name="min_pay" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($minPay); ?>">
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label" for="filter-access">Accessibility</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-universal-access"></i></span>
+          <select id="filter-access" name="tag" class="form-select filter-bold">
+            <option value="">Any</option>
+              <?php foreach ($accessTags as $t): ?>
+                <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>>
+                  <?php echo htmlspecialchars($t); ?>
+                </option>
+              <?php endforeach; ?>
+          </select>
+        </div>
       </div>
       <div class="col-lg-2 d-grid">
-        <button class="btn btn-primary fw-semibold"><i class="bi bi-search me-1"></i>Search</button>
+        <button class="btn btn-primary fw-semibold"><i class="bi bi-search me-1" aria-hidden="true"></i><span>Search</span></button>
       </div>
       <div class="col-auto">
-        <a class="btn btn-outline-secondary" href="index.php"><i class="bi bi-x-circle me-1"></i>Clear</a>
+        <a class="btn btn-outline-secondary" href="index.php"><i class="bi bi-x-circle me-1" aria-hidden="true"></i><span>Clear</span></a>
       </div>
     </form>
-    <div class="text-muted small mt-2">
-      Work From Home only. Showing <?php echo count($jobs); ?> of <?php echo $total; ?> result<?php echo $total===1?'':'s'; ?><?php if ($pages > 1) echo ' · Page ' . $page . ' of ' . $pages; ?>
+    <div id="filters-results-line" class="filters-result-line" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      Work From Home only · Showing <?php echo count($jobs); ?> of <?php echo $total; ?> result<?php echo $total===1?'':'s'; ?><?php if ($pages > 1) echo ' · Page ' . $page . ' of ' . $pages; ?>
     </div>
   </div>
 </div>
 
-<style>
-.job-card { border-radius: 12px; overflow:hidden; }
-.job-thumb { width: 100%; height: 140px; object-fit: cover; background:#f6f7f9; }
-.job-meta { font-size: .85rem; }
-.tag-badge { font-size:.7rem; border:1px solid #e4e7eb; background:#f8fafc; }
-</style>
+<!-- Job card inline styles consolidated into global stylesheet -->
 
 <div class="row g-3">
   <?php foreach ($jobs as $job): ?>
     <div class="col-md-6 col-lg-4">
       <div class="card job-card shadow-sm h-100 border-0">
         <?php if (!empty($job['job_image'])): ?>
-          <img class="job-thumb" src="../<?php echo htmlspecialchars($job['job_image']); ?>" alt="Job image">
+          <img class="job-thumb" src="../<?php echo htmlspecialchars($job['job_image']); ?>" alt="Job image for <?php echo htmlspecialchars($job['title']); ?>">
         <?php else: ?>
-          <div class="job-thumb d-flex align-items-center justify-content-center text-muted">
-            <i class="bi bi-briefcase" style="font-size:1.5rem"></i>
+          <div class="job-thumb d-flex align-items-center justify-content-center text-muted" aria-hidden="true">
+            <i class="bi bi-briefcase" style="font-size:1.5rem" aria-hidden="true"></i>
           </div>
         <?php endif; ?>
         <div class="card-body">
@@ -251,5 +292,148 @@ function fmt_salary($cur, $min, $max, $period) {
     </ul>
   </nav>
 <?php endif; ?>
+
+<!-- FEATURES SECTION -->
+<section class="features-section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">Platform Benefits</div>
+      <h2 class="section-heading text-gradient-brand">Why Choose Our Portal</h2>
+      <p class="section-sub">Purpose-built to help talent and accessibility-focused employers connect through transparent, remote-first opportunities.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-universal-access"></i></div>
+        <h3>Accessibility Focus</h3>
+        <p>Jobs tagged for different accessibility needs help you quickly find supportive roles.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-building-check"></i></div>
+        <h3>Verified Employers</h3>
+        <p>Employers undergo approval so you can trust the legitimacy of postings.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-funnel"></i></div>
+        <h3>Powerful Filters</h3>
+        <p>Search by education, experience, accessibility tags, pay, and location.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-speedometer2"></i></div>
+        <h3>Fast Applications</h3>
+        <p>Apply directly and track your applications without leaving the platform.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-clipboard-data"></i></div>
+        <h3>Transparent Details</h3>
+        <p>Key role data (salary, type, location) surfaced clearly for quick evaluation.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="bi bi-shield-check"></i></div>
+        <h3>Secure & Private</h3>
+        <p>Your account & application data handled with privacy best practices.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STEPS SECTION -->
+<section class="steps-section">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-eyebrow">How It Works</div>
+      <h2 class="section-heading">Get Started in 4 Steps</h2>
+      <p class="section-sub">Simple, streamlined, and designed for accessibility. Your next opportunity is a few clicks away.</p>
+    </div>
+    <div class="steps-timeline">
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <h4>Create your account</h4>
+        <p>Sign up as a job seeker or employer and complete your profile.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <h4>Search & filter roles</h4>
+        <p>Use advanced filters to zero in on roles aligned with your needs.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <h4>Apply & engage</h4>
+        <p>Submit applications and interact with employers directly.</p>
+      </div>
+      <div class="step-item">
+        <div class="step-number">4</div>
+        <h4>Grow your career</h4>
+        <p>Track progress, expand skills, and pursue new remote opportunities.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS (Static Sample) -->
+<section class="testimonials-section">
+  <div class="container">
+    <div class="text-center">
+      <div class="section-eyebrow">Testimonials</div>
+      <h2 class="section-heading text-gradient-brand">Community Voices</h2>
+      <p class="section-sub">Real experiences from users finding meaningful remote work through the platform.</p>
+    </div>
+    <div class="testimonial-row">
+      <div class="testimonial-card">
+        <div class="quote">“The accessibility tags saved me so much time. I quickly found roles that understood my needs.”</div>
+        <div class="user">
+          <div class="testimonial-avatar">AL</div>
+          <div>
+            <div class="fw-semibold small">Ana L.</div>
+            <div class="testimonial-meta">JOB SEEKER</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="quote">“Posting jobs here helped us reach talented applicants we were missing elsewhere.”</div>
+        <div class="user">
+          <div class="testimonial-avatar">RG</div>
+          <div>
+            <div class="fw-semibold small">Ramon G.</div>
+            <div class="testimonial-meta">HR LEAD</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="quote">“The platform is clean, fast, and focused on inclusion. It’s become my daily job search hub.”</div>
+        <div class="user">
+          <div class="testimonial-avatar">MT</div>
+          <div>
+            <div class="fw-semibold small">Mark T.</div>
+            <div class="testimonial-meta">JOB SEEKER</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="quote">“Approval and verification flows give us confidence in the quality of applicants and employers.”</div>
+        <div class="user">
+          <div class="testimonial-avatar">JL</div>
+          <div>
+            <div class="fw-semibold small">Jessa L.</div>
+            <div class="testimonial-meta">OPERATIONS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA SECTION -->
+<section class="cta-section text-white">
+  <div class="container">
+    <div class="cta-inner">
+      <h2 class="cta-title">Ready to Find or Post Inclusive Remote Jobs?</h2>
+      <p class="cta-lead">Join the growing community connecting talent and employers through accessibility-centered opportunities.</p>
+      <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a href="register.php" class="btn btn-light btn-lg px-4 fw-semibold shadow-sm"><i class="bi bi-person-plus me-1"></i> Get Started</a>
+        <a href="#job-filters" class="btn btn-light btn-lg px-4 fw-semibold shadow-sm"><i class="bi bi-search me-1"></i> Browse Jobs</a>
+      </div>
+    </div>
+  </div>
+</section>
 
 <?php include '../includes/footer.php'; ?>

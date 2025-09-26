@@ -1,28 +1,28 @@
     </main><!-- /main content area -->
 
-    <footer class="footer bg-dark text-white-50 py-4 mt-auto">
+    <footer class="footer footer-themed py-4 mt-auto">
       <div class="container d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
         <div class="small">
-          <span class="text-white-75">PWD Employment &amp; Skills Portal</span> &middot;
+          <span class="text-white">PWD Employment &amp; Skills Portal</span> &middot;
           <span>&copy; <?php echo date('Y'); ?></span>
         </div>
         <div class="small d-flex flex-wrap align-items-center">
           <?php if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer'): ?>
-            <a class="link-light link-underline-opacity-0 me-3" href="jobs_create.php">Post a Job</a>
+            <a class="footer-link me-3" href="jobs_create.php">Post a Job</a>
           <?php endif; ?>
 
           <?php if (!empty($_SESSION['user_id'])): ?>
-            <a class="link-light link-underline-opacity-0 me-3 d-inline-flex align-items-center" href="support_contact.php">
+            <a class="footer-link me-3 d-inline-flex align-items-center" href="support_contact.php">
               <i class="bi bi-life-preserver me-1"></i>Support
             </a>
           <?php endif; ?>
 
-          <a class="link-light link-underline-opacity-0 me-3" href="security_privacy.php">Security &amp; Privacy</a>
-          <a class="link-light link-underline-opacity-0" href="terms.php">Terms &amp; Conditions</a>
+          <a class="footer-link me-3" href="security_privacy.php">Security &amp; Privacy</a>
+          <a class="footer-link" href="terms.php">Terms &amp; Conditions</a>
         </div>
       </div>
-      <div class="container mt-3 small text-white-50">
-       
+      <div class="container mt-3 small" style="color: rgba(255,255,255,.7)">
+        
       </div>
     </footer>
 
@@ -48,6 +48,8 @@
 </div><!-- /page-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php $BASE = rtrim(BASE_URL, '/'); ?>
+<script src="<?php echo $BASE; ?>/public/assets/theme.js?v=20250926a"></script>
 <script>
 /* Auto-dismiss flash alerts */
 document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{

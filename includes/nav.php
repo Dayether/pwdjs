@@ -16,10 +16,11 @@ if ($loggedIn && $role==='employer') {
   $profileLink='job_seeker_profile.php'; // self-view; edit button available inside
 }
 ?>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container">
-    <a class="navbar-brand fw-semibold <?php echo nav_active('about.php',$currentPage); ?>" href="about.php">
-      <i class="bi bi-universal-access me-1"></i>PWD Portal
+<nav class="navbar navbar-expand-lg navbar-themed sticky-top">
+  <div class="container-fluid px-3 px-lg-4">
+    <a class="navbar-brand fw-semibold d-flex align-items-center gap-2 <?php echo nav_active('about.php',$currentPage); ?>" href="about.php" aria-label="PWD Portal Home">
+      <img src="assets/images/hero/logo.png" alt="PWD Portal Logo" class="brand-logo" onerror="this.style.display='none';" />
+      <span class="text-ink">PWD Portal</span>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
       <span class="navbar-toggler-icon"></span>
@@ -65,10 +66,10 @@ if ($loggedIn && $role==='employer') {
         <?php endif; ?>
       </ul>
 
-      <ul class="navbar-nav mb-2 mb-lg-0">
+      <ul class="navbar-nav mb-2 mb-lg-0 align-items-lg-center">
         <?php if ($showPostJobButton): ?>
           <li class="nav-item me-2">
-            <a class="btn btn-primary btn-sm" href="jobs_create.php">
+            <a class="btn btn-accent btn-sm" href="jobs_create.php">
               <i class="bi bi-plus-lg me-1"></i>Post a Job
             </a>
           </li>
@@ -79,17 +80,17 @@ if ($loggedIn && $role==='employer') {
             <a class="nav-link <?php echo nav_active('register.php',$currentPage); ?>" href="register.php">Register</a>
           </li>
           <li class="nav-item ms-lg-2">
-            <a class="btn btn-outline-light btn-sm" href="login.php">
+            <a class="btn btn-light btn-sm" href="login.php">
               <i class="bi bi-box-arrow-in-right me-1"></i>Login
             </a>
           </li>
         <?php else: ?>
           <?php if ($role === 'admin'): ?>
             <li class="nav-item d-flex align-items-center me-2">
-              <span class="text-white small fw-semibold"><i class="bi bi-shield-lock me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+              <span class="small fw-semibold text-ink"><i class="bi bi-shield-lock me-1"></i><?php echo htmlspecialchars($_SESSION['name']); ?></span>
             </li>
             <li class="nav-item">
-              <a class="btn btn-outline-light btn-sm" href="logout.php" data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Log out" data-confirm-no="Stay logged in">
+              <a class="btn btn-light btn-sm" href="logout.php" data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Log out" data-confirm-no="Stay logged in">
                 <i class="bi bi-box-arrow-right me-1"></i>Logout
               </a>
             </li>
@@ -114,7 +115,7 @@ if ($loggedIn && $role==='employer') {
                     <i class="bi bi-person" style="font-size:1rem;"></i>
                   </span>
                 <?php endif; ?>
-                <span class="small fw-semibold text-white"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+                <span class="small fw-semibold text-ink"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="<?php echo $profileLink ?: '#'; ?>">View Profile</a></li>
@@ -133,9 +134,56 @@ if ($loggedIn && $role==='employer') {
   </div>
 </nav>
 <style>
-  /* Ensure profile dropdown appears above sticky tabs or other elements */
-  .navbar .dropdown-menu { z-index: 2000; }
+  /* Navbar redesign to blend with hero */
+  .navbar-themed {
+    background: linear-gradient(90deg, rgba(13,110,253,.35), rgba(102,16,242,.35));
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    border-radius: 0 !important;
+    margin:0 !important;
+    transition: background .35s ease, box-shadow .35s ease, padding .35s ease;
+    box-shadow: none;
+  }
+  .navbar-themed.navbar-scrolled {
+    background: linear-gradient(90deg,#0d6efd,#6610f2);
+    box-shadow: 0 6px 24px -6px rgba(0,0,0,.35);
+  }
+  .navbar-themed .navbar-brand .text-ink { color:#fff !important; }
+  .navbar-themed .navbar-brand span.rounded-circle { box-shadow:0 0 0 2px rgba(255,255,255,.4); }
+  .navbar-themed .nav-link { color:#f1f4f9; font-weight:500; position:relative; padding:.55rem 1rem; border-radius:32px; }
+  .navbar-themed .nav-link:hover, .navbar-themed .nav-link:focus { color:#fff; background:rgba(255,255,255,.15); }
+  .navbar-themed .nav-link.active { color:#fff; background:rgba(255,255,255,.28); font-weight:600; }
+  .navbar-themed .btn-light.btn-sm { background:#fff; color:#0d3a66; border:0; box-shadow:0 4px 14px -4px rgba(0,0,0,.35); }
+  .navbar-themed .btn-light.btn-sm:hover { background:#f1f5ff; }
+  .navbar-themed .btn-accent.btn-sm { box-shadow:0 4px 16px -4px rgba(255,193,7,.45); }
+  .navbar-themed .brand-logo { height:32px; width:auto; display:block; object-fit:contain; }
+  @media (max-width: 575.98px){ .navbar-themed .brand-logo { height:28px; } }
+  @media (max-width: 991.98px){
+    .navbar-themed .nav-link { padding:.5rem .75rem; }
+  }
+  /* Dropdown layering */
+  .navbar .dropdown-menu { z-index: 2000; backdrop-filter: blur(12px); background:rgba(255,255,255,.95); }
+  .navbar .dropdown-menu .dropdown-item:hover { background: linear-gradient(90deg,#eef5ff,#e6f0ff); }
+  /* Smooth hide white gap below nav when at top */
+  body { margin:0; scroll-padding-top: 76px; }
+  .navbar { margin:0 !important; }
 </style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  const nav = document.querySelector('.navbar-themed');
+  if(!nav) return;
+  function onScroll(){
+    if(window.scrollY > 40){
+      nav.classList.add('navbar-scrolled');
+    } else {
+      nav.classList.remove('navbar-scrolled');
+    }
+  }
+  onScroll();
+  window.addEventListener('scroll', onScroll, {passive:true});
+});
+</script>
 <?php
 if (!empty($flashes)) {
   echo '<div class="container mt-3">';

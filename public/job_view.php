@@ -342,10 +342,12 @@ include '../includes/nav.php';
   <?php endforeach; ?>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Back
-  </a>
+<div class="container pt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 fade-up fade-delay-1">
+    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
 </div>
 
 <?php if ($isEmployerSuspended): ?>
@@ -355,20 +357,26 @@ include '../includes/nav.php';
   </div>
 <?php endif; ?>
 
-<div class="row">
+<div class="container pb-5">
+<div class="row g-4">
   <!-- LEFT: Job content + applicants -->
-  <div class="col-lg-8">
+  <div class="col-lg-8 fade-up fade-delay-2">
     <!-- Job Overview Card -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <?php if (!empty($job->job_image)): ?>
-          <div class="mb-3">
-            <img class="job-hero" src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Job image">
-          </div>
-        <?php endif; ?>
+    <div class="card border-0 shadow-sm mb-3 fade-up fade-delay-2 jobv-card">
+      <div class="card-body p-4 jobv-card-inner">
+        <div class="job-hero-wrap mb-4 fade-up fade-delay-2">
+          <?php if (!empty($job->job_image)): ?>
+            <img src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Image for job <?php echo htmlspecialchars($job->title); ?>">
+          <?php else: ?>
+            <div class="job-hero-placeholder">
+              <i class="bi bi-card-image me-2" aria-hidden="true"></i>
+              <span><?php echo htmlspecialchars(strtoupper(substr($job->title,0,1))); ?></span>
+            </div>
+          <?php endif; ?>
+        </div>
         <div class="d-flex justify-content-between align-items-start flex-wrap">
           <div class="me-3">
-            <h1 class="h4 fw-semibold mb-1">
+            <h1 class="h4 fw-bold mb-1 jobv-title gradient-text" style="letter-spacing:-.5px;">
               <?php echo Helpers::sanitizeOutput($job->title); ?>
               <?php if ($isAdmin && !$isOwner): ?>
                 <span class="badge text-bg-danger align-middle ms-1">Admin</span>
@@ -407,8 +415,8 @@ include '../includes/nav.php';
         </div>
 
         <!-- Required Skills -->
-        <div class="mb-3 mt-3">
-          <h6 class="fw-semibold mb-2"><i class="bi bi-list-check me-1"></i>Required Skills</h6>
+        <div class="mb-4 mt-3">
+          <h2 class="h6 fw-semibold mb-2 text-uppercase small tracking-wide"><i class="bi bi-list-check me-1"></i>Required Skills</h2>
           <?php if ($displaySkills): ?>
             <?php foreach ($displaySkills as $sn): ?>
               <span class="badge text-bg-secondary me-1 mb-1"><?php echo htmlspecialchars($sn); ?></span>
@@ -423,8 +431,8 @@ include '../includes/nav.php';
           $accTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
           if ($accTags):
         ?>
-          <div class="mb-3">
-            <h6 class="fw-semibold mb-2"><i class="bi bi-universal-access me-1"></i>Accessibility</h6>
+          <div class="mb-4">
+            <h2 class="h6 fw-semibold mb-2 text-uppercase small tracking-wide"><i class="bi bi-universal-access me-1"></i>Accessibility</h2>
             <?php foreach ($accTags as $t): ?>
               <span class="badge text-bg-info me-1 mb-1"><?php echo htmlspecialchars($t); ?></span>
             <?php endforeach; ?>
@@ -432,16 +440,16 @@ include '../includes/nav.php';
         <?php endif; ?>
 
         <!-- Description -->
-        <div class="mb-3">
-          <h6 class="fw-semibold mb-2"><i class="bi bi-file-text me-1"></i>Description</h6>
+        <div class="mb-4">
+          <h2 class="h6 fw-semibold mb-2 text-uppercase small tracking-wide"><i class="bi bi-file-text me-1"></i>Description</h2>
           <div class="text-body">
             <?php echo nl2br(Helpers::sanitizeOutput($job->description)); ?>
           </div>
         </div>
 
         <!-- Compensation -->
-        <div class="mb-3">
-          <h6 class="fw-semibold mb-2"><i class="bi bi-cash-stack me-1"></i>Compensation</h6>
+        <div class="mb-4">
+          <h2 class="h6 fw-semibold mb-2 text-uppercase small tracking-wide"><i class="bi bi-cash-stack me-1"></i>Compensation</h2>
           <?php
             if ($job->salary_min !== null || $job->salary_max !== null) {
               $range = '';
@@ -507,7 +515,7 @@ include '../includes/nav.php';
 
     <!-- Edit Form Card -->
     <?php if ($canEdit): ?>
-      <div class="card border-0 shadow-sm mb-4" id="editFormCard">
+  <div class="card border-0 shadow-sm mb-4 fade-up fade-delay-3 jobv-card" id="editFormCard">
         <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
           <h5 class="mb-0">
             <i class="bi bi-pencil-square me-2"></i>Edit Job
@@ -747,9 +755,9 @@ include '../includes/nav.php';
 
   <!-- RIGHT: Employer Card -->
   <div class="col-lg-4">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <h5 class="fw-semibold mb-3"><i class="bi bi-building me-1"></i>Employer</h5>
+      <div class="card border-0 shadow-sm fade-up fade-delay-4 jobv-card">
+      <div class="card-body p-4 jobv-card-inner">
+        <h2 class="h6 fw-bold mb-3 text-uppercase small tracking-wide"><i class="bi bi-building me-1"></i>Employer</h2>
         <?php if ($employer): ?>
           <div class="small mb-2">
             <strong><?php echo htmlspecialchars($employer->company_name ?: $employer->name); ?></strong><br>
@@ -790,8 +798,25 @@ include '../includes/nav.php';
       </div>
     </div>
   </div>
-</div>
+ </div> <!-- /.row -->
+</div> <!-- /.container -->
 
+<style>
+/* Job View Enhanced Styles */
+.jobv-card { border-radius:1rem; overflow:hidden; position:relative; background:#ffffff; border:1px solid #d5e2f2; box-shadow:0 10px 28px -14px rgba(13,110,253,.30),0 6px 18px -8px rgba(0,0,0,.08); }
+.jobv-card::before { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg,rgba(255,255,255,.0) 0%,rgba(13,110,253,.04) 120%); }
+.jobv-card-inner { position:relative; z-index:1; }
+.jobv-title { background:linear-gradient(90deg,#0d6efd,#6636ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.tracking-wide { letter-spacing:.5px; }
+.jobv-card h2.h6 { font-size:.7rem; letter-spacing:.8px; opacity:.78; font-weight:700; }
+.jobv-card .badge { font-weight:500; }
+/* Hero */
+.job-hero-wrap { position:relative; border-radius:.85rem; overflow:hidden; background:linear-gradient(135deg,#d6e7ff,#eef5ff); border:1px solid #c7d9ee; }
+.job-hero-wrap img { display:block; width:100%; height:240px; object-fit:cover; }
+.job-hero-placeholder { height:240px; display:flex; align-items:center; justify-content:center; font-size:3rem; font-weight:600; color:#fff; background:linear-gradient(135deg,#0d6efd,#6636ff); letter-spacing:2px; }
+.job-hero-placeholder i { font-size:2.4rem; }
+@media (min-width:992px){ .jobv-title { font-size:1.6rem; } .job-hero-wrap img,.job-hero-placeholder{ height:260px; } }
+</style>
 <?php include '../includes/footer.php'; ?>
 <!-- Report Job Modal -->
 <?php if (Helpers::isJobSeeker()): ?>
