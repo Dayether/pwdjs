@@ -163,7 +163,7 @@ if ($loggedIn && $role==='employer') {
     .navbar-themed .nav-link { padding:.5rem .75rem; }
   }
   /* Dropdown layering */
-  .navbar .dropdown-menu { z-index: 2000; backdrop-filter: blur(12px); background:rgba(255,255,255,.95); }
+  .navbar .dropdown-menu { z-index: 2000; backdrop-filter: blur(12px); background:rgba(255,255,255,.95); position:absolute; }
   .navbar .dropdown-menu .dropdown-item:hover { background: linear-gradient(90deg,#eef5ff,#e6f0ff); }
   /* Smooth hide white gap below nav when at top */
   body { margin:0; scroll-padding-top: 76px; }

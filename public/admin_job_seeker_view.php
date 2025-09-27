@@ -127,9 +127,11 @@ if (!empty($user['pwd_id_enc'])) {
 }
 
 include '../includes/header.php';
-include '../includes/nav.php';
 ?>
 <?php $backUrl = Helpers::getLastPage('admin_job_seekers.php'); ?>
+<div class="admin-layout">
+  <?php include '../includes/admin_sidebar.php'; ?>
+  <div class="admin-main">
 <div class="d-flex align-items-center justify-content-between mb-3">
   <div>
     <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-sm btn-outline-secondary me-2" onclick="if(document.referrer){history.back(); return false;}"><i class="bi bi-arrow-left"></i></a>
@@ -215,5 +217,6 @@ include '../includes/nav.php';
     </div>
   </div>
 </div>
+  </div>
 
 <?php include '../includes/footer.php'; ?>

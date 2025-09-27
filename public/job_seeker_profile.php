@@ -18,6 +18,25 @@ if ($userParam === '' && $viewerRole === 'job_seeker') {
 
 $target = User::findById($userParam);
 $backUrl = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+// Allow explicit return parameter (internal only) similar to other pages
+$explicitReturn = $_GET['return'] ?? '';
+if ($explicitReturn) {
+  $sanitizeBack = function($candidate){
+    if (!$candidate) return null;
+    $parsed = parse_url($candidate);
+    if (isset($parsed['scheme']) || isset($parsed['host'])) return null; // block absolute external
+    $path = $parsed['path'] ?? '';
+    if ($path === '' || str_contains($path,'..')) return null;
+    if (!preg_match('~^/?[A-Za-z0-9_./#-]+$~', $path)) return null;
+    $safe = ltrim($path,'/');
+    if (!empty($parsed['query'])) $safe .= '?' . $parsed['query'];
+    if (!empty($parsed['fragment']) && !str_contains($safe,'#')) $safe .= '#' . $parsed['fragment'];
+    return $safe;
+  };
+  if ($tmp = $sanitizeBack($explicitReturn)) {
+    $backUrl = $tmp;
+  }
+}
 
 if (!$target) {
     include '../includes/header.php';

@@ -143,14 +143,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
-<div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-  <h1 class="h5 fw-semibold mb-2 mb-lg-0">
-    <i class="bi bi-building me-2"></i>Edit Employer Profile
-  </h1>
-  <a class="btn btn-outline-secondary btn-sm" href="employer_profile.php">
-    <i class="bi bi-arrow-left me-1"></i>Back
-  </a>
-</div>
+<style>
+/* Employer Edit Card (hero removed) */
+.emp-edit-card{background:#ffffff;border:1px solid rgba(13,110,253,.14);border-radius:1.25rem;box-shadow:0 14px 40px -12px rgba(13,110,253,.30),0 6px 18px rgba(0,0,0,.06);padding:1.6rem 1.6rem 2rem;position:relative;overflow:hidden;} 
+.emp-edit-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 14% 20%,rgba(255,193,7,.22),transparent 60%),radial-gradient(circle at 85% 15%,rgba(102,16,242,.20),transparent 60%);mix-blend-mode:overlay;opacity:.55;pointer-events:none;} 
+.emp-form-grid{display:grid;grid-template-columns:260px 1fr;gap:2.2rem;align-items:start;} 
+@media (max-width:991.98px){.emp-form-grid{grid-template-columns:1fr;gap:1.6rem;}} 
+.avatar-upload-box{position:relative;text-align:center;background:linear-gradient(145deg,#ffffff,#f6faff);border:1px solid #e3e9f1;border-radius:1.15rem;padding:1.4rem 1rem 1.2rem;box-shadow:0 8px 24px -10px rgba(13,110,253,.18),0 4px 12px rgba(0,0,0,.05);} 
+.avatar-preview{width:130px;height:130px;margin:0 auto 1rem;border-radius:50%;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;background:#f5f7fb;border:3px solid #fff;box-shadow:0 6px 18px -8px rgba(13,110,253,.4);} 
+.avatar-preview img{width:100%;height:100%;object-fit:cover;} 
+.avatar-preview .fallback{font-size:2.3rem;color:#7a8895;} 
+.avatar-upload-box input[type=file]{font-size:.75rem;padding:.55rem .7rem;} 
+.small-hint{font-size:.65rem;color:#637280;margin-top:.45rem;font-weight:600;letter-spacing:.6px;text-transform:uppercase;} 
+.form-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.15rem;} 
+.form-grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.15rem;} 
+.input-block{background:#f7f9fb;border:1px solid #dbe3eb;border-radius:.85rem;padding:.75rem .9rem .65rem;position:relative;transition:.2s;} 
+.input-block:focus-within{background:#ffffff;border-color:#b5c2d1;box-shadow:0 0 0 3px rgba(13,110,253,.12);} 
+.input-block label{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.75px;color:#5a6875;margin:0 0 .35rem;display:flex;align-items:center;gap:.35rem;} 
+.input-block input{background:transparent;border:0;outline:none;width:100%;padding:0;font-size:.9rem;} 
+.input-block.disabled{opacity:.7;} 
+.divider-soft{height:1px;background:linear-gradient(90deg,#dde3e9,#f7f9fb);margin:1.75rem 0 1.25rem;} 
+.edit-actions-row{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.4rem;} 
+.edit-actions-row .btn-gradient{background:linear-gradient(135deg,var(--primary-blue),var(--primary-purple));border:0;} 
+.doc-link a{text-decoration:none;font-weight:600;font-size:.7rem;} 
+@media (max-width:575.98px){.emp-edit-card{padding:1.15rem 1.05rem 1.5rem;} .avatar-preview{width:110px;height:110px;} }
+</style>
+
+<div class="container mt-4">
 
 <?php if ($flashMsg): ?>
   <div class="alert alert-success alert-dismissible fade show">
@@ -166,67 +185,94 @@ include '../includes/nav.php';
   </div>
 <?php endforeach; ?>
 
-<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm mb-4">
+<form method="post" enctype="multipart/form-data" class="emp-edit-card mb-4">
   <input type="hidden" name="csrf" value="<?php echo htmlspecialchars(csrfToken()); ?>">
-  <div class="card-body p-4">
-    <div class="row g-3">
-      <div class="col-md-3 text-center">
-        <label class="form-label d-block">Profile Picture</label>
-        <div class="mb-2">
+  <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+    <h1 class="h5 fw-semibold mb-2 mb-lg-0"><i class="bi bi-building me-2"></i>Edit Employer Profile</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary btn-sm" href="employer_profile.php"><i class="bi bi-arrow-left"></i><span>Back</span></a>
+      <a class="btn btn-gradient btn-sm" href="employer_profile.php"><i class="bi bi-eye"></i><span>View Profile</span></a>
+    </div>
+  </div>
+  <div class="emp-form-grid">
+    <div>
+      <div class="avatar-upload-box">
+        <div class="avatar-preview" id="avatarPreview">
           <?php if (!empty($user->profile_picture)): ?>
-            <img src="../<?php echo htmlspecialchars($user->profile_picture); ?>" alt="Profile" class="rounded-circle border" style="width:100px;height:100px;object-fit:cover;">
+            <img src="../<?php echo htmlspecialchars($user->profile_picture); ?>" alt="Profile Picture" id="avatarImg">
           <?php else: ?>
-            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width:100px;height:100px;font-size:2rem;color:#888;"><i class="bi bi-person"></i></div>
+            <div class="fallback"><i class="bi bi-person"></i></div>
           <?php endif; ?>
         </div>
-        <input type="file" name="profile_picture" accept="image/*" class="form-control form-control-sm">
-        <div class="form-text">JPG/PNG/GIF max 2MB</div>
+        <input type="file" name="profile_picture" id="profilePictureInput" accept="image/*" class="form-control form-control-sm" aria-label="Upload profile picture">
+        <div class="small-hint">JPG/PNG/GIF max 2MB</div>
+        <div class="divider-soft"></div>
+        <div class="input-block">
+          <label><i class="bi bi-file-earmark-arrow-up"></i>Permit Document (PDF/JPG/PNG)</label>
+          <input type="file" name="employer_doc" id="permitDocInput" aria-label="Upload business permit">
+          <?php if ($user->employer_doc): ?>
+            <div class="doc-link mt-1"><a href="../<?php echo htmlspecialchars($user->employer_doc); ?>" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Current file</a></div>
+          <?php endif; ?>
+        </div>
       </div>
-      <div class="col-md-9">
-      <div class="col-md-6">
-        <label class="form-label">Company Name</label>
-        <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($user->company_name); ?>" required>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Display Name (Account Name)</label>
-        <input type="text" disabled class="form-control" value="<?php echo htmlspecialchars($user->name); ?>">
-        <div class="form-text">Separate from company name (locked for now).</div>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Business Email</label>
-        <input type="email" name="business_email" class="form-control" value="<?php echo htmlspecialchars($user->business_email); ?>">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Company Website</label>
-        <input type="text" name="company_website" class="form-control" value="<?php echo htmlspecialchars($user->company_website); ?>" placeholder="https://...">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Company Phone</label>
-        <input type="text" name="company_phone" class="form-control" value="<?php echo htmlspecialchars($user->company_phone); ?>">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Business Permit #</label>
-        <input type="text" name="business_permit_number" class="form-control" value="<?php echo htmlspecialchars($user->business_permit_number); ?>">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Upload Document (PDF/JPG/PNG)</label>
-        <input type="file" name="employer_doc" class="form-control">
-        <?php if ($user->employer_doc): ?>
-          <div class="form-text">
-            <a href="../<?php echo htmlspecialchars($user->employer_doc); ?>" target="_blank">Current file</a>
-          </div>
-        <?php endif; ?>
-      </div>
-      </div><!-- /.col-md-9 -->
     </div>
-
-    <div class="mt-4 d-flex gap-2">
-      <button class="btn btn-primary">
-        <i class="bi bi-save me-1"></i>Save Changes
-      </button>
-      <a href="employer_profile.php" class="btn btn-outline-secondary">Cancel</a>
+    <div>
+      <div class="form-grid-2">
+        <div class="input-block">
+          <label><i class="bi bi-building"></i>Company Name</label>
+          <input type="text" name="company_name" value="<?php echo htmlspecialchars($user->company_name); ?>" required>
+        </div>
+        <div class="input-block disabled">
+          <label><i class="bi bi-person-badge"></i>Display Name (Account)</label>
+          <input type="text" value="<?php echo htmlspecialchars($user->name); ?>" disabled>
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-envelope"></i>Business Email</label>
+          <input type="email" name="business_email" value="<?php echo htmlspecialchars($user->business_email); ?>">
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-link-45deg"></i>Company Website</label>
+          <input type="text" name="company_website" value="<?php echo htmlspecialchars($user->company_website); ?>" placeholder="https://...">
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-telephone"></i>Company Phone</label>
+          <input type="text" name="company_phone" value="<?php echo htmlspecialchars($user->company_phone); ?>">
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-hash"></i>Business Permit #</label>
+          <input type="text" name="business_permit_number" value="<?php echo htmlspecialchars($user->business_permit_number); ?>">
+        </div>
+      </div>
+      <div class="edit-actions-row">
+        <button class="btn btn-gradient btn-sm"><i class="bi bi-save me-1"></i>Save Changes</button>
+        <a href="employer_profile.php" class="btn btn-outline-secondary btn-sm">Cancel</a>
+      </div>
     </div>
   </div>
 </form>
+
+</div><!-- /.container -->
+
+<script>
+// Image preview for avatar
+document.addEventListener('DOMContentLoaded', function(){
+  const input = document.getElementById('profilePictureInput');
+  const preview = document.getElementById('avatarPreview');
+  if(input && preview){
+    input.addEventListener('change', function(){
+      const file = this.files && this.files[0];
+      if(!file) return;
+      if(!file.type.startsWith('image/')) return;
+      const img = preview.querySelector('img') || document.createElement('img');
+      img.id='avatarImg';
+      img.alt='Selected Profile Picture';
+      img.style.width='100%';img.style.height='100%';img.style.objectFit='cover';
+      const reader = new FileReader();
+      reader.onload = e => { img.src = e.target.result; preview.innerHTML=''; preview.appendChild(img); };
+      reader.readAsDataURL(file);
+    });
+  }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>

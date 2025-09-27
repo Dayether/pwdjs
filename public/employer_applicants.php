@@ -16,8 +16,8 @@ if (!Helpers::isEmployer() && !Helpers::isAdmin()) {
   Helpers::redirectToRoleDashboard();
 }
 
-/* ADDED: store page */
-Helpers::storeLastPage();
+// NOTE: Do NOT call Helpers::storeLastPage() here; it would overwrite the previous page
+// and make the back button loop to this same applicants page.
 
 $job_id = $_GET['job_id'] ?? '';
 if ($job_id === '') {
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'], $_POST['appli
       Helpers::flash('error','Failed to update application.');
     }
   }
-  Helpers::redirect('employer_applicants.php?job_id='.urlencode($job_id));
+  Helpers::redirect('employer_applicants.php?job_id='.urlencode($job_id).'&hl='.urlencode($appId));
 }
 
 $validStatuses = ['Pending','Approved','Declined'];
@@ -158,8 +158,35 @@ function buildPageLink($p,$baseQS){
 include '../includes/header.php';
 include '../includes/nav.php';
 
-/* ADDED: last page for back (default dashboard) */
-$backUrl = Helpers::getLastPage('employer_dashboard.php');
+/* Dynamic back URL resolution (priority: explicit return param > session last_page > HTTP_REFERER > role fallback) */
+$explicitReturn = $_GET['return'] ?? '';
+$sessionLast    = $_SESSION['last_page'] ?? '';
+$httpRefRaw     = $_SERVER['HTTP_REFERER'] ?? '';
+$roleFallback   = Helpers::isAdmin() ? 'admin_reports.php' : 'employer_dashboard.php#jobs';
+$backUrl = $roleFallback;
+$sanitizeBack = function($candidate){
+  if (!$candidate) return null;
+  $parsed = parse_url($candidate);
+  if (isset($parsed['scheme']) || isset($parsed['host'])) return null; // block external
+  $path = $parsed['path'] ?? '';
+  if ($path === '' || str_contains($path,'..')) return null;
+  if (!preg_match('~^/?[A-Za-z0-9_./#-]+$~', $path)) return null;
+  $safe = ltrim($path,'/');
+  if (!empty($parsed['query'])) $safe .= '?' . $parsed['query'];
+  if (!empty($parsed['fragment']) && !str_contains($safe,'#')) $safe .= '#' . $parsed['fragment'];
+  return $safe;
+};
+if ($explicitReturn && ($tmp = $sanitizeBack($explicitReturn))) {
+  $backUrl = $tmp;
+} elseif ($sessionLast && ($tmp = $sanitizeBack($sessionLast))) {
+  $backUrl = $tmp;
+} elseif ($httpRefRaw && ($tmp = $sanitizeBack($httpRefRaw))) {
+  $backUrl = $tmp;
+}
+// Prevent self-loop: if computed backUrl still points to this page, use role fallback
+if (preg_match('~employer_applicants\.php~i', $backUrl)) {
+  $backUrl = $roleFallback;
+}
 ?>
 <!-- Toasts (status updates) -->
 <?php
@@ -185,91 +212,112 @@ if (!empty($rawFlash['error']) && trim($rawFlash['error'])!=='') {
   </div>
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-body p-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
-      <div>
-        <h2 class="h5 fw-semibold mb-1">
-          <i class="bi bi-people-fill me-2"></i>Applicants
-        </h2>
+    <style>
+      /* Status pill baseline (override / extend if global styles exist) */
+      .jm-app-status { font-size: .72rem; text-transform: uppercase; letter-spacing:.5px; }
+      .jm-app-status-approved { background:#198754 !important; color:#fff !important; }
+      .jm-app-status-pending { background:#ffc107 !important; color:#000 !important; }
+      .jm-app-status-declined { background:#6c757d !important; color:#fff !important; }
+      .row-flash { animation: flashBg 2.4s ease-out; }
+      @keyframes flashBg { 0%{background:#fff3cd;} 70%{background:transparent;} 100%{background:transparent;} }
+    </style>
+    <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center mb-3">
+      <div class="flex-grow-1">
+        <div class="d-flex align-items-center mb-1">
+          <a class="btn btn-sm btn-outline-secondary me-2" href="<?php echo htmlspecialchars($backUrl); ?>" aria-label="Go back">
+            <i class="bi bi-arrow-left"></i>
+          </a>
+          <h2 class="h5 fw-semibold mb-0 d-flex align-items-center">
+            <i class="bi bi-people-fill me-2"></i><span>Applicants</span>
+          </h2>
+        </div>
         <div class="small text-muted">
-          Job: <strong><?php echo Helpers::sanitizeOutput($job['title']); ?></strong>
-          <span class="ms-2 badge text-bg-<?php 
-              echo $job['status']==='Open' ? 'success' : ($job['status']==='Suspended' ? 'warning' : 'secondary'); 
-          ?>"><?php echo Helpers::sanitizeOutput($job['status']); ?></span>
-          <span class="ms-2">Total: <?php echo number_format($total); ?></span>
+          <strong class="me-1">Job:</strong> <span class="me-2"><?php echo Helpers::sanitizeOutput($job['title']); ?></span>
+          <span class="badge align-text-top jm-status jm-status-<?php echo strtolower($job['status']); ?>" id="jobStatusPill">
+            <?php echo Helpers::sanitizeOutput($job['status']); ?>
+          </span>
+          <span class="ms-2" id="applicantsCount" aria-live="polite">Total: <?php echo number_format($total); ?></span>
         </div>
       </div>
-      <div>
-        <a class="btn btn-sm btn-outline-secondary" href="<?php echo htmlspecialchars($backUrl); ?>">
-          <i class="bi bi-arrow-left"></i> Back
-        </a>
+      <div class="d-flex flex-wrap gap-2">
+        <a href="job_view.php?job_id=<?php echo urlencode($job_id); ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye me-1"></i> View Job</a>
+        <a href="jobs_edit.php?job_id=<?php echo urlencode($job_id); ?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i> Edit Job</a>
       </div>
     </div>
 
-    <form method="get" class="row g-2 mb-3">
+    <form method="get" class="mb-3" id="filtersForm" role="search" aria-describedby="filtersHelp">
       <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($job_id); ?>">
-      <div class="col-12 col-sm-4 col-md-3">
-        <label class="form-label small mb-1">Status</label>
-        <select name="status" class="form-select form-select-sm">
-          <option value="">All</option>
-          <?php foreach ($validStatuses as $st): ?>
-            <option value="<?php echo htmlspecialchars($st); ?>" <?php if ($st===$statusFilter) echo 'selected'; ?>>
-              <?php echo htmlspecialchars($st); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-12 col-sm-4 col-md-4">
-        <label class="form-label small mb-1">Search Applicant</label>
-        <input type="text" name="q" class="form-control form-control-sm" placeholder="Name..."
-               value="<?php echo htmlspecialchars($search); ?>">
-      </div>
-      <div class="col-12 col-sm-4 col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary btn-sm me-2">
-          <i class="bi bi-funnel"></i> Filter
-        </button>
-        <a class="btn btn-outline-secondary btn-sm" 
-           href="employer_applicants.php?job_id=<?php echo urlencode($job_id); ?>">
-          Reset
-        </a>
-      </div>
+      <fieldset class="row g-2">
+        <legend class="col-12 small text-uppercase text-muted mb-1">Filters</legend>
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label small mb-1" for="statusFilter">Status</label>
+          <select id="statusFilter" name="status" class="form-select form-select-sm">
+            <option value="">All</option>
+            <?php foreach ($validStatuses as $st): ?>
+              <option value="<?php echo htmlspecialchars($st); ?>" <?php if ($st===$statusFilter) echo 'selected'; ?>>
+                <?php echo htmlspecialchars($st); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-12 col-sm-4 col-md-4">
+          <label class="form-label small mb-1" for="searchFilter">Search Applicant</label>
+            <input id="searchFilter" type="text" name="q" class="form-control form-control-sm" placeholder="Name..." value="<?php echo htmlspecialchars($search); ?>" autocomplete="off">
+        </div>
+        <div class="col-12 col-sm-4 col-md-3 d-flex align-items-end">
+          <div class="d-flex w-100">
+            <a class="btn btn-outline-secondary btn-sm ms-auto" href="employer_applicants.php?job_id=<?php echo urlencode($job_id); ?>" id="resetFiltersBtn" aria-label="Reset filters">Reset</a>
+          </div>
+        </div>
+        <div class="col-12">
+          <div id="filtersHelp" class="form-text small">Typing or changing status filters updates the list automatically. Use Reset to clear.</div>
+        </div>
+      </fieldset>
     </form>
 
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
+    <?php $highlight = $_GET['hl'] ?? ''; ?>
+    <div class="table-responsive d-none d-md-block">
+      <table class="table table-sm align-middle" aria-describedby="applicantsCount">
         <thead class="table-light">
           <tr>
-            <th>Applicant</th>
-            <th>Match %</th>
-            <th>Status</th>
-            <th>Actions</th>
-            <th>Applied</th>
+            <th scope="col">Applicant</th>
+            <th scope="col">Match %</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+            <th scope="col">Applied</th>
           </tr>
         </thead>
         <tbody>
         <?php foreach ($applicants as $ap): ?>
-          <tr>
+          <tr data-app-row="<?php echo htmlspecialchars($ap['application_id']); ?>" class="<?php echo ($highlight && $highlight==$ap['application_id'])?'row-flash':''; ?>">
             <td class="small">
-              <strong><?php echo Helpers::sanitizeOutput($ap['name']); ?></strong><br>
+              <strong>
+                <a href="job_seeker_profile.php?user_id=<?php echo urlencode($ap['user_id']); ?>&return=<?php echo urlencode('employer_applicants.php?job_id='.$job_id); ?>" class="text-decoration-none">
+                  <?php echo Helpers::sanitizeOutput($ap['name']); ?>
+                  <span class="visually-hidden"> (view profile)</span>
+                </a>
+              </strong><br>
               <span class="text-muted"><?php echo Helpers::sanitizeOutput($ap['application_education'] ?: ''); ?></span>
             </td>
             <td><?php echo number_format($ap['match_score']); ?>%</td>
             <td>
-              <span class="badge text-bg-<?php
-                echo $ap['status']==='Approved'?'success':($ap['status']==='Declined'?'secondary':'warning');
-              ?>">
+              <span class="badge jm-app-status jm-app-status-<?php echo strtolower($ap['status']); ?>">
                 <?php echo Helpers::sanitizeOutput($ap['status']); ?>
               </span>
             </td>
             <td class="small">
               <div class="d-flex gap-1">
+                <a href="job_seeker_profile.php?user_id=<?php echo urlencode($ap['user_id']); ?>&return=<?php echo urlencode('employer_applicants.php?job_id='.$job_id); ?>" class="btn btn-sm btn-outline-primary" aria-label="View profile of <?php echo htmlspecialchars($ap['name']); ?>">
+                  <i class="bi bi-person" aria-hidden="true"></i>
+                </a>
                 <?php if ($ap['status']!=='Approved'): ?>
-                  <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="approve">
-                    <i class="bi bi-check2"></i>
+                  <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="approve" aria-label="Approve application for <?php echo htmlspecialchars($ap['name']); ?>">
+                    <i class="bi bi-check2" aria-hidden="true"></i>
                   </button>
                 <?php endif; ?>
                 <?php if ($ap['status']!=='Declined'): ?>
-                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="decline">
-                    <i class="bi bi-x"></i>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="decline" aria-label="Decline application for <?php echo htmlspecialchars($ap['name']); ?>">
+                    <i class="bi bi-x" aria-hidden="true"></i>
                   </button>
                 <?php endif; ?>
               </div>
@@ -280,18 +328,60 @@ if (!empty($rawFlash['error']) && trim($rawFlash['error'])!=='') {
           </tr>
         <?php endforeach; ?>
         <?php if (!$applicants): ?>
-          <tr><td colspan="4" class="text-center small text-muted">No applicants found.</td></tr>
+          <tr><td colspan="5" class="text-center small text-muted">No applicants found.</td></tr>
         <?php endif; ?>
         </tbody>
       </table>
     </div>
 
+    <div class="d-md-none" id="applicantsCards">
+      <?php if ($applicants): foreach ($applicants as $ap): ?>
+        <div class="card border-0 shadow-sm mb-2 <?php echo ($highlight && $highlight==$ap['application_id'])?'row-flash':''; ?>" data-app-card="<?php echo htmlspecialchars($ap['application_id']); ?>">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <div>
+                <strong class="d-block">
+                  <a href="job_seeker_profile.php?user_id=<?php echo urlencode($ap['user_id']); ?>&return=<?php echo urlencode('employer_applicants.php?job_id='.$job_id); ?>" class="text-decoration-none">
+                    <?php echo Helpers::sanitizeOutput($ap['name']); ?>
+                    <span class="visually-hidden"> (view profile)</span>
+                  </a>
+                </strong>
+                <span class="text-muted small d-block"><?php echo Helpers::sanitizeOutput($ap['application_education'] ?: ''); ?></span>
+              </div>
+              <span class="badge jm-app-status jm-app-status-<?php echo strtolower($ap['status']); ?>"><?php echo Helpers::sanitizeOutput($ap['status']); ?></span>
+            </div>
+            <div class="d-flex flex-wrap small text-muted mb-2 gap-3">
+              <span><i class="bi bi-graph-up me-1"></i><?php echo number_format($ap['match_score']); ?>%</span>
+              <span><i class="bi bi-calendar me-1"></i><?php echo htmlspecialchars(date('M d, Y', strtotime($ap['created_at']))); ?></span>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <a href="job_seeker_profile.php?user_id=<?php echo urlencode($ap['user_id']); ?>&return=<?php echo urlencode('employer_applicants.php?job_id='.$job_id); ?>" class="btn btn-outline-primary btn-sm flex-fill" aria-label="View profile of <?php echo htmlspecialchars($ap['name']); ?>">
+                <i class="bi bi-person me-1" aria-hidden="true"></i>Profile
+              </a>
+              <?php if ($ap['status']!=='Approved'): ?>
+                <button type="button" class="btn btn-success btn-sm flex-fill" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="approve" aria-label="Approve application for <?php echo htmlspecialchars($ap['name']); ?>">
+                  <i class="bi bi-check2 me-1" aria-hidden="true"></i>Approve
+                </button>
+              <?php endif; ?>
+              <?php if ($ap['status']!=='Declined'): ?>
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" data-bs-toggle="modal" data-bs-target="#feedbackModal" data-app-id="<?php echo htmlspecialchars($ap['application_id']); ?>" data-action="decline" aria-label="Decline application for <?php echo htmlspecialchars($ap['name']); ?>">
+                  <i class="bi bi-x me-1" aria-hidden="true"></i>Decline
+                </button>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; else: ?>
+        <div class="text-center small text-muted">No applicants found.</div>
+      <?php endif; ?>
+    </div>
+
     <?php if ($totalPages > 1): ?>
-      <nav>
+      <nav aria-label="Applicants pagination">
         <ul class="pagination pagination-sm mt-3">
           <?php for ($p=1; $p<=$totalPages; $p++): ?>
             <li class="page-item <?php if ($p==$page) echo 'active'; ?>">
-              <a class="page-link" href="<?php echo htmlspecialchars(buildPageLink($p, $baseQS)); ?>">
+              <a class="page-link" href="<?php echo htmlspecialchars(buildPageLink($p, $baseQS)); ?>" aria-current="<?php echo $p==$page?'page':'false'; ?>">
                 <?php echo $p; ?>
               </a>
             </li>
@@ -345,5 +435,13 @@ document.addEventListener('DOMContentLoaded', function(){
   document.querySelectorAll('#toastContainer .toast').forEach(function(el){
     try { bootstrap.Toast.getOrCreateInstance(el).show(); } catch(e){}
   });
+  // Debounced auto-submit for filters
+  const form = document.getElementById('filtersForm');
+  const searchInput = document.getElementById('searchFilter');
+  const statusSelect = document.getElementById('statusFilter');
+  let tId; const debounce = (fn,ms)=>{return function(){clearTimeout(tId); tId=setTimeout(fn,ms);}};
+  const submitFilters = ()=>{ if(form) form.requestSubmit(); };
+  if (searchInput) searchInput.addEventListener('input', debounce(submitFilters,400));
+  if (statusSelect) statusSelect.addEventListener('change', submitFilters);
 });
 </script>

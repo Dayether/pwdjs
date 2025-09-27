@@ -16,31 +16,49 @@ if (!$job || $job->employer_id !== $_SESSION['user_id']) {
     Helpers::redirect('employer_dashboard.php');
 }
 
-$allowedSkills   = Taxonomy::allowedSkills();
+$generalSkills = [
+  '70+ WPM Typing',
+  'Flexible Schedule',
+  'Team Player',
+  'Professional Attitude',
+  'Strong Communication',
+  'Adaptable / Quick Learner'
+];
 $employmentTypes = Taxonomy::employmentTypes();
 $accessTags      = Taxonomy::accessibilityTags();
 $eduLevels       = Taxonomy::educationLevels();
 
 $errors = [];
 
+// Determine if job already has applicants (lock matching criteria fields if so)
+$pdo = Database::getConnection();
+$applicantCount = 0;
+try {
+  $stApp = $pdo->prepare("SELECT COUNT(*) FROM applications WHERE job_id = ?");
+  $stApp->execute([$job_id]);
+  $applicantCount = (int)$stApp->fetchColumn();
+} catch (Throwable $e) { $applicantCount = 0; }
+$matchingLocked = ($applicantCount > 0); // employer edit page (no admin override here)
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Predefined skills
-    $skillsSelected = $_POST['required_skills'] ?? [];
-    if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
-    $skillsSelected = array_filter(array_map('trim', $skillsSelected));
-
-    // Custom skills (comma separated)
-    $additionalSkillsRaw = trim($_POST['additional_skills'] ?? '');
-    $extraTokens = $additionalSkillsRaw !== '' ? Helpers::parseSkillInput($additionalSkillsRaw) : [];
-
-    // Merge (case-insensitive unique)
-    $merged = [];
-    foreach (array_merge($skillsSelected, $extraTokens) as $s) {
-        if ($s === '') continue;
-        $k = mb_strtolower($s);
-        if (!isset($merged[$k])) $merged[$k] = $s;
+    // Predefined + additional skills (only if not locked)
+    if (!$matchingLocked) {
+      $skillsSelected = $_POST['required_skills'] ?? [];
+      if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
+      $skillsSelected = array_filter(array_map('trim', $skillsSelected));
+      $additionalSkillsRaw = trim($_POST['additional_skills'] ?? '');
+      $extraTokens = $additionalSkillsRaw !== '' ? Helpers::parseSkillInput($additionalSkillsRaw) : [];
+      $merged = [];
+      foreach (array_merge($skillsSelected, $extraTokens) as $s) {
+          if ($s === '') continue;
+          $k = mb_strtolower($s);
+          if (!isset($merged[$k])) $merged[$k] = $s;
+      }
+      $skillsCsv = implode(', ', $merged);
+    } else {
+      // Keep original required skills if locked
+      $skillsCsv = $job->required_skills_input ?? '';
     }
-    $skillsCsv = implode(', ', $merged);
 
     // Accessibility tags
   $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
@@ -48,8 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Other fields (unchanged structure)
     $title       = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
-    $reqExp      = (int)($_POST['required_experience'] ?? 0);
-    $reqEduRaw   = trim($_POST['required_education'] ?? '');
+    $reqExpRaw   = (int)($_POST['required_experience'] ?? 0);
+    $reqEduRawIn = trim($_POST['required_education'] ?? '');
+    if ($matchingLocked) {
+      $reqExp    = (int)$job->required_experience;
+      $reqEduRaw = (string)($job->required_education ?? '');
+    } else {
+      $reqExp    = $reqExpRaw;
+      $reqEduRaw = $reqEduRawIn;
+    }
     $locCity     = trim($_POST['location_city'] ?? '');
     $locRegion   = trim($_POST['location_region'] ?? '');
     $employment  = $_POST['employment_type'] ?? 'Full time';
@@ -91,8 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'title' => $title,
         'description' => $description,
         'required_skills_input' => $skillsCsv,
-        'required_experience' => $reqExp,
-        'required_education' => $reqEduRaw,
+  'required_experience' => $reqExp,
+  'required_education' => $reqEduRaw,
         'accessibility_tags' => implode(',', array_map('trim',$tagsSelected)),
         'location_city' => $locCity,
         'location_region' => $locRegion,
@@ -117,27 +142,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $job = Job::findById($job_id);
 
-// Split existing skills between predefined + custom
+// Split existing skills between general (from fixed list) + custom/additional
 $rawTokens = array_filter(array_map('trim', explode(',', $job->required_skills_input ?? '')));
-$allowedLower = array_map('mb_strtolower', $allowedSkills);
-$selectedAllowed = [];
-$customSkills = [];
+$generalLower = array_map('mb_strtolower', $generalSkills);
+$selectedGeneral = [];
+$additionalSkills = [];
 foreach ($rawTokens as $tok) {
-    if ($tok === '') continue;
-    if (in_array(mb_strtolower($tok), $allowedLower, true)) {
-        $selectedAllowed[] = $tok;
-    } else {
-        $customSkills[] = $tok;
-    }
+  if ($tok === '') continue;
+  if (in_array(mb_strtolower($tok), $generalLower, true)) {
+    $selectedGeneral[] = $tok;
+  } else {
+    $additionalSkills[] = $tok;
+  }
 }
-$customSkillsCsv = implode(', ', $customSkills);
+$additionalSkillsCsv = implode(', ', $additionalSkills);
+
+// If locked, disable editing in UI
+$lockedAttr = $matchingLocked ? 'disabled' : '';
+
+// Determine a safe back URL (prefer stored last page if available)
+$backUrl = 'employer_dashboard.php#jobs';
+if (!empty($_SESSION['last_page'])) {
+  $candidate = $_SESSION['last_page'];
+  if (preg_match('~^/?[A-Za-z0-9_./#-]+$~', $candidate) && !str_contains($candidate,'..')) {
+    $backUrl = $candidate;
+  }
+} elseif (!empty($_SERVER['HTTP_REFERER'])) {
+  $ref = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_PATH);
+  if ($ref && preg_match('~^/?[A-Za-z0-9_./-]+$~', $ref)) {
+    $backUrl = ltrim($ref,'/');
+  }
+}
 
 include '../includes/header.php';
 include '../includes/nav.php';
 ?>
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
-    <h2 class="h5 fw-semibold mb-3"><i class="bi bi-pencil-square me-2"></i>Edit Job</h2>
+    <?php $editCsrf = Helpers::csrfToken(); ?>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm" id="dynamicBackBtn" aria-label="Go back"><i class="bi bi-arrow-left"></i></a>
+        <h2 class="h5 fw-semibold mb-0 d-flex align-items-center gap-2"><i class="bi bi-pencil-square"></i><span>Edit Job</span></h2>
+      </div>
+      <?php if (isset($job->status)): $st = $job->status; ?>
+        <div class="d-flex align-items-center gap-2">
+          <span id="statusPill" class="badge rounded-pill text-uppercase fw-semibold bg-light text-dark border" style="letter-spacing:.6px;">
+            <?php echo htmlspecialchars($st); ?>
+          </span>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Change status" id="statusDropdownBtn">Status</button>
+            <ul class="dropdown-menu dropdown-menu-end" id="statusMenu" data-job-id="<?php echo htmlspecialchars($job->job_id); ?>">
+              <?php foreach(['Open','Suspended','Closed'] as $opt): if ($opt === $st) continue; ?>
+                <li><a class="dropdown-item status-change" href="jobs_status.php?ajax=1&job_id=<?php echo urlencode($job->job_id); ?>&to=<?php echo urlencode($opt); ?>&csrf=<?php echo urlencode($editCsrf); ?>" data-status="<?php echo htmlspecialchars($opt); ?>"><?php echo $opt === 'Open' ? 'Set Open' : ($opt==='Suspended'?'Suspend':'Close'); ?></a></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
+        </div>
+      <?php endif; ?>
+    </div>
 
     <?php foreach ($errors as $e): ?>
       <div class="alert alert-danger"><?php echo htmlspecialchars($e); ?></div>
@@ -147,129 +210,228 @@ include '../includes/nav.php';
       <div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div>
     <?php endif; ?>
 
-  <form method="post" class="row g-3" enctype="multipart/form-data">
+  <form method="post" class="row g-3" enctype="multipart/form-data" novalidate>
       <div class="col-12">
-        <label class="form-label fw-semibold">Title</label>
-        <input name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>">
+        <fieldset class="border rounded p-3 pt-2">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Title</legend>
+          <label for="jobTitle" class="form-label fw-semibold">Role Title <span class="text-danger">*</span></label>
+          <input id="jobTitle" name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>" aria-describedby="titleHelp">
+          <div id="titleHelp" class="form-text">Use a clear, specific role name (e.g., “Frontend Accessibility Engineer”).</div>
+        </fieldset>
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Employment type</label>
-        <select name="employment_type" class="form-select">
-          <?php foreach ($employmentTypes as $t): ?>
-            <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($job->employment_type === $t) echo 'selected'; ?>>
-              <?php echo htmlspecialchars($t); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
+        <fieldset class="border rounded p-3 pt-2 h-100">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Employment Type</legend>
+          <label class="form-label">Select type</label>
+          <select name="employment_type" class="form-select">
+            <?php foreach ($employmentTypes as $t): ?>
+              <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($job->employment_type === $t) echo 'selected'; ?>>
+                <?php echo htmlspecialchars($t); ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </fieldset>
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Office Location (optional)</label>
-        <div class="d-flex gap-2">
-          <input name="location_city" class="form-control" placeholder="City" value="<?php echo htmlspecialchars($job->location_city); ?>">
-          <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($job->location_region); ?>">
-        </div>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">Job Image (optional)</label>
-        <?php if (!empty($job->job_image)): ?>
-          <div class="mb-2">
-            <img src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Current Job Image" class="rounded border" style="max-height:120px">
+        <fieldset class="border rounded p-3 pt-2 h-100">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Location (Optional)</legend>
+          <label class="form-label">Office / Base City</label>
+          <div class="d-flex gap-2 flex-wrap" aria-describedby="locHelp">
+            <input name="location_city" class="form-control" placeholder="City" value="<?php echo htmlspecialchars($job->location_city); ?>" aria-label="City">
+            <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($job->location_region); ?>" aria-label="Region or Province">
           </div>
-        <?php endif; ?>
-        <input type="file" name="job_image" class="form-control" accept="image/*">
-        <div class="form-text">JPG/PNG/GIF/WEBP up to 2MB. Uploading a new image will replace the current one.</div>
+          <div id="locHelp" class="form-text">Leave blank for fully remote roles.</div>
+        </fieldset>
       </div>
 
-      <div class="col-md-3">
-        <label class="form-label">Salary currency</label>
-        <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($job->salary_currency); ?>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Salary min</label>
-        <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_min ?? ''); ?>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Salary max</label>
-        <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_max ?? ''); ?>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Salary period</label>
-        <select name="salary_period" class="form-select">
-          <?php foreach (['monthly','yearly','hourly'] as $p): ?>
-            <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
-          <?php endforeach; ?>
-        </select>
+      <div class="col-md-6">
+        <fieldset class="border rounded p-3 pt-2 h-100">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Job Image (Optional)</legend>
+          <div id="imagePreview" class="border rounded p-2 d-flex align-items-center gap-3 mb-2" style="min-height:82px; background:#f8fafc;">
+            <?php if (!empty($job->job_image)): ?>
+              <img id="jobImageTag" src="../<?php echo htmlspecialchars($job->job_image); ?>" alt="Current job image" style="max-height:70px; border-radius:6px;">
+            <?php else: ?>
+              <div id="jobImagePlaceholder" class="text-muted small">No image uploaded.</div>
+            <?php endif; ?>
+          </div>
+          <input id="jobImage" type="file" name="job_image" class="form-control" accept="image/*" aria-describedby="jobImageHelp">
+          <div id="jobImageHelp" class="form-text">JPG / PNG / GIF / WEBP up to 2MB. Choosing a new file replaces the current image.</div>
+        </fieldset>
       </div>
 
-      <div class="col-md-8">
-        <label class="form-label">Required Skills (predefined)</label>
-        <div class="row">
-          <?php foreach ($allowedSkills as $skill):
-            $checked = in_array($skill, $selectedAllowed, true) ? 'checked' : ''; ?>
-            <div class="col-md-4">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox"
-                       id="skill_<?php echo md5($skill); ?>"
-                       name="required_skills[]"
-                       value="<?php echo htmlspecialchars($skill); ?>"
-                       <?php echo $checked; ?>>
-                <label class="form-check-label small" for="skill_<?php echo md5($skill); ?>">
-                  <?php echo htmlspecialchars($skill); ?>
-                </label>
+      <div class="col-12">
+        <fieldset class="border rounded p-3 pt-2">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Compensation</legend>
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Currency</label>
+              <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($job->salary_currency); ?>" aria-label="Salary currency">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Min</label>
+              <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_min ?? ''); ?>" aria-label="Minimum salary">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Max</label>
+              <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_max ?? ''); ?>" aria-label="Maximum salary">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Period</label>
+              <select name="salary_period" class="form-select" aria-label="Salary period">
+                <?php foreach (['monthly','yearly','hourly'] as $p): ?>
+                  <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+          <div class="form-text mt-2">Provide both min & max for transparency (optional but improves candidate trust).</div>
+        </fieldset>
+      </div>
+
+      <div class="col-12">
+        <fieldset class="border rounded p-3 pt-2" style="--bs-border-color:#e3e8ee;">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Skills &amp; Qualifications<?php if($matchingLocked): ?> <span class="badge text-bg-warning ms-1 align-middle">Locked (has applicants)</span><?php endif; ?></legend>
+          <div class="row g-3 align-items-start">
+            <div class="col-md-3">
+              <label class="form-label small mb-1">Experience (years)</label>
+              <input name="required_experience" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->required_experience); ?>" aria-label="Required experience in years" <?php echo $lockedAttr; ?>>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small mb-1">Education Requirement</label>
+              <select name="required_education" class="form-select" aria-label="Education requirement" <?php echo $lockedAttr; ?>>
+                <option value="">Any</option>
+                <?php foreach ($eduLevels as $lvl): ?>
+                  <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if (($job->required_education ?? '') === $lvl) echo 'selected'; ?>>
+                    <?php echo htmlspecialchars($lvl); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="additionalSkills" class="form-label small mb-1">Additional Skills (comma separated)</label>
+              <input id="additionalSkills" type="text" name="additional_skills" class="form-control" value="<?php echo htmlspecialchars($additionalSkillsCsv); ?>" aria-describedby="addSkillsHelp" placeholder="e.g., PHP, Laravel, Data Entry" <?php echo $lockedAttr; ?>>
+              <div id="addSkillsHelp" class="form-text">General soft skills below; add technical or role-specific skills here. Automatically deduplicated.</div>
+            </div>
+            <div class="col-12">
+              <div class="row" id="skillsGroup" aria-describedby="skillsHelp">
+                <?php foreach ($generalSkills as $skill):
+                  $checked = in_array($skill, $selectedGeneral, true) ? 'checked' : ''; ?>
+                  <div class="col-6 col-md-4 col-lg-3 mb-2">
+                    <div class="form-check small">
+                      <input class="form-check-input" type="checkbox" id="skill_<?php echo md5($skill); ?>" name="required_skills[]" value="<?php echo htmlspecialchars($skill); ?>" <?php echo $checked; ?> <?php echo $lockedAttr; ?>>
+                      <label class="form-check-label" for="skill_<?php echo md5($skill); ?>"><?php echo htmlspecialchars($skill); ?></label>
+                    </div>
+                  </div>
+                <?php endforeach; ?>
+              </div>
+              <div id="skillsHelp" class="form-text mt-0">
+                <?php if($matchingLocked): ?>Matching criteria locked because there are existing applicants (<?php echo $applicantCount; ?>). These fields can no longer be changed.<?php else: ?>Tick all general / soft capabilities that apply.<?php endif; ?>
               </div>
             </div>
-          <?php endforeach; ?>
-        </div>
-        <small class="text-muted d-block mt-1">Check any that apply.</small>
-
-        <label class="form-label mt-3">Custom / Additional Skills (comma separated)</label>
-        <input type="text" name="additional_skills" class="form-control"
-               value="<?php echo htmlspecialchars($customSkillsCsv); ?>"
-               placeholder="e.g., Figma, Accessibility Auditing">
-        <small class="text-muted">These will also show to applicants.</small>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Experience (years)</label>
-        <input name="required_experience" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->required_experience); ?>">
-        <label class="form-label mt-3">Education Requirement</label>
-        <select name="required_education" class="form-select">
-          <option value="">Any</option>
-          <?php foreach ($eduLevels as $lvl): ?>
-            <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if (($job->required_education ?? '') === $lvl) echo 'selected'; ?>>
-              <?php echo htmlspecialchars($lvl); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-
-      <div class="col-12">
-        <label class="form-label d-block">Accessibility Tags</label>
-        <?php
-          $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
-        ?>
-        <?php foreach ($accessTags as $tag): ?>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" name="accessibility_tags[]" type="checkbox"
-                   value="<?php echo htmlspecialchars($tag); ?>"
-                   <?php echo in_array($tag, $currentTags, true) ? 'checked' : ''; ?>>
-            <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
           </div>
-        <?php endforeach; ?>
+        </fieldset>
       </div>
 
       <div class="col-12">
-        <label class="form-label fw-semibold">Description</label>
-        <textarea name="description" class="form-control" rows="8" required><?php echo htmlspecialchars($job->description); ?></textarea>
+        <fieldset class="border rounded p-3 pt-2" style="--bs-border-color: #e3e8ee;">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Accessibility Tags</legend>
+          <?php
+            $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
+          ?>
+          <div class="d-flex flex-wrap gap-3" id="accessGroup" aria-describedby="accessHelp">
+            <?php foreach ($accessTags as $tag): ?>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" name="accessibility_tags[]" type="checkbox"
+                       id="access_<?php echo md5($tag); ?>"
+                       value="<?php echo htmlspecialchars($tag); ?>"
+                       <?php echo in_array($tag, $currentTags, true) ? 'checked' : ''; ?>>
+                <label class="form-check-label small" for="access_<?php echo md5($tag); ?>"><?php echo htmlspecialchars($tag); ?></label>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          <div id="accessHelp" class="form-text mt-1">Highlight inclusive or assistive practices relevant to this role.</div>
+        </fieldset>
       </div>
 
-      <div class="col-12 d-grid">
+      <div class="col-12">
+        <fieldset class="border rounded p-3 pt-2">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Role Description</legend>
+          <label for="jobDesc" class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+          <div id="descHint" class="form-text mb-1">Outline mission, key responsibilities, impact, & inclusive culture notes. Avoid internal-only jargon.</div>
+          <textarea id="jobDesc" name="description" class="form-control" rows="8" required aria-describedby="descHint"><?php echo htmlspecialchars($job->description); ?></textarea>
+        </fieldset>
+      </div>
+
+      <div class="col-12 d-grid mt-2">
         <button class="btn btn-primary"><i class="bi bi-save me-1"></i>Save Changes</button>
       </div>
     </form>
+    <div class="visually-hidden" id="editLive" aria-live="polite"></div>
   </div>
 </div>
 <?php include '../includes/footer.php'; ?>
+<script>
+(function(){
+  const imgInput = document.getElementById('jobImage');
+  const previewWrap = document.getElementById('imagePreview');
+  if(imgInput){
+    imgInput.addEventListener('change', function(){
+      if(!this.files || !this.files[0]) return;
+      const f = this.files[0];
+      if(!/^image\//.test(f.type)) return;
+      const url = URL.createObjectURL(f);
+      let tag = document.getElementById('jobImageTag');
+      const placeholder=document.getElementById('jobImagePlaceholder');
+      if(!tag){
+        tag=document.createElement('img');
+        tag.id='jobImageTag';
+        tag.style.maxHeight='70px';
+        tag.style.borderRadius='6px';
+        previewWrap.innerHTML='';
+        previewWrap.appendChild(tag);
+      }
+      if(placeholder) placeholder.remove();
+      tag.src=url;
+      tag.alt='Selected job image preview';
+    });
+  }
+
+  // Status change AJAX inline
+  const statusMenu = document.getElementById('statusMenu');
+  const pill = document.getElementById('statusPill');
+  const live = document.getElementById('editLive');
+  function rebuildMenu(current){
+    const opts=['Open','Suspended','Closed'];
+    statusMenu.innerHTML='';
+    opts.filter(o=>o!==current).forEach(o=>{
+      const li=document.createElement('li');
+      const a=document.createElement('a');
+      a.className='dropdown-item status-change';
+      a.href=`jobs_status.php?ajax=1&job_id=${statusMenu.dataset.jobId}&to=${encodeURIComponent(o)}&csrf=<?php echo urlencode($editCsrf); ?>`;
+      a.dataset.status=o;
+      a.textContent = o==='Open'?'Set Open':(o==='Suspended'?'Suspend':'Close');
+      li.appendChild(a); statusMenu.appendChild(li);
+    });
+  }
+  document.addEventListener('click', function(e){
+    const link = e.target.closest('.status-change');
+    if(!link) return;
+    if(!link.href.includes('jobs_status.php')) return;
+    e.preventDefault();
+    const url = new URL(link.href, window.location.origin);
+    fetch(url.toString(), {credentials:'same-origin'})
+      .then(r=>r.json())
+      .then(data=>{
+        if(!data.ok) throw new Error(data.error||'Failed');
+        const st=data.current;
+        if(pill){ pill.textContent=st; }
+        rebuildMenu(st);
+        live.textContent = 'Status updated to ' + st;
+      })
+      .catch(err=>{ live.textContent = 'Status update failed: ' + err.message; });
+  });
+
+})();
+</script>

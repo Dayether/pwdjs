@@ -52,105 +52,163 @@ try {
 $counts = User::jobSeekerCounts();
 
 include '../includes/header.php';
-include '../includes/nav.php';
 ?>
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <h2 class="h5 fw-semibold mb-0"><i class="bi bi-people me-2"></i>Admin · Job Seekers Verification</h2>
-</div>
+<div class="admin-layout">
+  <?php include '../includes/admin_sidebar.php'; ?>
+  <div class="admin-main">
+<style>
+  .js-topbar{display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.15rem}
+  .js-chips{display:flex;flex-wrap:wrap;gap:.5rem}
+  .js-chip{--bg:#162335;--bd:rgba(255,255,255,.08);display:inline-flex;align-items:center;gap:.45rem;font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:.55rem .75rem;border:1px solid var(--bd);background:var(--bg);color:#c4d2e4;border-radius:9px;cursor:pointer;transition:.25s}
+  .js-chip:hover{background:#203754;color:#fff}
+  .js-chip.active{background:linear-gradient(135deg,#1f4d89,#163657);color:#fff;border-color:#3e74c4;box-shadow:0 4px 12px -6px rgba(0,0,0,.6)}
+  .js-chip .count{background:rgba(255,255,255,.09);padding:.2rem .5rem;border-radius:6px;font-size:.62rem;font-weight:600}
+  .js-filters{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+  .js-filters .search-box{flex:1 1 260px;position:relative}
+  .js-filters .search-box input{background:#101b2b;border:1px solid #233246;color:#dbe6f5;padding:.6rem .75rem .6rem 2rem;font-size:.78rem;border-radius:9px;width:100%}
+  .js-filters .search-box i{position:absolute;left:.65rem;top:50%;transform:translateY(-50%);color:#6c7c91;font-size:.9rem}
+  .js-filters select{background:#101b2b;border:1px solid #233246;color:#dbe6f5;font-size:.72rem;padding:.55rem .65rem;border-radius:8px}
+  .js-filters button.reset-btn{background:#182739;border:1px solid #23384f;color:#9fb4cc;font-size:.7rem;padding:.55rem .75rem;border-radius:8px;font-weight:600;letter-spacing:.5px}
+  .js-filters button.reset-btn:hover{background:#213249;color:#fff}
+  .seekers-wrapper{position:relative;border:1px solid rgba(255,255,255,.06);background:#0f1827;border-radius:16px;overflow:hidden;box-shadow:0 6px 22px -12px rgba(0,0,0,.65)}
+  table.seekers-table{margin:0;border-collapse:separate;border-spacing:0;width:100%}
+  table.seekers-table thead th{background:#142134;color:#ced8e6;font-size:.63rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;padding:.75rem .85rem;border-bottom:1px solid #1f2e45;position:sticky;top:0;z-index:2;cursor:pointer}
+  table.seekers-table tbody td{padding:.85rem .9rem;vertical-align:middle;font-size:.74rem;color:#d2dbe7;border-bottom:1px solid #132031}
+  table.seekers-table tbody tr:last-child td{border-bottom:none}
+  table.seekers-table tbody tr{transition:.2s}
+  table.seekers-table tbody tr:hover{background:rgba(255,255,255,.04)}
+  .status-badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.6rem;font-weight:600;letter-spacing:.05em;padding:.38rem .55rem;border-radius:6px;text-transform:uppercase}
+  .pwd-Verified{background:linear-gradient(135deg,#1f7a46,#0f3d24);color:#d8ffe9;border:1px solid #1c5b36}
+  .pwd-Pending{background:linear-gradient(135deg,#8a660c,#3f2f07);color:#fff1c7;border:1px solid #5f460b}
+  .pwd-Rejected{background:linear-gradient(135deg,#8a1d1d,#470e0e);color:#ffe1e1;border:1px solid #611414}
+  .pwd-None{background:linear-gradient(135deg,#515b67,#2a3037);color:#e3e9ef;border:1px solid #3b444d}
+  .acct-Suspended{background:linear-gradient(135deg,#8a1d1d,#470e0e);color:#ffe1e1;border:1px solid #611414}
+  .acct-Active{background:linear-gradient(135deg,#1f4d89,#163657);color:#d1e9ff;border:1px solid #1d436e}
+  .view-btn{background:#132840;border:1px solid #1f3a57;color:#c4d8ef;font-size:.6rem;font-weight:600;padding:.45rem .65rem;border-radius:7px;display:inline-flex;align-items:center;gap:.35rem;transition:.25s}
+  .view-btn:hover{background:#1c3a57;color:#fff;border-color:#2f5a87}
+  .empty-state{padding:2.3rem 1rem;text-align:center;color:#7f8fa1;font-size:.8rem}
+  .fade-in{animation:fadeIn .5s ease both}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  @media (max-width:880px){
+    .seekers-wrapper{border:none;background:transparent;box-shadow:none}
+    table.seekers-table,table.seekers-table thead,table.seekers-table tbody,table.seekers-table th,table.seekers-table td,table.seekers-table tr{display:block}
+    table.seekers-table thead{display:none}
+    table.seekers-table tbody tr{background:#132133;border:1px solid #1f3147;border-radius:12px;margin-bottom:.85rem;padding:.75rem .9rem}
+    table.seekers-table tbody td{border:none;padding:.35rem 0;font-size:.7rem}
+    table.seekers-table tbody td.actions{margin-top:.4rem}
+  }
+  /* widen wrapper like employers */
+  .seekers-wrapper{margin-left:-.5rem;margin-right:-.5rem}
+  @media (min-width:1200px){.seekers-wrapper{margin-left:-1rem;margin-right:-1rem}}
+</style>
 
 <?php if (!empty($_SESSION['flash']['msg'])): ?>
-  <div class="alert alert-success alert-dismissible fade show auto-dismiss">
+  <div class="alert alert-success alert-dismissible fade show auto-dismiss small py-2 mb-3 fade-in">
     <?php echo htmlspecialchars($_SESSION['flash']['msg']); unset($_SESSION['flash']['msg']); ?>
     <button class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <?php endif; ?>
 <?php if (!empty($_SESSION['flash']['error'])): ?>
-  <div class="alert alert-danger alert-dismissible fade show auto-dismiss">
+  <div class="alert alert-danger alert-dismissible fade show auto-dismiss small py-2 mb-3 fade-in">
     <?php echo htmlspecialchars($_SESSION['flash']['error']); unset($_SESSION['flash']['error']); ?>
     <button class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <?php endif; ?>
 
-<div class="row g-3 mb-3">
-  <div class="col-md-8">
-    <form class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Status</label>
-        <select name="status" class="form-select form-select-sm">
-          <option value="">All</option>
-          <?php foreach(['Pending','Verified','Rejected','None'] as $st): ?>
-            <option value="<?php echo $st; ?>" <?php if($statusFilter===$st) echo 'selected'; ?>><?php echo $st; ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Search</label>
-        <input type="text" name="q" value="<?php echo htmlspecialchars($search); ?>" class="form-control form-control-sm" placeholder="Name or email">
-      </div>
-      <div class="col-md-4 d-grid">
-        <button class="btn btn-sm btn-primary"><i class="bi bi-search me-1"></i>Filter</button>
-      </div>
-    </form>
+<div class="js-topbar fade-in">
+  <div class="js-chips" id="jsStatusChips">
+    <div class="js-chip active" data-filter="">Total <span class="count"><?php echo (int)$counts['total']; ?></span></div>
+    <div class="js-chip" data-filter="None">None <span class="count"><?php echo (int)$counts['None']; ?></span></div>
+    <div class="js-chip" data-filter="Pending">Pending <span class="count"><?php echo (int)$counts['Pending']; ?></span></div>
+    <div class="js-chip" data-filter="Verified">Verified <span class="count"><?php echo (int)$counts['Verified']; ?></span></div>
+    <div class="js-chip" data-filter="Rejected">Rejected <span class="count"><?php echo (int)$counts['Rejected']; ?></span></div>
   </div>
-  <div class="col-md-4">
-    <div class="border rounded p-2 small bg-body-tertiary h-100">
-      <div><span class="badge text-bg-primary">Total</span> <?php echo (int)$counts['total']; ?></div>
-      <div><span class="badge text-bg-secondary">None</span> <?php echo (int)$counts['None']; ?></div>
-      <div><span class="badge text-bg-warning">Pending</span> <?php echo (int)$counts['Pending']; ?></div>
-      <div><span class="badge text-bg-success">Verified</span> <?php echo (int)$counts['Verified']; ?></div>
-      <div><span class="badge text-bg-danger">Rejected</span> <?php echo (int)$counts['Rejected']; ?></div>
-    </div>
+  <div class="js-filters">
+    <div class="search-box"><i class="bi bi-search"></i><input type="text" id="jsSearch" placeholder="Search name or email..."></div>
+    <select id="jsStatusSelect">
+      <option value="">All Statuses</option>
+      <option value="None">None</option>
+      <option value="Pending">Pending</option>
+      <option value="Verified">Verified</option>
+      <option value="Rejected">Rejected</option>
+    </select>
+    <button type="button" class="reset-btn" id="jsReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table align-middle mb-0">
-        <thead class="table-light">
-          <tr class="small text-uppercase text-muted">
-            <th>Name</th>
-            <th>Email</th>
-            <th class="text-center">PWD ID (Last4)</th>
-            <th class="text-center">PWD ID Status</th>
-            <th class="text-center">Account</th>
-          
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (!$rows): ?>
-            <tr><td colspan="5" class="text-center small text-muted py-4">No job seekers found.</td></tr>
-          <?php else: foreach ($rows as $r): ?>
-            <?php
-              $st = $r['pwd_id_status'] ?: 'None';
-              $acct = $r['job_seeker_status'] ?: 'Active';
-              $badgeClass = match($st){
-                'Verified' => 'text-bg-success',
-                'Pending'  => 'text-bg-warning',
-                'Rejected' => 'text-bg-danger',
-                default    => 'text-bg-secondary'
-              };
-              $acctBadge = $acct === 'Suspended' ? 'text-bg-danger' : 'text-bg-success';
-            ?>
-            <tr>
-              <td class="small fw-semibold"><?php echo Helpers::sanitizeOutput($r['name']); ?></td>
-              <td class="small text-muted"><?php echo Helpers::sanitizeOutput($r['email']); ?></td>
-              <td class="small text-center"><?php echo $r['pwd_id_last4'] ? '****'.$r['pwd_id_last4'] : '—'; ?></td>
-              <td class="small text-center"><span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($st); ?></span></td>
-              <td class="small text-end">
-                <form method="post" action="admin_job_seeker_view" class="d-inline">
-                  <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>View
-                  </button>
-                </form>
-              </td>
-            </tr>
-          <?php endforeach; endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
+<div class="seekers-wrapper fade-in" id="seekersWrapper">
+  <table class="seekers-table" id="seekersTable">
+    <thead>
+      <tr>
+        <th data-sort="name">Name</th>
+        <th data-sort="email">Email</th>
+        <th data-sort="pwd">PWD ID (Last4)</th>
+        <th data-sort="pwd_status">PWD ID Status</th>
+        <th data-sort="acct" style="text-align:right">Account</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php if (!$rows): ?>
+        <tr><td colspan="5" class="empty-state">No job seekers found.</td></tr>
+      <?php else: foreach ($rows as $r): ?>
+        <?php
+          $st = $r['pwd_id_status'] ?: 'None';
+          $acct = $r['job_seeker_status'] ?: 'Active';
+          $last4 = $r['pwd_id_last4'] ? '****'.$r['pwd_id_last4'] : '—';
+        ?>
+        <tr data-status="<?php echo htmlspecialchars($st); ?>" data-acct="<?php echo htmlspecialchars($acct); ?>">
+          <td class="fw-semibold" style="color:#fff;font-size:.78rem"><?php echo Helpers::sanitizeOutput($r['name']); ?></td>
+          <td style="color:#93a6bb;font-size:.72rem"><?php echo Helpers::sanitizeOutput($r['email']); ?></td>
+          <td style="text-align:center;font-size:.7rem;color:#d7e3ef"><?php echo $last4; ?></td>
+          <td style="text-align:center">
+            <span class="status-badge pwd-<?php echo htmlspecialchars($st); ?>">
+              <i class="bi bi-circle-fill" style="font-size:.45rem"></i><?php echo htmlspecialchars($st); ?>
+            </span>
+          </td>
+          <td class="actions" style="text-align:right">
+            <form method="post" action="admin_job_seeker_view" class="d-inline">
+              <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
+              <button type="submit" class="view-btn"><i class="bi bi-eye"></i>View</button>
+            </form>
+          </td>
+        </tr>
+      <?php endforeach; endif; ?>
+    </tbody>
+  </table>
+</div>
 </div>
 
 <?php include '../includes/footer.php'; ?>
+<script>
+// Auto-dismiss
+document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{setTimeout(()=>{try{bootstrap.Alert.getOrCreateInstance(el).close();}catch(e){}},4000);});
+const search=document.getElementById('jsSearch');
+const statusSelect=document.getElementById('jsStatusSelect');
+const chips=document.getElementById('jsStatusChips');
+const resetBtn=document.getElementById('jsReset');
+const rows=[...document.querySelectorAll('#seekersTable tbody tr')];
+
+function apply(){
+  const q=(search.value||'').toLowerCase().trim();
+  const st=statusSelect.value||'';
+  let shown=0;
+  rows.forEach(r=>{
+    const rs=r.getAttribute('data-status')||'';
+    const text=r.innerText.toLowerCase();
+    const okStatus=!st||rs===st;
+    const okSearch=!q||text.includes(q);
+    const show=okStatus&&okSearch;
+    r.style.display=show?'':'none';
+    if(show) shown++;
+  });
+}
+search?.addEventListener('input',apply);
+statusSelect?.addEventListener('change',()=>{apply();syncChip();});
+chips?.addEventListener('click',e=>{const c=e.target.closest('.js-chip');if(!c) return;[...chips.querySelectorAll('.js-chip')].forEach(x=>x.classList.remove('active'));c.classList.add('active');statusSelect.value=c.getAttribute('data-filter')||'';apply();});
+resetBtn?.addEventListener('click',()=>{search.value='';statusSelect.value='';[...chips.querySelectorAll('.js-chip')].forEach(x=>x.classList.remove('active'));chips.querySelector('[data-filter=""]')?.classList.add('active');apply();});
+function syncChip(){const v=statusSelect.value||'';[...chips.querySelectorAll('.js-chip')].forEach(ch=>{ch.classList.toggle('active',(ch.getAttribute('data-filter')||'')===v);});}
+
+// Sort
+document.querySelectorAll('#seekersTable thead th[data-sort]').forEach(th=>{th.addEventListener('click',()=>{const key=th.getAttribute('data-sort');const tbody=th.closest('table').querySelector('tbody');const dir=th.getAttribute('data-dir')==='asc'?'desc':'asc';th.setAttribute('data-dir',dir);const f=dir==='asc'?1:-1;const arr=[...tbody.querySelectorAll('tr')];arr.sort((a,b)=>{const get=(row)=>{switch(key){case 'name':return row.children[0].innerText.toLowerCase();case 'email':return row.children[1].innerText.toLowerCase();case 'pwd':return row.children[2].innerText.toLowerCase();case 'pwd_status':return row.getAttribute('data-status')||'';case 'acct':return row.getAttribute('data-acct')||'';default:return row.innerText.toLowerCase();}};return get(a).localeCompare(get(b))*f;});arr.forEach(tr=>tbody.appendChild(tr));});});
+apply();
+</script>

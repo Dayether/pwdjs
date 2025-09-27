@@ -155,7 +155,6 @@ function doc_ext($path) {
 }
 
 include '../includes/header.php';
-include '../includes/nav.php';
 
 /* ADDED: use last page override default list page */
 $backUrl = Helpers::getLastPage('admin_employers.php');
@@ -222,7 +221,7 @@ if ($__syntheticMessages) {
 }
 
 if ($__finalFlashList) {
-    echo '<div id="__emp_status_flash_block" class="container mb-3">';
+  echo '<div id="__emp_status_flash_block" class="mb-3">';
     foreach ($__finalFlashList as $f) {
         $type = htmlspecialchars($f['type'] ?? 'info');
         $msg  = trim((string)($f['message'] ?? ''));
@@ -241,6 +240,9 @@ if ($__finalFlashList) {
     echo '</div>';
 }
 ?>
+<div class="admin-layout">
+  <?php include '../includes/admin_sidebar.php'; ?>
+  <div class="admin-main">
 <script>
 /* ADDED JS PATCH:
    Fills empty alerts (previous logic) with message if needed.
@@ -392,5 +394,6 @@ if ($__finalFlashList) {
     </div>
   </div>
 </div>
+  </div>
 
 <?php include '../includes/footer.php'; ?>

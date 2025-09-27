@@ -25,7 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
   }
   main.flex-grow-1 {
     flex: 1 0 auto;
-    padding-bottom: 1.25rem; /* safe space above footer */
+    padding-bottom: 1.25rem; /* default safe space above footer */
   }
   body {
     font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
@@ -38,8 +38,18 @@ if (session_status() === PHP_SESSION_NONE) {
     min-height: 40vh;
   }
 </style>
+<?php if (($_SESSION['role'] ?? '') === 'admin'): ?>
+<style>
+  /* Remove bottom gap for admin pages (no footer shown) */
+  main.flex-grow-1 { padding-bottom: 0 !important; }
+  .admin-main { padding-bottom: 1.25rem !important; }
+  /* Ensure full height stretch */
+  .admin-layout { min-height: 100vh; }
+</style>
+<?php endif; ?>
 </head>
 <body>
 <div class="page-wrapper">
   <!-- All page content (nav + page body) lives inside <main>. Footer closes outside. -->
   <main class="flex-grow-1">
+  <!-- Removed duplicate custom confirmation script; using single Bootstrap-based handler in footer -->

@@ -45,20 +45,41 @@ $canEdit           = $canEditBase && !$isEmployerSuspended;
 $canViewApplicants = $canEditBase;
 $canActOnApplicants= $canViewApplicants && !$isEmployerSuspended;
 
-/* Back URL: allow ?return= or HTTP_REFERER but keep internal only */
-$rawReturn = $_GET['return'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
-$defaultFallback = $isAdmin ? 'admin_reports.php' : 'index.php';
-$backUrl = $defaultFallback;
-if ($rawReturn) {
-    $parsed = parse_url($rawReturn);
-    $internal = !(isset($parsed['scheme']) || isset($parsed['host']));
-    $path = $parsed['path'] ?? '';
-    if ($internal && $path !== '' && strpos($path, '..') === false) {
-        $backUrl = ltrim($path, '/');
-        if (!empty($parsed['query'])) {
-            $backUrl .= '?' . $parsed['query'];
-        }
-    }
+/* Back URL resolution order:
+   1. Explicit ?return= (internal only)
+   2. Session stored last_page (set via Helpers::storeLastPage())
+   3. HTTP_REFERER (path only, internal)
+   4. Role-based fallback (admin -> admin_reports, employer -> employer_dashboard#jobs, otherwise index)
+*/
+$explicitReturn = $_GET['return'] ?? '';
+$sessionLast    = $_SESSION['last_page'] ?? '';
+$httpRefRaw     = $_SERVER['HTTP_REFERER'] ?? '';
+
+$roleFallback = $isAdmin ? 'admin_reports.php'
+         : ($isOwner ? 'employer_dashboard.php#jobs'
+         : 'index.php');
+$backUrl = $roleFallback;
+
+// Helper to validate internal path
+$sanitizeBack = function($candidate){
+  if (!$candidate) return null;
+  $parsed = parse_url($candidate);
+  if (isset($parsed['scheme']) || isset($parsed['host'])) return null; // external
+  $path = $parsed['path'] ?? '';
+  if ($path === '' || str_contains($path,'..')) return null;
+  if (!preg_match('~^/?[A-Za-z0-9_./#-]+$~', $path)) return null;
+  $safe = ltrim($path,'/');
+  if (!empty($parsed['query'])) $safe .= '?' . $parsed['query'];
+  if (!empty($parsed['fragment']) && !str_contains($safe,'#')) $safe .= '#' . $parsed['fragment'];
+  return $safe;
+};
+
+if ($explicitReturn && ($tmp = $sanitizeBack($explicitReturn))) {
+  $backUrl = $tmp;
+} elseif ($sessionLast && ($tmp = $sanitizeBack($sessionLast))) {
+  $backUrl = $tmp;
+} elseif ($httpRefRaw && ($tmp = $sanitizeBack($httpRefRaw))) {
+  $backUrl = $tmp;
 }
 
 $loginApplyRedirect = 'login.php?redirect=' . urlencode('job_view.php?job_id=' . $job->job_id);
@@ -307,7 +328,6 @@ include '../includes/header.php';
 include '../includes/nav.php';
 ?>
 <style>
-#editFormCard { display:none; }
 .toast-container { z-index:1080; }
 .toast .toast-icon { font-size:1.1rem; }
 .badge-readonly { font-size:.7rem; letter-spacing:.5px; }
@@ -344,8 +364,8 @@ include '../includes/nav.php';
 
 <div class="container pt-3">
   <div class="d-flex justify-content-between align-items-center mb-3 fade-up fade-delay-1">
-    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left me-1"></i>Back
+    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm" aria-label="Go back" id="jobViewBackBtn">
+      <i class="bi bi-arrow-left me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Back</span>
     </a>
   </div>
 </div>
@@ -399,13 +419,7 @@ include '../includes/nav.php';
               </div>
             <?php endif; ?>
           </div>
-          <?php if ($canEdit): ?>
-            <div>
-              <button id="toggleEditBtn" class="btn btn-outline-secondary btn-sm mt-2 mt-lg-0">
-                <i class="bi bi-pencil-square me-1"></i>Edit Job
-              </button>
-            </div>
-          <?php elseif (Helpers::isJobSeeker()): ?>
+          <?php if (Helpers::isJobSeeker()): ?>
             <div class="mt-2 mt-lg-0 d-flex gap-2">
               <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#reportJobModal">
                 <i class="bi bi-flag me-1"></i>Report Job
@@ -513,166 +527,6 @@ include '../includes/nav.php';
       </div>
     </div>
 
-    <!-- Edit Form Card -->
-    <?php if ($canEdit): ?>
-  <div class="card border-0 shadow-sm mb-4 fade-up fade-delay-3 jobv-card" id="editFormCard">
-        <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-3">
-          <h5 class="mb-0">
-            <i class="bi bi-pencil-square me-2"></i>Edit Job
-            <?php if ($isAdmin && !$isOwner): ?>
-              <span class="badge text-bg-danger ms-1">Admin Override</span>
-            <?php endif; ?>
-            <?php if ($matchingLocked && !$isAdmin): ?>
-              <span class="badge text-bg-warning ms-1">Matching Criteria Locked</span>
-            <?php endif; ?>
-          </h5>
-          <button type="button" id="closeEditBtn" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <div class="card-body">
-          <?php if ($matchingLocked && !$isAdmin): ?>
-            <div class="alert alert-info py-2 small mb-3">
-              <i class="bi bi-info-circle me-1"></i>
-              This job already has <?php echo $applicantCount; ?> applicant<?php echo $applicantCount>1?'s':''; ?>. Core matching fields are locked.
-            </div>
-          <?php endif; ?>
-          <form method="post" class="row g-3">
-            <input type="hidden" name="form_mode" value="edit_job">
-            <div class="col-12">
-              <label class="form-label fw-semibold">Title</label>
-              <input name="title" class="form-control" required value="<?php echo htmlspecialchars($job->title); ?>">
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Employment type</label>
-              <select name="employment_type" class="form-select">
-                <?php foreach ($employmentTypes as $t): ?>
-                  <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($job->employment_type === $t) echo 'selected'; ?>>
-                    <?php echo htmlspecialchars($t); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Office Location (optional)</label>
-              <div class="d-flex gap-2">
-                <input name="location_city"   class="form-control" placeholder="City"            value="<?php echo htmlspecialchars($job->location_city); ?>">
-                <input name="location_region" class="form-control" placeholder="Region/Province" value="<?php echo htmlspecialchars($job->location_region); ?>">
-              </div>
-            </div>
-
-            <div class="col-md-3">
-              <label class="form-label">Salary currency</label>
-              <input name="salary_currency" class="form-control" value="<?php echo htmlspecialchars($job->salary_currency); ?>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Salary min</label>
-              <input name="salary_min" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_min ?? ''); ?>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Salary max</label>
-              <input name="salary_max" type="number" min="0" class="form-control" value="<?php echo htmlspecialchars($job->salary_max ?? ''); ?>">
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Salary period</label>
-              <select name="salary_period" class="form-select">
-                <?php foreach (['monthly','yearly','hourly'] as $p): ?>
-                  <option value="<?php echo $p; ?>" <?php if ($job->salary_period === $p) echo 'selected'; ?>>
-                    <?php echo ucfirst($p); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div class="col-md-8 <?php echo ($matchingLocked && !$isAdmin)?'field-locked-overlay':''; ?>">
-              <label class="form-label">General Skills</label>
-              <div class="row">
-                <?php foreach ($generalSkills as $gs):
-                  $checked = in_array($gs, $generalSelected, true) ? 'checked' : ''; ?>
-                  <div class="col-sm-6 col-lg-4">
-                    <div class="form-check">
-                      <input class="form-check-input"
-                             type="checkbox"
-                             id="genskill_<?php echo md5($gs); ?>"
-                             name="required_skills[]"
-                             value="<?php echo htmlspecialchars($gs); ?>"
-                             <?php echo $checked; ?>
-                             <?php echo ($matchingLocked && !$isAdmin)?'disabled':''; ?>>
-                      <label class="form-check-label small" for="genskill_<?php echo md5($gs); ?>">
-                        <?php echo htmlspecialchars($gs); ?>
-                      </label>
-                    </div>
-                  </div>
-                <?php endforeach; ?>
-              </div>
-              <small class="text-muted d-block mt-1">Select general / soft capabilities.</small>
-
-              <label class="form-label mt-3">Required Skills (comma separated)</label>
-              <input
-                 type="text"
-                 name="additional_skills"
-                 class="form-control"
-                 value="<?php echo htmlspecialchars($requiredSkillsInputValue); ?>"
-                 placeholder="e.g., Calendar Management, Data Entry"
-                 <?php echo ($matchingLocked && !$isAdmin)?'disabled':''; ?>>
-              <small class="text-muted">Specific technical or role-focused requirements.</small>
-            </div>
-
-            <div class="col-md-4 <?php echo ($matchingLocked && !$isAdmin)?'field-locked-overlay':''; ?>">
-              <label class="form-label">Experience (years)</label>
-              <input name="required_experience"
-                     type="number"
-                     min="0"
-                     class="form-control"
-                     value="<?php echo htmlspecialchars($job->required_experience); ?>"
-                     <?php echo ($matchingLocked && !$isAdmin)?'disabled':''; ?>>
-              <label class="form-label mt-3">Education Requirement</label>
-              <select name="required_education"
-                      class="form-select"
-                      <?php echo ($matchingLocked && !$isAdmin)?'disabled':''; ?>>
-                <option value="">Any</option>
-                <?php foreach ($eduLevels as $lvl): ?>
-                  <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if (($job->required_education ?? '') === $lvl) echo 'selected'; ?>>
-                    <?php echo htmlspecialchars($lvl); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label d-block">Accessibility Tags</label>
-              <?php
-                $currentTags = array_filter(array_map('trim', explode(',', $job->accessibility_tags ?? '')));
-              ?>
-              <?php foreach ($accessTags as $tag): ?>
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input"
-                         name="accessibility_tags[]"
-                         type="checkbox"
-                         value="<?php echo htmlspecialchars($tag); ?>"
-                         <?php echo in_array($tag, $currentTags, true) ? 'checked' : ''; ?>>
-                  <label class="form-check-label"><?php echo htmlspecialchars($tag); ?></label>
-                </div>
-              <?php endforeach; ?>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-semibold">Description</label>
-              <textarea name="description" class="form-control" rows="7" required><?php echo htmlspecialchars($job->description); ?></textarea>
-            </div>
-
-            <div class="col-12 d-flex gap-2">
-              <button class="btn btn-primary">
-                <i class="bi bi-save me-1"></i><?php echo $isAdmin && !$isOwner ? 'Save (Admin)' : 'Save Changes'; ?>
-              </button>
-              <button type="button" class="btn btn-outline-secondary" id="cancelEditBtn">Cancel</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    <?php endif; ?>
 
     <!-- Applicants -->
     <?php if ($canViewApplicants): ?>
@@ -931,27 +785,5 @@ function createToastContainer() {
   return c;
 }
 
-<?php if ($canEdit): ?>
-(function() {
-  const btn      = document.getElementById('toggleEditBtn');
-  const card     = document.getElementById('editFormCard');
-  const closeBtn = document.getElementById('closeEditBtn');
-  const cancelBtn= document.getElementById('cancelEditBtn');
-
-  function showEdit() {
-    card.style.display='block';
-    window.scrollTo({top:card.offsetTop - 60, behavior:'smooth'});
-  }
-  function hideEdit() { card.style.display='none'; }
-
-  btn?.addEventListener('click', e => {
-    e.preventDefault();
-    (card.style.display === 'block') ? hideEdit() : showEdit();
-  });
-  closeBtn?.addEventListener('click', hideEdit);
-  cancelBtn?.addEventListener('click', hideEdit);
-
-  <?php if ($errors): ?>showEdit();<?php endif; ?>
-})();
-<?php endif; ?>
+</script>
 </script>

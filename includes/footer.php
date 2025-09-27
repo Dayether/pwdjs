@@ -1,6 +1,7 @@
     </main><!-- /main content area -->
 
-    <footer class="footer footer-themed py-4 mt-auto">
+  <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
+  <footer class="footer footer-themed py-4 mt-auto">
       <div class="container d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
         <div class="small">
           <span class="text-white">PWD Employment &amp; Skills Portal</span> &middot;
@@ -24,7 +25,8 @@
       <div class="container mt-3 small" style="color: rgba(255,255,255,.7)">
         
       </div>
-    </footer>
+  </footer>
+  <?php endif; ?>
 
     <!-- Global confirmation modal (kept) -->
     <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
