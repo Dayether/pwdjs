@@ -20,6 +20,7 @@ require_once '../classes/Skill.php';
 require_once '../classes/Taxonomy.php';
 require_once '../classes/User.php';
 require_once '../classes/Application.php';
+require_once '../classes/Matching.php';
 
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);
@@ -83,6 +84,15 @@ if ($explicitReturn && ($tmp = $sanitizeBack($explicitReturn))) {
 }
 
 $loginApplyRedirect = 'login.php?redirect=' . urlencode('job_view.php?job_id=' . $job->job_id);
+
+// Precompute matching info if viewer is a job seeker
+$matchInfo = null;
+if (Helpers::isJobSeeker()) {
+  $viewer = User::findById($_SESSION['user_id']);
+  if ($viewer) {
+    $matchInfo = Matching::canApply($viewer, $job);
+  }
+}
 
 /* Applicants */
 $applicants = [];
@@ -461,6 +471,22 @@ include '../includes/nav.php';
           </div>
         </div>
 
+        <?php if ($matchInfo && isset($matchInfo['score'])): ?>
+          <div class="alert alert-<?php echo ($matchInfo['ok'] ? 'success' : 'warning'); ?> d-flex align-items-center">
+            <i class="bi <?php echo $matchInfo['ok'] ? 'bi-emoji-smile' : 'bi-info-circle'; ?> me-2"></i>
+            <div>
+              Match score: <strong><?php echo number_format((float)$matchInfo['score'],2); ?></strong>
+              <?php if (!$matchInfo['ok'] && !empty($matchInfo['reasons'])): ?>
+                <div class="small mt-1">
+                  <?php foreach ($matchInfo['reasons'] as $r): ?>
+                    <div>• <?php echo htmlspecialchars($r); ?></div>
+                  <?php endforeach; ?>
+                </div>
+              <?php endif; ?>
+            </div>
+          </div>
+        <?php endif; ?>
+
         <!-- Compensation -->
         <div class="mb-4">
           <h2 class="h6 fw-semibold mb-2 text-uppercase small tracking-wide"><i class="bi bi-cash-stack me-1"></i>Compensation</h2>
@@ -497,6 +523,19 @@ include '../includes/nav.php';
             <div class="alert alert-info mb-0">
               <i class="bi bi-check2-circle me-1"></i>You have already applied to this job.
             </div>
+          <?php elseif ($matchInfo && !$matchInfo['ok'] && Matching::HARD_LOCK): ?>
+            <div class="alert alert-warning mb-2">
+              <i class="bi bi-shield-exclamation me-1"></i>
+              You can't apply to this job because your profile doesn't meet the minimum requirements.
+              <?php if (!empty($matchInfo['reasons'])): ?>
+                <div class="small mt-1">
+                  <?php foreach ($matchInfo['reasons'] as $r): ?><div>• <?php echo htmlspecialchars($r); ?></div><?php endforeach; ?>
+                </div>
+              <?php endif; ?>
+            </div>
+            <a class="btn btn-secondary btn-lg disabled" tabindex="-1" aria-disabled="true">
+              <i class="bi bi-lock me-1"></i>Apply Disabled
+            </a>
           <?php else: ?>
             <a class="btn btn-primary btn-lg" href="job_apply.php?job_id=<?php echo urlencode($job->job_id); ?>">
               <i class="bi bi-send me-1"></i>Apply Now

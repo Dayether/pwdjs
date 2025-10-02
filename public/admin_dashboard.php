@@ -19,6 +19,50 @@ try {
   $todayJobs = (int)$stmt->fetchColumn();
 } catch (Throwable $e) { $todayJobs = 0; }
 
+// Job seeker disability breakdown (from disability_type if set, else disability)
+$disCategories = [
+  'Learning disability',
+  'Vision impairment',
+  'Communication disorder',
+  'Intellectual disability',
+  'Orthopedic disability',
+  'Chronic illness',
+  'Hearing loss',
+  'Speech impairment',
+  'Hearing disability',
+  'Physical disability'
+];
+$disMap = array_fill_keys(array_map('strtolower',$disCategories), 0);
+$disOther = 0; $disUnspec = 0;
+try {
+  $q = $pdo->query("SELECT TRIM(LOWER(COALESCE(disability_type, disability))) AS label, COUNT(*) c FROM users WHERE role='job_seeker' GROUP BY label");
+  $rows = $q->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  foreach ($rows as $r) {
+    $label = $r['label'] ?? '';
+    $cnt = (int)($r['c'] ?? 0);
+    if ($label === '' || $label === null) { $disUnspec += $cnt; continue; }
+    if (array_key_exists($label, $disMap)) { $disMap[$label] += $cnt; }
+    else { $disOther += $cnt; }
+  }
+} catch (Throwable $e) { /* ignore breakdown errors */ }
+
+// Build Top-N list (default N=5; use 'all' to show all)
+$topNParam = isset($_GET['topN']) ? strtolower(trim($_GET['topN'])) : '5';
+$topN = 5;
+if ($topNParam === 'all') { $topN = PHP_INT_MAX; }
+elseif (ctype_digit($topNParam)) { $topN = max(1, min(20, (int)$topNParam)); }
+
+$pairs = [];
+foreach ($disMap as $k=>$v) { $pairs[] = ['key'=>$k,'label'=>ucwords($k), 'count'=>$v]; }
+usort($pairs, function($a,$b){ return $b['count'] <=> $a['count']; });
+
+$topList = array_slice($pairs, 0, $topN);
+$shownTotal = array_sum(array_column($topList,'count'));
+$remaining = max(0, ($totalSeekers - $shownTotal));
+// Add Other and Unspecified into remaining appropriately
+$otherBundle = max(0, $disOther + $disUnspec + ($totalSeekers - ($disOther + $disUnspec + array_sum(array_column($pairs,'count'))))); // safety
+
+
 include '../includes/header.php';
 ?>
 <div class="admin-layout" style="margin-top:0;">
@@ -157,6 +201,33 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
   <div class="mt-3 small text-secondary">Focus on clearing high percentage areas to keep platform onboarding smooth.</div>
 </div>
 
+<div class="section-card fade-in-up">
+  <div class="section-title">Job Seekers by Disability</div>
+  <div class="d-flex gap-2 mb-2 small">
+    <a class="btn btn-sm btn-outline-light <?php echo ($topN===5?'active':''); ?>" href="?topN=5">Top 5</a>
+    <a class="btn btn-sm btn-outline-light <?php echo ($topN===10?'active':''); ?>" href="?topN=10">Top 10</a>
+    <a class="btn btn-sm btn-outline-light <?php echo ($topN===PHP_INT_MAX?'active':''); ?>" href="?topN=all">All</a>
+  </div>
+  <?php if ($totalSeekers > 0): ?>
+    <?php foreach ($topList as $row): if ($row['count']<=0) continue; $pct = round(($row['count']/$totalSeekers)*100,1); ?>
+      <div class="dist-row"><span><?php echo htmlspecialchars($row['label']); ?></span><span><?php echo number_format($row['count']); ?> (<?php echo $pct; ?>%)</span></div>
+      <div class="progress-slim"><span style="width:<?php echo $pct; ?>%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></span></div>
+    <?php endforeach; ?>
+    <?php
+      $othersCount = $disOther + $disUnspec + max(0, $remaining - $disOther - $disUnspec);
+      if ($othersCount > 0):
+        $pct = round(($othersCount/$totalSeekers)*100,1);
+    ?>
+      <div class="dist-row"><span>Others/Unspecified</span><span><?php echo number_format($othersCount); ?> (<?php echo $pct; ?>%)</span></div>
+      <div class="progress-slim"><span style="width:<?php echo $pct; ?>%;background:linear-gradient(90deg,#6366f1,#818cf8)"></span></div>
+    <?php endif; ?>
+  <?php else: ?>
+    <div class="small text-secondary">No job seeker disability data yet.</div>
+  <?php endif; ?>
+
+  <canvas id="disPie" height="160" style="margin-top:12px"></canvas>
+</div>
+
 <script>
 // Animated counter when in view
 (()=>{
@@ -184,6 +255,40 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
     }
     el.classList.add('visible');
     requestAnimationFrame(frame);
+  }
+})();
+
+// Pie chart for disability distribution (Top-N + Others)
+(()=>{
+  const ctx = document.getElementById('disPie');
+  if (!ctx) return;
+  // Prepare data from PHP
+  const labels = [
+    <?php foreach ($topList as $r): if ($r['count']>0): ?>'<?php echo addslashes($r['label']); ?>',<?php endif; endforeach; ?>
+    <?php $othersCount = $disOther + $disUnspec + max(0, $remaining - $disOther - $disUnspec); if ($othersCount>0): ?>'Others/Unspecified'<?php endif; ?>
+  ].filter(Boolean);
+  const data = [
+    <?php foreach ($topList as $r): if ($r['count']>0): echo (int)$r['count'].','; endif; endforeach; ?>
+    <?php echo ($othersCount>0) ? (int)$othersCount : ''; ?>
+  ].filter(v=>v!=='' && v!==undefined);
+  if (!labels.length || !data.length) return;
+  const colors = ['#60a5fa','#34d399','#f472b6','#f59e0b','#a78bfa','#22d3ee','#f87171','#10b981','#c084fc','#fb7185','#94a3b8'];
+  const bg = labels.map((_,i)=>colors[i % colors.length]);
+  // Load Chart.js via CDN if not present
+  function make(){
+    // eslint-disable-next-line no-undef
+    new Chart(ctx, {
+      type: 'pie',
+      data: { labels, datasets: [{ data, backgroundColor: bg }] },
+      options: { plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+  if (window.Chart) { make(); }
+  else {
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/chart.js';
+    s.onload=make;
+    document.head.appendChild(s);
   }
 })();
 </script>

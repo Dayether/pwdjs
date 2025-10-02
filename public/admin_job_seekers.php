@@ -5,6 +5,7 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Sensitive.php';
 require_once '../classes/Mail.php';
+require_once '../classes/Taxonomy.php';
 
 Helpers::requireRole('admin');
 
@@ -14,29 +15,46 @@ Helpers::storeLastPage();
 // Filters
 $statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
 $search = trim($_GET['q'] ?? '');
+$workSetupFilter = trim($_GET['work_setup'] ?? ''); // On-site|Hybrid|Remote
+$accTagFilter = trim($_GET['acc'] ?? ''); // one accessibility tag
 
 // Actions are handled in the detail view page now.
 
 $pdo = Database::getConnection();
-$where = "role='job_seeker'";
+$where = "u.role='job_seeker'";
 $params = [];
 if ($statusFilter !== '') {
-    $where .= " AND pwd_id_status=?";
+  $where .= " AND u.pwd_id_status=?";
     $params[] = $statusFilter;
 }
 if ($search !== '') {
-    $where .= " AND (name LIKE ? OR email LIKE ?)";
+  $where .= " AND (u.name LIKE ? OR u.email LIKE ?)";
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
-$sql = "SELECT user_id,name,email,pwd_id_last4,pwd_id_status,job_seeker_status,created_at FROM users WHERE $where ORDER BY (pwd_id_status='Pending') DESC, created_at DESC LIMIT 300";
+if ($workSetupFilter !== '') {
+  $where .= " AND u.preferred_work_setup = ?";
+  $params[] = $workSetupFilter;
+}
+// Optional join for accessibility tag filtering
+$join = '';
+if ($accTagFilter !== '') {
+  $join = "JOIN user_accessibility_prefs ap ON ap.user_id = u.user_id AND ap.tag = ?";
+  $params[] = $accTagFilter;
+}
+$sql = "SELECT u.user_id,u.name,u.email,u.pwd_id_last4,u.pwd_id_status,u.job_seeker_status,u.preferred_work_setup,u.created_at
+    FROM users u
+    $join
+    WHERE $where
+    ORDER BY (u.pwd_id_status='Pending') DESC, u.created_at DESC
+    LIMIT 300";
 try {
   $stmt = $pdo->prepare($sql);
   $stmt->execute($params);
   $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
   // Fallback if migration not yet applied (no job_seeker_status column)
-  $fallbackSql = str_replace(',job_seeker_status','', $sql);
+  $fallbackSql = str_replace(',u.job_seeker_status','', $sql);
   $stmt = $pdo->prepare($fallbackSql);
   $stmt->execute($params);
   $rowsRaw = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -132,6 +150,20 @@ include '../includes/header.php';
       <option value="Verified">Verified</option>
       <option value="Rejected">Rejected</option>
     </select>
+    <select id="jsWorkSetup">
+      <?php $wsParam = htmlspecialchars($workSetupFilter); ?>
+      <option value="" <?php echo $wsParam===''?'selected':''; ?>>Work Setup</option>
+      <option value="On-site" <?php echo $wsParam==='On-site'?'selected':''; ?>>On-site</option>
+      <option value="Hybrid" <?php echo $wsParam==='Hybrid'?'selected':''; ?>>Hybrid</option>
+      <option value="Remote" <?php echo $wsParam==='Remote'?'selected':''; ?>>Remote</option>
+    </select>
+    <select id="jsAccTag">
+      <?php $accParam = htmlspecialchars($accTagFilter); ?>
+      <option value="" <?php echo $accParam===''?'selected':''; ?>>Accessibility</option>
+      <?php if (class_exists('Taxonomy') && method_exists('Taxonomy','accessibilityTags')): foreach (Taxonomy::accessibilityTags() as $tag): ?>
+        <option value="<?php echo htmlspecialchars($tag); ?>" <?php echo $accParam===$tag?'selected':''; ?>><?php echo htmlspecialchars($tag); ?></option>
+      <?php endforeach; endif; ?>
+    </select>
     <button type="button" class="reset-btn" id="jsReset"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
   </div>
 </div>
@@ -144,19 +176,27 @@ include '../includes/header.php';
         <th data-sort="email">Email</th>
         <th data-sort="pwd">PWD ID (Last4)</th>
         <th data-sort="pwd_status">PWD ID Status</th>
-        <th data-sort="acct" style="text-align:right">Account</th>
+  <th data-sort="acct">Account</th>
+  <th>Work Setup</th>
+  <th>Accessibility</th>
+  <th style="text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody>
       <?php if (!$rows): ?>
-        <tr><td colspan="5" class="empty-state">No job seekers found.</td></tr>
+        <tr><td colspan="8" class="empty-state">No job seekers found.</td></tr>
       <?php else: foreach ($rows as $r): ?>
         <?php
           $st = $r['pwd_id_status'] ?: 'None';
           $acct = $r['job_seeker_status'] ?: 'Active';
           $last4 = $r['pwd_id_last4'] ? '****'.$r['pwd_id_last4'] : '—';
+          // Fetch filters data
+          $ws = (string)($r['preferred_work_setup'] ?? '');
+          $accList = User::listAccessibilityPrefs($r['user_id']);
+          $accDataAttr = $accList ? htmlspecialchars(implode('|',$accList)) : '';
+          $accDisp = $accList ? implode(', ', $accList) : '';
         ?>
-        <tr data-status="<?php echo htmlspecialchars($st); ?>" data-acct="<?php echo htmlspecialchars($acct); ?>">
+        <tr data-status="<?php echo htmlspecialchars($st); ?>" data-acct="<?php echo htmlspecialchars($acct); ?>" data-ws="<?php echo htmlspecialchars($ws); ?>" data-acc="<?php echo $accDataAttr; ?>">
           <td class="fw-semibold" style="color:#fff;font-size:.78rem"><?php echo Helpers::sanitizeOutput($r['name']); ?></td>
           <td style="color:#93a6bb;font-size:.72rem"><?php echo Helpers::sanitizeOutput($r['email']); ?></td>
           <td style="text-align:center;font-size:.7rem;color:#d7e3ef"><?php echo $last4; ?></td>
@@ -165,6 +205,9 @@ include '../includes/header.php';
               <i class="bi bi-circle-fill" style="font-size:.45rem"></i><?php echo htmlspecialchars($st); ?>
             </span>
           </td>
+          <td><span class="status-badge acct-<?php echo htmlspecialchars($acct); ?>"><?php echo htmlspecialchars($acct); ?></span></td>
+          <td><?php echo $ws?htmlspecialchars($ws):'—'; ?></td>
+          <td><?php echo $accDisp?htmlspecialchars($accDisp):'—'; ?></td>
           <td class="actions" style="text-align:right">
             <form method="post" action="admin_job_seeker_view" class="d-inline">
               <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
@@ -184,6 +227,8 @@ include '../includes/header.php';
 document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{setTimeout(()=>{try{bootstrap.Alert.getOrCreateInstance(el).close();}catch(e){}},4000);});
 const search=document.getElementById('jsSearch');
 const statusSelect=document.getElementById('jsStatusSelect');
+const workSetup=document.getElementById('jsWorkSetup');
+const accTag=document.getElementById('jsAccTag');
 const chips=document.getElementById('jsStatusChips');
 const resetBtn=document.getElementById('jsReset');
 const rows=[...document.querySelectorAll('#seekersTable tbody tr')];
@@ -191,21 +236,29 @@ const rows=[...document.querySelectorAll('#seekersTable tbody tr')];
 function apply(){
   const q=(search.value||'').toLowerCase().trim();
   const st=statusSelect.value||'';
+  const ws=workSetup.value||'';
+  const at=accTag.value||'';
   let shown=0;
   rows.forEach(r=>{
     const rs=r.getAttribute('data-status')||'';
+    const rws=r.getAttribute('data-ws')||'';
+    const rats=(r.getAttribute('data-acc')||'').split('|').filter(Boolean);
     const text=r.innerText.toLowerCase();
     const okStatus=!st||rs===st;
+    const okWS=!ws||rws===ws;
+    const okAcc=!at||rats.includes(at);
     const okSearch=!q||text.includes(q);
-    const show=okStatus&&okSearch;
+    const show=okStatus&&okWS&&okAcc&&okSearch;
     r.style.display=show?'':'none';
     if(show) shown++;
   });
 }
 search?.addEventListener('input',apply);
 statusSelect?.addEventListener('change',()=>{apply();syncChip();});
+workSetup?.addEventListener('change',apply);
+accTag?.addEventListener('change',apply);
 chips?.addEventListener('click',e=>{const c=e.target.closest('.js-chip');if(!c) return;[...chips.querySelectorAll('.js-chip')].forEach(x=>x.classList.remove('active'));c.classList.add('active');statusSelect.value=c.getAttribute('data-filter')||'';apply();});
-resetBtn?.addEventListener('click',()=>{search.value='';statusSelect.value='';[...chips.querySelectorAll('.js-chip')].forEach(x=>x.classList.remove('active'));chips.querySelector('[data-filter=""]')?.classList.add('active');apply();});
+resetBtn?.addEventListener('click',()=>{search.value='';statusSelect.value='';workSetup.value='';accTag.value='';[...chips.querySelectorAll('.js-chip')].forEach(x=>x.classList.remove('active'));chips.querySelector('[data-filter=""]')?.classList.add('active');apply();});
 function syncChip(){const v=statusSelect.value||'';[...chips.querySelectorAll('.js-chip')].forEach(ch=>{ch.classList.toggle('active',(ch.getAttribute('data-filter')||'')===v);});}
 
 // Sort

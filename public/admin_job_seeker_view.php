@@ -181,6 +181,28 @@ include '../includes/header.php';
         </dl>
       </div>
     </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-white fw-semibold">Preferences (Mini Resume)</div>
+      <div class="card-body small">
+        <?php
+          $salParts=[];
+          if (!empty($user['expected_salary_min'])) $salParts[] = number_format((int)$user['expected_salary_min']);
+          if (!empty($user['expected_salary_max'])) $salParts[] = number_format((int)$user['expected_salary_max']);
+          $salRange = implode(' - ', $salParts);
+          $salPeriod = !empty($user['expected_salary_period']) ? ucfirst($user['expected_salary_period']) : '';
+          $salCur = $user['expected_salary_currency'] ?? '';
+          $salaryDisp = $salRange ? trim($salCur.' '.$salRange.' '.$salPeriod) : '';
+        ?>
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Work Setup</dt><dd class="col-sm-8"><?php echo $user['preferred_work_setup'] ? Helpers::sanitizeOutput($user['preferred_work_setup']) : '—'; ?></dd>
+          <dt class="col-sm-4">Preferred Location</dt><dd class="col-sm-8"><?php echo $user['preferred_location'] ? Helpers::sanitizeOutput($user['preferred_location']) : '—'; ?></dd>
+          <dt class="col-sm-4">Expected Salary</dt><dd class="col-sm-8"><?php echo $salaryDisp ? Helpers::sanitizeOutput($salaryDisp) : '—'; ?></dd>
+          <dt class="col-sm-4">Interests</dt><dd class="col-sm-8"><?php echo $user['interests'] ? nl2br(Helpers::sanitizeOutput($user['interests'])) : '—'; ?></dd>
+          <dt class="col-sm-4">Accessibility</dt><dd class="col-sm-8"><?php echo $user['accessibility_preferences'] ? Helpers::sanitizeOutput($user['accessibility_preferences']) : '—'; ?></dd>
+        </dl>
+      </div>
+    </div>
   </div>
   <div class="col-lg-5">
     <div class="card border-0 shadow-sm mb-4">

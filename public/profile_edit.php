@@ -117,25 +117,44 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='profile') {
   $inputEdu = trim($_POST['education_level'] ?? '');
   $update['education_level'] = in_array($inputEdu, $educationLevels, true) ? $inputEdu : '';
     $update['primary_skill_summary']= trim($_POST['primary_skill_summary'] ?? '');
-  // Disability type (handle __other sentinel)
-  $rawDisType = $_POST['disability_type'] ?? '';
-  if ($rawDisType === '__other') {
-    $rawDisType = trim($_POST['disability_type_other'] ?? '');
-  }
-  $update['disability_type'] = trim($rawDisType);
-  // Enforce: Job seekers must have a specific disability type (no None/empty). If __other used, text is required.
+  // Disability type (general categories)
+  $update['disability_type'] = trim($_POST['disability_type'] ?? '');
+  // Enforce: Job seekers must have a specific disability type (no None/empty)
   if (Helpers::isJobSeeker()) {
     if ($update['disability_type'] === '' || strcasecmp($update['disability_type'], 'None') === 0) {
-      $errors[] = 'Please select your physical disability (None is not allowed for Job Seeker accounts).';
-    }
-    if (isset($_POST['disability_type']) && $_POST['disability_type'] === '__other') {
-      if ($update['disability_type'] === '' || mb_strlen($update['disability_type']) < 3 || mb_strlen($update['disability_type']) > 120) {
-        $errors[] = 'Please provide a valid disability type description (3–120 characters).';
-      }
+      $errors[] = 'Please select your disability (None is not allowed for Job Seeker accounts).';
     }
   }
     $update['disability_severity']  = $_POST['disability_severity'] ?: null;
     $update['assistive_devices']    = trim($_POST['assistive_devices'] ?? '');
+
+    // Preferences / Mini resume
+    $cur = strtoupper(trim($_POST['expected_salary_currency'] ?? 'PHP'));
+    $per = strtolower(trim($_POST['expected_salary_period'] ?? 'monthly'));
+    $min = isset($_POST['expected_salary_min']) && $_POST['expected_salary_min'] !== '' ? max(0, (int)$_POST['expected_salary_min']) : null;
+    $max = isset($_POST['expected_salary_max']) && $_POST['expected_salary_max'] !== '' ? max(0, (int)$_POST['expected_salary_max']) : null;
+    if ($min !== null && $max !== null && $min > $max) { $errors[] = 'Expected salary min cannot exceed max.'; }
+    if (!in_array($per,['monthly','yearly','hourly'],true)) { $per = 'monthly'; }
+    if ($cur === '') { $cur = 'PHP'; }
+    $update['expected_salary_currency'] = $cur;
+    $update['expected_salary_min'] = $min;
+    $update['expected_salary_max'] = $max;
+    $update['expected_salary_period'] = $per;
+    $update['interests'] = trim($_POST['interests'] ?? '');
+    // Accessibility preferences: save to normalized table and text column (compat)
+    if (isset($_POST['accessibility_preferences']) && is_array($_POST['accessibility_preferences'])) {
+      $accTagsPosted = array_values(array_filter(array_map('trim', $_POST['accessibility_preferences'])));
+      // Persist normalized set; ignore return for compatibility if migration not yet applied
+      User::setAccessibilityPrefs($user->user_id, $accTagsPosted);
+      $update['accessibility_preferences'] = implode(',', $accTagsPosted);
+    } else {
+      $update['accessibility_preferences'] = trim($_POST['accessibility_preferences'] ?? '');
+      // When free-text provided (unlikely in current UI), attempt to sync normalized table
+      $accTagsPosted = array_values(array_filter(array_map('trim', explode(',', $update['accessibility_preferences']))));
+      User::setAccessibilityPrefs($user->user_id, $accTagsPosted);
+    }
+    $update['preferred_location'] = trim($_POST['preferred_location'] ?? '');
+    $update['preferred_work_setup'] = in_array(($_POST['preferred_work_setup'] ?? ''), ['On-site','Hybrid','Remote'], true) ? $_POST['preferred_work_setup'] : null;
 
     // PWD ID: allow setting ONLY if not already stored
     if (!$user->pwd_id_last4) {
@@ -237,6 +256,8 @@ if ($flashRedirect && !$errors) {
 /* Lists */
 $experiences = Experience::listByUser($user->user_id);
 $certs       = Certification::listByUser($user->user_id);
+// Normalized accessibility preferences for pre-selection
+$normalizedAcc = User::listAccessibilityPrefs($user->user_id);
 
 include '../includes/header.php';
 include '../includes/nav.php';
@@ -360,22 +381,25 @@ include '../includes/nav.php';
           <label class="form-label">Disability Type</label>
           <?php
             $disabilityTypes = [
-              'Spinal Cord Injury',
-              'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
-              'Amputee (lower limb)',
-              'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
-              'Other Physical Disability'
+              'Learning disability',
+              'Vision impairment',
+              'Communication disorder',
+              'Intellectual disability',
+              'Orthopedic disability',
+              'Chronic illness',
+              'Hearing loss',
+              'Speech impairment',
+              'Hearing disability',
+              'Physical disability'
             ];
             $curDisType = $user->disability_type;
-            $isOther = $curDisType && !in_array($curDisType,$disabilityTypes,true);
           ?>
           <select name="disability_type" id="disabilityTypeSelect" class="form-select mb-2">
             <option value="">Select</option>
             <?php foreach($disabilityTypes as $dt): ?>
-              <option value="<?php echo $dt==='Other Physical Disability'?'__other':htmlspecialchars($dt); ?>" <?php if(($dt!=='Other Physical Disability' && $curDisType===$dt) || ($dt==='Other Physical Disability' && $isOther)) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
+              <option value="<?php echo htmlspecialchars($dt); ?>" <?php if($curDisType===$dt) echo 'selected'; ?>><?php echo htmlspecialchars($dt); ?></option>
             <?php endforeach; ?>
           </select>
-          <input type="text" name="disability_type_other" id="disabilityTypeOther" class="form-control" placeholder="Specify other type" value="<?php echo $isOther?htmlspecialchars($curDisType):''; ?>" style="display: <?php echo $isOther?'block':'none'; ?>;">
         </div>
         <div class="col-md-4">
           <label class="form-label">Severity</label>
@@ -399,6 +423,60 @@ include '../includes/nav.php';
             <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter your PWD ID for verification" autocomplete="off">
             <div class="form-text">Encrypted & locked after saving.</div>
           <?php endif; ?>
+        </div>
+      </div>
+      <div class="mini-divider"></div>
+      <h2 class="pe-head" style="margin-top:.25rem;"><span class="icon"><i class="bi bi-card-checklist"></i></span>Preferences (Mini Resume)</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Expected Salary</label>
+          <div class="input-group">
+            <select name="expected_salary_currency" class="form-select" style="max-width:90px;">
+              <?php foreach (['PHP','USD'] as $cc): ?>
+                <option value="<?php echo $cc; ?>" <?php if (($user->expected_salary_currency ?: 'PHP')===$cc) echo 'selected'; ?>><?php echo $cc; ?></option>
+              <?php endforeach; ?>
+            </select>
+            <input type="number" min="0" step="1" name="expected_salary_min" class="form-control" placeholder="Min" value="<?php echo htmlspecialchars((string)($user->expected_salary_min ?? '')); ?>">
+            <input type="number" min="0" step="1" name="expected_salary_max" class="form-control" placeholder="Max" value="<?php echo htmlspecialchars((string)($user->expected_salary_max ?? '')); ?>">
+            <select name="expected_salary_period" class="form-select" style="max-width:120px;">
+              <?php foreach (['monthly','yearly','hourly'] as $p): ?>
+                <option value="<?php echo $p; ?>" <?php if (($user->expected_salary_period ?: 'monthly')===$p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-text">Range is optional; leave blank if flexible.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Preferred Work Setup</label>
+          <select name="preferred_work_setup" class="form-select">
+            <option value="">Select</option>
+            <?php foreach (['On-site','Hybrid','Remote'] as $ws): ?>
+              <option value="<?php echo $ws; ?>" <?php if (($user->preferred_work_setup ?? '')===$ws) echo 'selected'; ?>><?php echo $ws; ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Preferred Location</label>
+          <input type="text" name="preferred_location" class="form-control" placeholder="City/Region" value="<?php echo htmlspecialchars($user->preferred_location ?? ''); ?>">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Interests (comma separated)</label>
+          <input type="text" name="interests" class="form-control" placeholder="e.g., Data Entry, Customer Support" value="<?php echo htmlspecialchars($user->interests ?? ''); ?>">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Accessibility Preferences</label>
+          <?php
+            $accTags = method_exists('Taxonomy','accessibilityTags') ? Taxonomy::accessibilityTags() : [];
+            $sel = $normalizedAcc ?: array_filter(array_map('trim', explode(',', (string)($user->accessibility_preferences ?? ''))));
+          ?>
+          <div class="d-flex flex-wrap gap-2">
+            <?php foreach ($accTags as $tag): $checked = in_array($tag,$sel,true); ?>
+              <label class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="accessibility_preferences[]" value="<?php echo htmlspecialchars($tag); ?>" <?php echo $checked?'checked':''; ?>>
+                <span class="form-check-label"><?php echo htmlspecialchars($tag); ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
         </div>
       </div>
       <div class="mini-divider"></div>
@@ -539,7 +617,6 @@ include '../includes/nav.php';
   const summaryInput = document.getElementById('summaryInput');
   const summaryCounter = document.getElementById('summaryCounter');
   const disabilityTypeSelect = document.getElementById('disabilityTypeSelect');
-  const disabilityTypeOther = document.getElementById('disabilityTypeOther');
   const avatarInput = document.getElementById('profilePictureInput');
   const avatarPreview = document.getElementById('avatarPreview');
   const avatarZone = document.getElementById('avatarZone');
@@ -571,15 +648,7 @@ include '../includes/nav.php';
   summaryInput && ['input','change'].forEach(ev=>summaryInput.addEventListener(ev, updateCounter));
   updateCounter();
 
-  disabilityTypeSelect && disabilityTypeSelect.addEventListener('change', function(){
-    if (this.value === '__other') {
-      disabilityTypeOther.style.display='block';
-      disabilityTypeOther.focus();
-    } else {
-      disabilityTypeOther.style.display='none';
-      disabilityTypeOther.value='';
-    }
-  });
+  // no extra input needed for disability type
 
   // Avatar preview & drag highlight
   function handleAvatarFile(file){

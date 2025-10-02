@@ -7,6 +7,7 @@ require_once '../classes/Skill.php';
 require_once '../classes/User.php';
 require_once '../classes/Application.php';
 require_once '../classes/Taxonomy.php';
+require_once '../classes/Matching.php';
 
 Helpers::requireLogin();
 Helpers::requireRole('job_seeker');
@@ -23,19 +24,33 @@ $eduLevels = Taxonomy::educationLevels();
 $errors = [];
 $success = false;
 
+// Hard lock pre-check using profile before showing form
+$elig = Matching::canApply($me, $job);
+if (!$elig['ok'] && Matching::HARD_LOCK) {
+  $errors = array_merge($errors, $elig['reasons']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $relevantYears = (int)($_POST['relevant_experience'] ?? 0);
     if ($relevantYears < 0) $relevantYears = 0;
 
-    $applicationEducation = trim($_POST['application_education'] ?? '');
+  $applicationEducation = trim($_POST['application_education'] ?? ($me->education_level ?: $me->education ?: ''));
     $selectedSkillIds = $_POST['application_skills'] ?? [];
     if (!is_array($selectedSkillIds)) $selectedSkillIds = [$selectedSkillIds];
 
-    if (Application::createWithDetails($me, $job, $relevantYears, $selectedSkillIds, $applicationEducation)) {
+  // Re-evaluate after form submission in case candidate indicated more info
+  $elig = Matching::canApply($me, $job);
+  if (!$elig['ok'] && Matching::HARD_LOCK) {
+    $errors = array_merge($errors, $elig['reasons']);
+  }
+
+  if (!$errors && Application::createWithDetails($me, $job, $relevantYears, $selectedSkillIds, $applicationEducation)) {
         Helpers::flash('msg','Application submitted.');
         $success = true;
     } else {
-        $errors[] = 'You have already applied or submission failed.';
+    if (!$success && !$errors) {
+      $errors[] = 'You have already applied or submission failed.';
+    }
     }
 }
 

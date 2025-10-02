@@ -28,6 +28,16 @@ class User {
     public ?string $resume = null;
     public ?string $video_intro = null;
 
+    // Preferences / Mini-resume additions
+    public ?string $expected_salary_currency = null;
+    public ?int $expected_salary_min = null;
+    public ?int $expected_salary_max = null;
+    public ?string $expected_salary_period = null; // monthly|yearly|hourly
+    public ?string $interests = null; // free text or comma-separated tags
+    public ?string $accessibility_preferences = null; // comma-separated tags
+    public ?string $preferred_location = null; // e.g., City/Region
+    public ?string $preferred_work_setup = null; // On-site|Hybrid|Remote
+
     public ?string $pwd_id_number = null;
     public ?string $pwd_id_last4 = null;
     public ?string $pwd_id_status = null;
@@ -81,6 +91,9 @@ class User {
             'education','education_level','primary_skill_summary',
             'disability_type','disability_severity','assistive_devices',
             'pwd_id_number','pwd_id_last4',
+            // preferences
+            'expected_salary_currency','expected_salary_min','expected_salary_max','expected_salary_period',
+            'interests','accessibility_preferences','preferred_location','preferred_work_setup',
             // profile_picture will be conditionally allowed after schema check
             // employer-specific
             'company_name','business_email','company_website','company_phone',
@@ -226,6 +239,39 @@ class User {
                 }
                 throw $e;
             }
+    }
+
+    /* ===================== Accessibility Preferences (normalized) ===================== */
+    public static function listAccessibilityPrefs(string $userId): array {
+        try {
+            $pdo = Database::getConnection();
+            $st = $pdo->prepare("SELECT tag FROM user_accessibility_prefs WHERE user_id=? ORDER BY tag ASC");
+            $st->execute([$userId]);
+            return array_column($st->fetchAll(PDO::FETCH_ASSOC),'tag');
+        } catch (Throwable $e) { return []; }
+    }
+
+    public static function setAccessibilityPrefs(string $userId, array $tags): bool {
+        $pdo = Database::getConnection();
+        $pdo->beginTransaction();
+        try {
+            $norm = [];
+            foreach ($tags as $t) {
+                $tt = trim((string)$t);
+                if ($tt !== '') $norm[$tt] = true;
+            }
+            $uniqueTags = array_keys($norm);
+            $pdo->prepare("DELETE FROM user_accessibility_prefs WHERE user_id=?")->execute([$userId]);
+            if ($uniqueTags) {
+                $ins = $pdo->prepare("INSERT INTO user_accessibility_prefs (user_id, tag) VALUES (?,?)");
+                foreach ($uniqueTags as $tg) $ins->execute([$userId, $tg]);
+            }
+            $pdo->commit();
+            return true;
+        } catch (Throwable $e) {
+            try { $pdo->rollBack(); } catch (Throwable $e2) {}
+            return false;
+        }
     }
 
     /* ===================== ADMIN HELPERS FOR JOB SEEKERS ===================== */

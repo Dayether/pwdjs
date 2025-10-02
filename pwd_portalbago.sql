@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 21, 2025 at 04:44 PM
+-- Generation Time: Sep 26, 2025 at 09:42 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -32,6 +32,8 @@ CREATE TABLE `applications` (
   `user_id` varchar(40) NOT NULL,
   `job_id` varchar(40) NOT NULL,
   `status` enum('Pending','Approved','Declined') DEFAULT 'Pending',
+  `employer_feedback` text DEFAULT NULL,
+  `decision_at` timestamp NULL DEFAULT NULL,
   `match_score` decimal(6,2) DEFAULT 0.00,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `relevant_experience` int(11) DEFAULT 0,
@@ -42,23 +44,24 @@ CREATE TABLE `applications` (
 -- Dumping data for table `applications`
 --
 
-INSERT INTO `applications` (`application_id`, `user_id`, `job_id`, `status`, `match_score`, `created_at`, `relevant_experience`, `application_education`) VALUES
-('APP_1J56U9PAH33215219', 'USR_1J56U7Q2426AF4170', 'JOB_1J56U590659990EF4', 'Approved', 40.00, '2025-09-15 15:01:10', 0, ''),
-('APP_1J5B158UIF2EE3C6C', 'USR_1J5B0PRRK7965472D', 'JOB_1J56U590659990EF4', 'Declined', 20.00, '2025-09-17 05:08:06', 0, ''),
-('APP_1J5B1DLV7FE0CCF14', 'USR_1J5B0PRRK7965472D', 'JOB_1J5B1B2JF185B0192', 'Pending', 100.00, '2025-09-17 05:12:41', 5, ''),
-('APP_1J5B1HES97C9294CA', 'USR_1J5B1GD9TC6DE8AEB', 'JOB_1J5B1B2JF185B0192', 'Pending', 73.33, '2025-09-17 05:14:45', 1, ''),
-('APP_1J5B2E0FN35A02180', 'USR_1J5B2BNJN20DE0A2C', 'JOB_1J5B1B2JF185B0192', 'Pending', 86.67, '2025-09-17 05:30:21', 3, 'High School Diploma'),
-('APP_1J5B2H67B770C7FD5', 'USR_1J5B2FRH3F148E76C', 'JOB_1J5B1B2JF185B0192', 'Pending', 86.67, '2025-09-17 05:32:05', 1, 'Bachelor'),
-('APP_1J5B2O1OKF6330851', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5B1B2JF185B0192', 'Pending', 73.33, '2025-09-17 05:35:50', 4, 'Bachelor'),
-('APP_1J5B8B3A3F609053B', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5B83SA6065725E0', 'Pending', 60.00, '2025-09-17 07:13:37', 1, 'Vocational/Technical'),
-('APP_1J5C2J1OJ91D04C62', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5C0UL0AA5A4BEEB', 'Approved', 45.00, '2025-09-17 14:52:20', 0, 'Bachelor’s'),
-('APP_1J5DL5080FAC97761', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5DKU5CI792319F1', 'Pending', 31.82, '2025-09-18 05:35:57', 0, 'Bachelor’s'),
-('APP_1J5DLBTOCED88E6B8', 'USR_1J5B2FRH3F148E76C', 'JOB_1J5DKU5CI792319F1', 'Approved', 81.82, '2025-09-18 05:39:44', 5, 'Bachelor’s'),
-('APP_1J5G4PDL709F9ECBE', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5B83SA6065725E0', 'Pending', 86.67, '2025-09-19 04:47:44', 2, 'Bachelor’s'),
-('APP_1J5GAHCSRE7A0B9B8', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5G5H24KCB077F5E', 'Pending', 76.67, '2025-09-19 06:28:12', 1, 'Elementary'),
-('APP_1J5JCCNGL2B0B9745', 'USR_1J5JCBS0N9F9EABA0', 'JOB_1J5DKU5CI792319F1', 'Pending', 78.18, '2025-09-20 10:58:20', 2, 'Elementary'),
-('APP_1J5LK5IL44B88FBDB', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5DKU5CI792319F1', 'Pending', 43.64, '2025-09-21 07:52:43', 1, 'Senior High School'),
-('APP_1J5LLE7LU8D858D96', 'USR_1J5LLAQD65A58E26F', 'JOB_1J5B83SA6065725E0', 'Pending', 46.67, '2025-09-21 08:14:55', 0, '');
+INSERT INTO `applications` (`application_id`, `user_id`, `job_id`, `status`, `employer_feedback`, `decision_at`, `match_score`, `created_at`, `relevant_experience`, `application_education`) VALUES
+('APP_1J56U9PAH33215219', 'USR_1J56U7Q2426AF4170', 'JOB_1J56U590659990EF4', 'Approved', NULL, NULL, 40.00, '2025-09-15 15:01:10', 0, ''),
+('APP_1J5B158UIF2EE3C6C', 'USR_1J5B0PRRK7965472D', 'JOB_1J56U590659990EF4', 'Declined', NULL, NULL, 20.00, '2025-09-17 05:08:06', 0, ''),
+('APP_1J5B1DLV7FE0CCF14', 'USR_1J5B0PRRK7965472D', 'JOB_1J5B1B2JF185B0192', 'Pending', NULL, NULL, 100.00, '2025-09-17 05:12:41', 5, ''),
+('APP_1J5B1HES97C9294CA', 'USR_1J5B1GD9TC6DE8AEB', 'JOB_1J5B1B2JF185B0192', 'Pending', NULL, NULL, 73.33, '2025-09-17 05:14:45', 1, ''),
+('APP_1J5B2E0FN35A02180', 'USR_1J5B2BNJN20DE0A2C', 'JOB_1J5B1B2JF185B0192', 'Pending', NULL, NULL, 86.67, '2025-09-17 05:30:21', 3, 'High School Diploma'),
+('APP_1J5B2H67B770C7FD5', 'USR_1J5B2FRH3F148E76C', 'JOB_1J5B1B2JF185B0192', 'Pending', NULL, NULL, 86.67, '2025-09-17 05:32:05', 1, 'Bachelor'),
+('APP_1J5B2O1OKF6330851', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5B1B2JF185B0192', 'Pending', NULL, NULL, 73.33, '2025-09-17 05:35:50', 4, 'Bachelor'),
+('APP_1J5B8B3A3F609053B', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5B83SA6065725E0', 'Pending', NULL, NULL, 60.00, '2025-09-17 07:13:37', 1, 'Vocational/Technical'),
+('APP_1J5C2J1OJ91D04C62', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5C0UL0AA5A4BEEB', 'Approved', NULL, NULL, 45.00, '2025-09-17 14:52:20', 0, 'Bachelor’s'),
+('APP_1J5DL5080FAC97761', 'USR_1J5B2M5T83B7D8173', 'JOB_1J5DKU5CI792319F1', 'Pending', NULL, NULL, 31.82, '2025-09-18 05:35:57', 0, 'Bachelor’s'),
+('APP_1J5DLBTOCED88E6B8', 'USR_1J5B2FRH3F148E76C', 'JOB_1J5DKU5CI792319F1', 'Approved', NULL, NULL, 81.82, '2025-09-18 05:39:44', 5, 'Bachelor’s'),
+('APP_1J5G4PDL709F9ECBE', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5B83SA6065725E0', 'Pending', NULL, NULL, 86.67, '2025-09-19 04:47:44', 2, 'Bachelor’s'),
+('APP_1J5GAHCSRE7A0B9B8', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5G5H24KCB077F5E', 'Pending', NULL, NULL, 76.67, '2025-09-19 06:28:12', 1, 'Elementary'),
+('APP_1J5JCCNGL2B0B9745', 'USR_1J5JCBS0N9F9EABA0', 'JOB_1J5DKU5CI792319F1', 'Pending', NULL, NULL, 78.18, '2025-09-20 10:58:20', 2, 'Elementary'),
+('APP_1J5LK5IL44B88FBDB', 'USR_1J5G4NT5ED833F9DB', 'JOB_1J5DKU5CI792319F1', 'Pending', NULL, NULL, 43.64, '2025-09-21 07:52:43', 1, 'Senior High School'),
+('APP_1J5LLE7LU8D858D96', 'USR_1J5LLAQD65A58E26F', 'JOB_1J5B83SA6065725E0', 'Pending', NULL, NULL, 46.67, '2025-09-21 08:14:55', 0, ''),
+('APP_1J5SU4JT254287E6D', 'USR_1J5SSJ78OD24BDF34', 'JOB_1J5SU29C8F493FF5C', 'Declined', 'WAIT LANG SAH', '2025-09-24 04:58:25', 84.17, '2025-09-24 04:01:38', 1, 'Bachelor');
 
 -- --------------------------------------------------------
 
@@ -117,7 +120,11 @@ INSERT INTO `application_skills` (`application_skill_id`, `application_id`, `ski
 ('ASK_1J5JCCNH7D3E7B858', 'APP_1J5JCCNGL2B0B9745', 'SKL_1J5B83SAA67C5E1CA', '2025-09-20 10:58:20'),
 ('ASK_1J5LK5IL6D7978CA2', 'APP_1J5LK5IL44B88FBDB', 'SKL_1J5DKU5CUC9E48B63', '2025-09-21 07:52:43'),
 ('ASK_1J5LLE7M0BA94B268', 'APP_1J5LLE7LU8D858D96', 'SKL_1J5BOAHOR18D08123', '2025-09-21 08:14:55'),
-('ASK_1J5LLE7M2680D1F3F', 'APP_1J5LLE7LU8D858D96', 'SKL_1J5B1B2JJ33509B84', '2025-09-21 08:14:55');
+('ASK_1J5LLE7M2680D1F3F', 'APP_1J5LLE7LU8D858D96', 'SKL_1J5B1B2JJ33509B84', '2025-09-21 08:14:55'),
+('ASK_1J5SU4JT49CC8C4EE', 'APP_1J5SU4JT254287E6D', 'SKL_1J5SU29CC09F182CE', '2025-09-24 04:01:38'),
+('ASK_1J5SU4JT5C81D204E', 'APP_1J5SU4JT254287E6D', 'SKL_1J5GAF24GAB7A1B8C', '2025-09-24 04:01:38'),
+('ASK_1J5SU4JT63ADCE28D', 'APP_1J5SU4JT254287E6D', 'SKL_1J5SU29CB4D297EA6', '2025-09-24 04:01:38'),
+('ASK_1J5SU4JT723332832', 'APP_1J5SU4JT254287E6D', 'SKL_1J5JDC38UFB050C2D', '2025-09-24 04:01:38');
 
 -- --------------------------------------------------------
 
@@ -141,6 +148,7 @@ CREATE TABLE `jobs` (
   `salary_min` int(11) DEFAULT NULL,
   `salary_max` int(11) DEFAULT NULL,
   `salary_period` enum('monthly','yearly','hourly') DEFAULT 'monthly',
+  `job_image` varchar(255) DEFAULT NULL,
   `status` enum('Open','Suspended','Closed') NOT NULL DEFAULT 'Open',
   `accessibility_tags` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
@@ -150,17 +158,18 @@ CREATE TABLE `jobs` (
 -- Dumping data for table `jobs`
 --
 
-INSERT INTO `jobs` (`job_id`, `employer_id`, `title`, `description`, `required_experience`, `required_education`, `required_skills_input`, `location_city`, `location_region`, `remote_option`, `employment_type`, `salary_currency`, `salary_min`, `salary_max`, `salary_period`, `status`, `accessibility_tags`, `created_at`) VALUES
-('JOB_1J56U590659990EF4', 'USR_1J56TV15M1F2FE280', 'Call Center', 'Call Center night shift haha', 1, 'College Grad', NULL, '', '', 'Work From Home', 'Full time', 'PHP', NULL, NULL, 'monthly', 'Open', 'PWD-Friendly,Work From Home,Wheelchair Accessible', '2025-09-15 14:58:42'),
-('JOB_1J5B1B2JF185B0192', 'USR_1J56TV15M1F2FE280', 'FrontEnd Developer', 'FrontEnd Developer that has infinite imagination soled', 0, '', NULL, '', '', 'Work From Home', 'Full time', 'PHP', NULL, NULL, 'monthly', 'Open', 'PWD-Friendly,Work From Home,Wheelchair Accessible', '2025-09-17 05:11:16'),
-('JOB_1J5B83SA6065725E0', 'USR_1J5B68JTBEBF5DAEB', 'Graphic Designer', 'Graphic Designer ETC ETC YTESS', 1, '', 'Customer Support, JavaScript, PHP', 'Lipa City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 15000, 30000, 'monthly', 'Open', 'PWD-Friendly,Screen Reader Friendly,Flexible Hours,Wheelchair Accessible,Internet Allowance,Asynchronous,Work From Home', '2025-09-17 07:09:40'),
-('JOB_1J5C0UL0AA5A4BEEB', 'USR_1J5BVJSAO53BB41D8', 'Project Manager', 'kaya bangon na mga dyos ahon na, sumakay sa torrent; pero kaya bang sumabay ng mga old gods sa current', 3, 'Master’s', '', 'Batangas City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 50000, 75000, 'yearly', 'Open', 'PWD-Friendly,Wheelchair Accessible,Screen Reader Friendly,Flexible Hours,Internet Allowance,Asynchronous,Work From Home', '2025-09-17 14:23:43'),
-('JOB_1J5DKU5CI792319F1', 'USR_1J5BVJSAO53BB41D8', 'Front End Developer Professor', 'SIMULA NUNG HUMALEK PABALEK SAYO DI NA MAALIS SA ISIPAN KO', 2, '', 'JavaScript, PHP, Python, C#, Java, SQL, HTML/CSS, React, Laravel, Django, Git', 'Quezon City', 'Manila', 'Work From Home', 'Part time', 'PHP', 75000, 100000, 'monthly', 'Open', 'PWD-Friendly,Wheelchair Accessible,Screen Reader Friendly,Work From Home', '2025-09-18 05:32:13'),
-('JOB_1J5G583J9001F7873', 'USR_1J5G4VMMM25284FA7', 'Suntukan', 'pang malakasan lang boss', 3, 'Doctorate', 'Customer Support', 'marawi city', 'lanao del sur', 'Work From Home', 'Full time', 'PHP', 10000, 50000, 'monthly', 'Suspended', 'PWD-Friendly,Work From Home', '2025-09-19 04:55:45'),
-('JOB_1J5G5H24KCB077F5E', 'USR_1J5G4VMMM25284FA7', 'Virtual Assistant', 'pang halimaw lang to boss', 1, 'High School', '70+ WPM Typing, Flexible Schedule, Strong', 'Lipa City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 50000, 60000, 'monthly', 'Suspended', 'PWD-Friendly,Work From Home', '2025-09-19 05:00:38'),
-('JOB_1J5JDC38LCCF5B43E', 'USR_1J5JCE1NFE1D671C3', 'job 1', 'asdasdasd', 5, 'College', '70+ WPM Typing, Flexible Schedule, Team Player, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', 1000, 2000, 'monthly', 'Open', 'PWD-Friendly,Work From Home', '2025-09-20 11:15:28'),
-('JOB_1J5JDNR6OE7874045', 'USR_1J5JCE1NFE1D671C3', 'job 1', 'asdasdasd', 5, 'College', '70+ WPM Typing, Flexible Schedule, Team Player, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', 1000, 2000, 'monthly', 'Open', 'PWD-Friendly,Work From Home', '2025-09-20 11:21:53'),
-('JOB_1J5M46HT328E3E8FE', 'USR_1J5JCE1NFE1D671C3', 'asd', 'asdasdsadsad', 1, 'Post Graduate', '70+ WPM Typing, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', NULL, NULL, 'yearly', 'Open', 'PWD-Friendly,Work From Home', '2025-09-21 12:32:52');
+INSERT INTO `jobs` (`job_id`, `employer_id`, `title`, `description`, `required_experience`, `required_education`, `required_skills_input`, `location_city`, `location_region`, `remote_option`, `employment_type`, `salary_currency`, `salary_min`, `salary_max`, `salary_period`, `job_image`, `status`, `accessibility_tags`, `created_at`) VALUES
+('JOB_1J56U590659990EF4', 'USR_1J56TV15M1F2FE280', 'Call Center', 'Call Center night shift haha', 1, 'College Grad', NULL, '', '', 'Work From Home', 'Full time', 'PHP', NULL, NULL, 'monthly', NULL, 'Open', 'PWD-Friendly,Work From Home,Wheelchair Accessible', '2025-09-15 14:58:42'),
+('JOB_1J5B1B2JF185B0192', 'USR_1J56TV15M1F2FE280', 'FrontEnd Developer', 'FrontEnd Developer that has infinite imagination soled', 0, '', NULL, '', '', 'Work From Home', 'Full time', 'PHP', NULL, NULL, 'monthly', NULL, 'Open', 'PWD-Friendly,Work From Home,Wheelchair Accessible', '2025-09-17 05:11:16'),
+('JOB_1J5B83SA6065725E0', 'USR_1J5B68JTBEBF5DAEB', 'Graphic Designer', 'Graphic Designer ETC ETC YTESS', 1, '', 'Customer Support, JavaScript, PHP', 'Lipa City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 15000, 30000, 'monthly', NULL, 'Open', 'PWD-Friendly,Screen Reader Friendly,Flexible Hours,Wheelchair Accessible,Internet Allowance,Asynchronous,Work From Home', '2025-09-17 07:09:40'),
+('JOB_1J5C0UL0AA5A4BEEB', 'USR_1J5BVJSAO53BB41D8', 'Project Manager', 'kaya bangon na mga dyos ahon na, sumakay sa torrent; pero kaya bang sumabay ng mga old gods sa current', 3, 'Master’s', '', 'Batangas City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 50000, 75000, 'yearly', NULL, 'Open', 'PWD-Friendly,Wheelchair Accessible,Screen Reader Friendly,Flexible Hours,Internet Allowance,Asynchronous,Work From Home', '2025-09-17 14:23:43'),
+('JOB_1J5DKU5CI792319F1', 'USR_1J5BVJSAO53BB41D8', 'Front End Developer Professor', 'SIMULA NUNG HUMALEK PABALEK SAYO DI NA MAALIS SA ISIPAN KO', 2, '', 'JavaScript, PHP, Python, C#, Java, SQL, HTML/CSS, React, Laravel, Django, Git', 'Quezon City', 'Manila', 'Work From Home', 'Part time', 'PHP', 75000, 100000, 'monthly', NULL, 'Open', 'PWD-Friendly,Wheelchair Accessible,Screen Reader Friendly,Work From Home', '2025-09-18 05:32:13'),
+('JOB_1J5G583J9001F7873', 'USR_1J5G4VMMM25284FA7', 'Suntukan', 'pang malakasan lang boss', 3, 'Doctorate', 'Customer Support', 'marawi city', 'lanao del sur', 'Work From Home', 'Full time', 'PHP', 10000, 50000, 'monthly', NULL, 'Suspended', 'PWD-Friendly,Work From Home', '2025-09-19 04:55:45'),
+('JOB_1J5G5H24KCB077F5E', 'USR_1J5G4VMMM25284FA7', 'Virtual Assistant', 'pang halimaw lang to boss', 1, 'High School', '70+ WPM Typing, Flexible Schedule, Strong', 'Lipa City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 50000, 60000, 'monthly', NULL, 'Suspended', 'PWD-Friendly,Work From Home', '2025-09-19 05:00:38'),
+('JOB_1J5JDC38LCCF5B43E', 'USR_1J5JCE1NFE1D671C3', 'job 1', 'asdasdasd', 5, 'College', '70+ WPM Typing, Flexible Schedule, Team Player, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', 1000, 2000, 'monthly', NULL, 'Open', 'PWD-Friendly,Work From Home', '2025-09-20 11:15:28'),
+('JOB_1J5JDNR6OE7874045', 'USR_1J5JCE1NFE1D671C3', 'job 1', 'asdasdasd', 5, 'College', '70+ WPM Typing, Flexible Schedule, Team Player, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', 1000, 2000, 'monthly', NULL, 'Open', 'PWD-Friendly,Work From Home', '2025-09-20 11:21:53'),
+('JOB_1J5M46HT328E3E8FE', 'USR_1J5JCE1NFE1D671C3', 'asd', 'asdasdsadsad', 1, 'Post Graduate', '70+ WPM Typing, Professional Attitude, Strong Communication, Hotdog, Itlog, Sabaw', 'Lipa City', 'Batangas', 'Work From Home', 'Part time', 'PHP', NULL, NULL, 'yearly', NULL, 'Open', 'PWD-Friendly,Work From Home', '2025-09-21 12:32:52'),
+('JOB_1J5SU29C8F493FF5C', 'USR_1J5STL1HNF2D40513', 'IT', 'aaaaaaaa', 1, 'Post Graduate', '70+ WPM Typing, Team Player, Strong Communication, Mabigat kamay, 6 footer, makunat mukha', 'Lipa City', 'Batangas', 'Work From Home', 'Full time', 'PHP', 50000, 100000, 'monthly', NULL, 'Open', 'PWD-Friendly,Wheelchair Accessible,Work From Home', '2025-09-24 04:00:22');
 
 -- --------------------------------------------------------
 
@@ -183,7 +192,7 @@ CREATE TABLE `job_reports` (
 --
 
 INSERT INTO `job_reports` (`report_id`, `job_id`, `reporter_user_id`, `reason`, `details`, `status`, `created_at`) VALUES
-('RPT_1J5M7S8VG5F86EE55', 'JOB_1J5M46HT328E3E8FE', 'USR_1J5M1Q37H8E143F78', 'Spam/Scam', 'scammer to ya', 'Open', '2025-09-21 13:37:10');
+('RPT_1J5M7S8VG5F86EE55', 'JOB_1J5M46HT328E3E8FE', 'USR_1J5M1Q37H8E143F78', 'Spam/Scam', 'scammer to ya', 'Resolved', '2025-09-21 13:37:10');
 
 -- --------------------------------------------------------
 
@@ -247,7 +256,13 @@ INSERT INTO `job_skills` (`job_skill_id`, `job_id`, `skill_id`, `created_at`) VA
 ('JSK_1J5M46HTB128AE5E8', 'JOB_1J5M46HT328E3E8FE', 'SKL_1J5JDC3945E06F9AC', '2025-09-21 12:32:52'),
 ('JSK_1J5M46HTC9671D556', 'JOB_1J5M46HT328E3E8FE', 'SKL_1J5JDC38S834D3E3A', '2025-09-21 12:32:52'),
 ('JSK_1J5M46HTCBCC79215', 'JOB_1J5M46HT328E3E8FE', 'SKL_1J5JDC3967C8D33E5', '2025-09-21 12:32:52'),
-('JSK_1J5M46HTDD0A510DE', 'JOB_1J5M46HT328E3E8FE', 'SKL_1J5JDC38UFB050C2D', '2025-09-21 12:32:52');
+('JSK_1J5M46HTDD0A510DE', 'JOB_1J5M46HT328E3E8FE', 'SKL_1J5JDC38UFB050C2D', '2025-09-21 12:32:52'),
+('JSK_1J5SU29CDC3076B86', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5GAF24GAB7A1B8C', '2025-09-24 04:00:22'),
+('JSK_1J5SU29CE7C0B1F82', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5JDC38O90BB7B46', '2025-09-24 04:00:22'),
+('JSK_1J5SU29CE9149A138', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5JDC38UFB050C2D', '2025-09-24 04:00:22'),
+('JSK_1J5SU29CF47350B86', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5SU29CB4D297EA6', '2025-09-24 04:00:22'),
+('JSK_1J5SU29CG9168C4B4', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5SU29CC09F182CE', '2025-09-24 04:00:22'),
+('JSK_1J5SU29CHAB3F9E5C', 'JOB_1J5SU29C8F493FF5C', 'SKL_1J5SU29CCD93FBE25', '2025-09-24 04:00:22');
 
 -- --------------------------------------------------------
 
@@ -266,13 +281,17 @@ CREATE TABLE `skills` (
 
 INSERT INTO `skills` (`skill_id`, `name`) VALUES
 ('SKL_1J56U59082963C9AB', '50 wpm'),
+('SKL_1J5SU29CC09F182CE', '6 footer'),
 ('SKL_1J5GAF24GAB7A1B8C', '70+ WPM Typing'),
 ('SKL_1J5B83SAA769B70BC', 'Accessibility'),
+('SKL_1J5OD19IA42500B94', 'Adaptable / Quick Learner'),
 ('SKL_1J5B83SAA16AA05D2', 'Bootstrap'),
 ('SKL_1J5DKU5CUC9E48B63', 'C#'),
+('SKL_1J5OD19IADC27B215', 'Cisco'),
 ('SKL_1J5B83SA93F55C7F9', 'Communication'),
 ('SKL_1J5B1B2JI2BF5B8B9', 'CSS'),
 ('SKL_1J5BOAHOR18D08123', 'Customer Support'),
+('SKL_1J5OD19IB0BD226D1', 'Database'),
 ('SKL_1J5DKUUN41B422A0E', 'Django'),
 ('SKL_1J5GAF24G009B7ED8', 'Flexible Schedule'),
 ('SKL_1J56U5909C3D51800', 'Friendly'),
@@ -284,6 +303,9 @@ INSERT INTO `skills` (`skill_id`, `name`) VALUES
 ('SKL_1J5DKU5CV979368C1', 'Java'),
 ('SKL_1J5B1B2JJ33509B84', 'JavaScript'),
 ('SKL_1J5DKUUN3EDF5DCF0', 'Laravel'),
+('SKL_1J5SU29CB4D297EA6', 'Mabigat kamay'),
+('SKL_1J5SU29CCD93FBE25', 'makunat mukha'),
+('SKL_1J5OD19IBF569BFBA', 'Math God'),
 ('SKL_1J56TV17J49F91DA1', 'none'),
 ('SKL_1J5B83SAA67C5E1CA', 'PHP'),
 ('SKL_1J5JDC38S834D3E3A', 'Professional Attitude'),
@@ -320,7 +342,11 @@ CREATE TABLE `support_tickets` (
 --
 
 INSERT INTO `support_tickets` (`ticket_id`, `user_id`, `name`, `email`, `subject`, `message`, `status`, `created_at`, `updated_at`) VALUES
-('TCK-dd523ac1d9', NULL, 'Job Seeker', 'jobseeker1@gmail.com', 'Account Suspension', 'Bakit po nasuspend account ko boss', 'Open', '2025-09-19 11:29:48', '2025-09-20 10:30:59');
+('TCK-436d5c16bd', 'USR_1J5OE9KHHF861E1E6', 'Ranuel Glenn Biray', 'dviray223@gmail.com', 'Account Suspension', 'BAKIT POH', 'Open', '2025-09-22 10:08:25', NULL),
+('TCK-921da8c037', 'USR_1J5OKLRDK1853EBB9', 'Btan', 'tanbenedict48@gmail.com', 'Job Posting Issue', 'WALA KANG BITAW YA', 'Resolved', '2025-09-22 12:00:41', '2025-09-22 12:01:15'),
+('TCK-a47a29c667', 'USR_1J5OEISC5FEFAAF21', 'Joey Janine Lejarde', 'joeyjaninel@gmail.com', 'Password Reset Problem', 'pasend po pass', 'Open', '2025-09-22 10:14:54', NULL),
+('TCK-dd523ac1d9', NULL, 'Job Seeker', 'jobseeker1@gmail.com', 'Account Suspension', 'Bakit po nasuspend account ko boss', 'Open', '2025-09-19 11:29:48', '2025-09-22 09:20:44'),
+('TCK-df7daa595b', NULL, 'Kristian Diether Alcantara', 'mingchancutie@gmail.com', 'Job Posting Issue', 'scammer po yong employer nyo', 'Open', '2025-09-22 09:53:02', NULL);
 
 --
 -- Triggers `support_tickets`
@@ -329,6 +355,27 @@ DELIMITER $$
 CREATE TRIGGER `trg_support_tickets_update` BEFORE UPDATE ON `support_tickets` FOR EACH ROW SET NEW.updated_at = CURRENT_TIMESTAMP
 $$
 DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `used_password_tokens`
+--
+
+CREATE TABLE `used_password_tokens` (
+  `token` char(64) NOT NULL,
+  `user_id` varchar(40) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `used_password_tokens`
+--
+
+INSERT INTO `used_password_tokens` (`token`, `user_id`, `created_at`) VALUES
+('63c6577d769d6ef5c349e5694e11c6ac669154da82b579d60fddb32bd6d3b1f8', 'USR_1J5STL1HNF2D40513', '2025-09-24 03:54:40'),
+('a43eae440051abbb70f36dab79b2c49a637eadef6fda562720d36d21b5328d30', 'USR_1J5SSJ78OD24BDF34', '2025-09-24 03:45:16'),
+('fa3cafcd902893d60caf869a35a5e4e7fec74ba7115ab90bacdfc4bb30a589e2', 'USR_1J5T26RUFC9062FB2', '2025-09-24 05:13:57');
 
 -- --------------------------------------------------------
 
@@ -347,7 +394,7 @@ CREATE TABLE `users` (
   `city` varchar(100) DEFAULT NULL,
   `full_address` varchar(255) DEFAULT NULL,
   `email` varchar(180) NOT NULL,
-  `password` varchar(255) NOT NULL,
+  `password` varchar(255) DEFAULT NULL,
   `role` enum('job_seeker','employer','admin') NOT NULL DEFAULT 'job_seeker',
   `experience` int(11) DEFAULT 0,
   `education` varchar(120) DEFAULT NULL,
@@ -362,6 +409,7 @@ CREATE TABLE `users` (
   `pwd_id_number` varbinary(255) DEFAULT NULL,
   `pwd_id_last4` varchar(8) DEFAULT NULL,
   `pwd_id_status` enum('None','Pending','Verified','Rejected') NOT NULL DEFAULT 'None',
+  `job_seeker_status` enum('Active','Suspended') NOT NULL DEFAULT 'Active',
   `pwd_id_review_note` text DEFAULT NULL,
   `pwd_id_reviewed_at` datetime DEFAULT NULL,
   `pwd_id_reviewed_by` varchar(40) DEFAULT NULL,
@@ -372,37 +420,47 @@ CREATE TABLE `users` (
   `business_email` varchar(255) DEFAULT '',
   `company_website` varchar(255) DEFAULT NULL,
   `company_phone` varchar(64) DEFAULT NULL,
-  `business_permit_number` varchar(100) NOT NULL,
+  `business_permit_number` varchar(100) DEFAULT NULL,
   `employer_status` enum('Pending','Approved','Suspended','Rejected') DEFAULT 'Pending',
-  `employer_doc` varchar(255) DEFAULT ''
+  `employer_doc` varchar(255) DEFAULT '',
+  `profile_picture` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`user_id`, `name`, `date_of_birth`, `gender`, `phone`, `region`, `province`, `city`, `full_address`, `email`, `password`, `role`, `experience`, `education`, `education_level`, `primary_skill_summary`, `profile_completeness`, `profile_last_calculated`, `disability`, `disability_type`, `disability_severity`, `assistive_devices`, `pwd_id_number`, `pwd_id_last4`, `pwd_id_status`, `pwd_id_review_note`, `pwd_id_reviewed_at`, `pwd_id_reviewed_by`, `resume`, `video_intro`, `created_at`, `company_name`, `business_email`, `company_website`, `company_phone`, `business_permit_number`, `employer_status`, `employer_doc`) VALUES
-('USR_1J56TV15M1F2FE280', 'Admin User', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'adminuser@admin.com', '$2y$10$URsuz1WYWjlxA2j8aykupuzkBtbhG3MCxA5W7HbX8lBkmLayhibG2', 'admin', 2, 'College', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-15 14:55:18', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J56U7Q2426AF4170', 'Job Seeker', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker@gmail.com', '$2y$10$hFzZ8GnI.RU3ZurxILgvIOxoX33RLVi0E79DTWIS1ieaIc9e1w0U.', 'job_seeker', 2, 'College', NULL, NULL, 0, NULL, 'amputated legs', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-15 15:00:05', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B0PRRK7965472D', 'Stephen Hawkings', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'shh123@gmail.com', '$2y$10$5xgH1ZSay6sZUnMTm3LKc.mOUl7TVRdG1aktqphzlrLR3ueJgxgPW', 'job_seeker', 0, 'Bachelor', NULL, NULL, 0, NULL, 'cant walk', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:01:52', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B1GD9TC6DE8AEB', 'Malupiton', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'malopit@gmail.com', '$2y$10$Z8UQOYZsC7g0VeU.d5nt7uJ5UDP6Q7eGMWgkd3Bz4V1qS6opYY/Nu', 'job_seeker', 0, 'High School Diploma', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:14:11', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B2BNJN20DE0A2C', 'haha', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'haha@gmail.com', '$2y$10$wy4pI0GNixrWvy/Lgn61S.dPfPVk7uyf593qQvgho.iQ6WMzgYn3S', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:29:06', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B2FRH3F148E76C', 'hehe', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'hehe@gmail.com', '$2y$10$Xt64xNHCrF1H04PdPkUVT.rb0seAl.5xnVeS60ZywzVzNLXWcxyg2', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:31:21', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B2M5T83B7D8173', 'ranuel glenn biray', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'biray@gmail.com', '$2y$10$yFMXORSd5wL2dDuIj4I64Oce4.4Vu3QWTFDvxrbA3MfBMcv8iNpwq', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:34:48', '', '', NULL, NULL, '', 'Pending', ''),
-('USR_1J5B68JTBEBF5DAEB', 'Fishbook', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'fishbook@gmail.com', '$2y$10$5G3U0I7pPr4jRbhqJJqpp.uD0b.dHiw1rGb6nBTMQX7A0mb9vjRvm', 'employer', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 06:37:18', 'Pesbook', 'Pesbook@pesbook.com', NULL, NULL, '123JaSD9', 'Approved', NULL),
-('USR_1J5BVJSAO53BB41D8', 'Lebron James', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'lebronjames@gmail.com', '$2y$10$RZ5iiJJmlUgMT8DVyTzhuOv6uYvvR74qmm9PyAz8BhTIM/YFpreee', 'employer', 0, '', NULL, NULL, 0, NULL, 'amputated legs', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-17 14:00:22', 'NBA', 'nba@2k.com', NULL, NULL, 'MA2i93S', 'Approved', NULL),
-('USR_1J5EE25HV5A06B07B', 'Dayet A. Alcantara', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'dayet@gmail.com', '$2y$10$enKkSufnM71IlFz79jRpDuAJMZ819B4dVaYcX.VZRDUx6mKSdsH/a', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-18 12:51:19', 'NU', '', NULL, NULL, 'KSZ291', 'Approved', NULL),
-('USR_1J5EE439NF8AC4B2A', 'Pusakal A. Aso', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'bago@gmail.com', '$2y$10$lGzHl/s/pXPW9ZAgGbNDLeUW7ttQ3bQza3uOcleuAHLOoIItFH.Mm', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-18 12:52:22', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5G4NT5ED833F9DB', 'Jobseeker 1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker1@gmail.com', '$2y$10$EYt/npX0Q4WSDTbyUhErTeBTLTKg0lYHWRqy1ZJ9ModR1RGgsUnu.', 'job_seeker', 0, '', NULL, NULL, 25, '2025-09-21 13:04:16', '', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, 'uploads/resumes/res_68ce952d65999.pdf', 'uploads/videos/vid_68ce952d6633f.mp4', '2025-09-19 04:46:54', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5G4VMMM25284FA7', 'Employer 1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer1@gmail.com', '$2y$10$F4JHMFHVWq4QTRHTZv7mruxLmh78lruIwjL0NKtwPe/fjJrmxvJAK', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-19 04:51:10', 'Employerz', 'employer1@employer.com', NULL, NULL, '9jASDHq', 'Suspended', NULL),
-('USR_1J5J4N17RBD36BED7', 'Job S. 2', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker2@gmail.com', '$2y$10$ntvPqcpGHmf5BbK51VoZtudiSq3yEbYl9fT86z.N3VSW6gNafrRf6', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 08:44:09', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5J4O6NF7F3E6B7B', 'Employer 2', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer2@gmail.com', '$2y$10$5emJJXIbvSF9RK72ooHZKO0QrIrpMKWCRbn6iUW4aOXifqGk4R2ja', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 08:44:47', 'Tigreal', 'tigreal@gmail.com', NULL, NULL, 'MA2i95S', 'Pending', NULL),
-('USR_1J5J6RC3C4EB2EC4A', 'Asdasd Asd', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdasd@gmail.com', '$2y$10$xb3HYP6uMy3JE.nz8hJpZ.nXl3Bde94iOKxn5eZEI1Rfsj170rMji', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 09:21:28', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5J6SHHO92741CCB', 'Asd Asd', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdsssd@gmail.com', '$2y$10$y3RFVSMX5yFXBTbAcgAcz.gXj1GUrl7yeaj/pwNLYRetFO5XYvs9C', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 09:22:07', 'NBAasd', '', NULL, NULL, 'MA2i95SSASD', 'Approved', NULL),
-('USR_1J5JCBS0N9F9EABA0', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker3@gmail.com', '$2y$10$85r9JaBwmMZrnK9LYeA8EOfmjMnuDvAlxMsme.n4Hx5iKjygFHOiu', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 10:57:52', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5JCE1NFE1D671C3', 'Employer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer3@gmail.com', '$2y$10$gcY9rOxXwHGdIf84XbEpXuIwZoMh8qgDvfZV324cY2URRm23E5/dS', 'employer', 0, '', NULL, NULL, 0, NULL, 'hahahaha', NULL, NULL, NULL, NULL, NULL, 'None', NULL, NULL, NULL, NULL, NULL, '2025-09-20 10:59:03', 'NBA', 'nba@2k.com', 'https://facebook.com', '09291192929', 'MA2i95SAS', 'Approved', 'uploads/employers/empdoc_68cfcf546bd19.png'),
-('USR_1J5LLAQD65A58E26F', 'Job Seeker', NULL, NULL, '09556302474', '4a', 'batangasd', 'manila', 'saas dasd qwd qwd asd', 'jobseeker4@gmail.com', '$2y$10$r97qYG35iPOC6hcaGPZ9H.1Aggm75ccJY5txBuyK/Xdmt8MiNYHN.', 'job_seeker', 0, '', 'High School', 'asdasd', 72, '2025-09-21 17:09:58', 'amputated legs', 'Visual', 'Mild', 'Wheelchair', 0x434b412b6278347430662f3579374f4b4a5347562f374832444358654e58637779736e4a69625a4c7775413d, '3123', 'Verified', NULL, NULL, NULL, NULL, NULL, '2025-09-21 08:13:03', '', '', NULL, NULL, '', 'Pending', NULL),
-('USR_1J5M1Q37H8E143F78', 'Kristian Diether Alcantara', NULL, 'Male', '09556302474', '4a', 'batangasd', 'lipa', 'saas dasd qwd qwd asd', 'jobseeker5@gmail.com', '$2y$10$X6E2dO09/GhFQZNCNFVj9.P/iInkQhkW19e9EZuOGXQfzv546JRjC', 'job_seeker', 0, '', 'Bachelor', 'hahaha', 95, '2025-09-21 20:20:33', 'Intellectual', 'Visual', 'Moderate', 'Wheelchair', 0x415344415330313233313233313233, '3123', 'Verified', NULL, NULL, NULL, 'uploads/resumes/res_68cfed917a407.pdf', 'uploads/videos/vid_68cfed917a94e.mp4', '2025-09-21 11:51:07', '', '', NULL, NULL, '', 'Pending', NULL);
+INSERT INTO `users` (`user_id`, `name`, `date_of_birth`, `gender`, `phone`, `region`, `province`, `city`, `full_address`, `email`, `password`, `role`, `experience`, `education`, `education_level`, `primary_skill_summary`, `profile_completeness`, `profile_last_calculated`, `disability`, `disability_type`, `disability_severity`, `assistive_devices`, `pwd_id_number`, `pwd_id_last4`, `pwd_id_status`, `job_seeker_status`, `pwd_id_review_note`, `pwd_id_reviewed_at`, `pwd_id_reviewed_by`, `resume`, `video_intro`, `created_at`, `company_name`, `business_email`, `company_website`, `company_phone`, `business_permit_number`, `employer_status`, `employer_doc`, `profile_picture`) VALUES
+('USR_1J56TV15M1F2FE280', 'Admin User', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'adminuser@admin.com', '$2y$10$URsuz1WYWjlxA2j8aykupuzkBtbhG3MCxA5W7HbX8lBkmLayhibG2', 'admin', 2, 'College', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-15 14:55:18', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J56U7Q2426AF4170', 'Job Seeker', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker@gmail.com', '$2y$10$hFzZ8GnI.RU3ZurxILgvIOxoX33RLVi0E79DTWIS1ieaIc9e1w0U.', 'job_seeker', 2, 'College', NULL, NULL, 0, NULL, 'amputated legs', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-15 15:00:05', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B0PRRK7965472D', 'Stephen Hawkings', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'shh123@gmail.com', '$2y$10$5xgH1ZSay6sZUnMTm3LKc.mOUl7TVRdG1aktqphzlrLR3ueJgxgPW', 'job_seeker', 0, 'Bachelor', NULL, NULL, 0, NULL, 'cant walk', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:01:52', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B1GD9TC6DE8AEB', 'Malupiton', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'malopit@gmail.com', '$2y$10$Z8UQOYZsC7g0VeU.d5nt7uJ5UDP6Q7eGMWgkd3Bz4V1qS6opYY/Nu', 'job_seeker', 0, 'High School Diploma', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:14:11', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B2BNJN20DE0A2C', 'haha', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'haha@gmail.com', '$2y$10$wy4pI0GNixrWvy/Lgn61S.dPfPVk7uyf593qQvgho.iQ6WMzgYn3S', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:29:06', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B2FRH3F148E76C', 'hehe', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'hehe@gmail.com', '$2y$10$Xt64xNHCrF1H04PdPkUVT.rb0seAl.5xnVeS60ZywzVzNLXWcxyg2', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:31:21', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B2M5T83B7D8173', 'ranuel glenn biray', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'biray@gmail.com', '$2y$10$yFMXORSd5wL2dDuIj4I64Oce4.4Vu3QWTFDvxrbA3MfBMcv8iNpwq', 'job_seeker', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 05:34:48', '', '', NULL, NULL, NULL, 'Pending', '', NULL),
+('USR_1J5B68JTBEBF5DAEB', 'Fishbook', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'fishbook@gmail.com', '$2y$10$5G3U0I7pPr4jRbhqJJqpp.uD0b.dHiw1rGb6nBTMQX7A0mb9vjRvm', 'employer', 0, '', NULL, NULL, 0, NULL, '', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 06:37:18', 'Pesbook', 'Pesbook@pesbook.com', NULL, NULL, '123JaSD9', 'Approved', NULL, NULL),
+('USR_1J5BVJSAO53BB41D8', 'Lebron James', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'lebronjames@gmail.com', '$2y$10$RZ5iiJJmlUgMT8DVyTzhuOv6uYvvR74qmm9PyAz8BhTIM/YFpreee', 'employer', 0, '', NULL, NULL, 0, NULL, 'amputated legs', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-17 14:00:22', 'NBA', 'nba@2k.com', NULL, NULL, 'MA2i93S', 'Approved', NULL, NULL),
+('USR_1J5EE25HV5A06B07B', 'Dayet A. Alcantara', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'dayet@gmail.com', '$2y$10$enKkSufnM71IlFz79jRpDuAJMZ819B4dVaYcX.VZRDUx6mKSdsH/a', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-18 12:51:19', 'NU', '', NULL, NULL, 'KSZ291', 'Approved', NULL, NULL),
+('USR_1J5EE439NF8AC4B2A', 'Pusakal A. Aso', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'bago@gmail.com', '$2y$10$lGzHl/s/pXPW9ZAgGbNDLeUW7ttQ3bQza3uOcleuAHLOoIItFH.Mm', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-18 12:52:22', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5G4NT5ED833F9DB', 'Jobseeker 1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker1@gmail.com', '$2y$10$EYt/npX0Q4WSDTbyUhErTeBTLTKg0lYHWRqy1ZJ9ModR1RGgsUnu.', 'job_seeker', 0, '', NULL, NULL, 25, '2025-09-21 13:04:16', '', NULL, NULL, NULL, NULL, NULL, 'Verified', 'Active', NULL, NULL, NULL, 'uploads/resumes/res_68ce952d65999.pdf', 'uploads/videos/vid_68ce952d6633f.mp4', '2025-09-19 04:46:54', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5G4VMMM25284FA7', 'Employer 1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer1@gmail.com', '$2y$10$F4JHMFHVWq4QTRHTZv7mruxLmh78lruIwjL0NKtwPe/fjJrmxvJAK', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-19 04:51:10', 'Employerz', 'employer1@employer.com', NULL, NULL, '9jASDHq', 'Suspended', NULL, NULL),
+('USR_1J5J4N17RBD36BED7', 'Job S. 2', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker2@gmail.com', '$2y$10$ntvPqcpGHmf5BbK51VoZtudiSq3yEbYl9fT86z.N3VSW6gNafrRf6', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 08:44:09', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5J4O6NF7F3E6B7B', 'Employer 2', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer2@gmail.com', '$2y$10$5emJJXIbvSF9RK72ooHZKO0QrIrpMKWCRbn6iUW4aOXifqGk4R2ja', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 08:44:47', 'Tigreal', 'tigreal@gmail.com', NULL, NULL, 'MA2i95S', 'Approved', NULL, NULL),
+('USR_1J5J6RC3C4EB2EC4A', 'Asdasd Asd', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdasd@gmail.com', '$2y$10$xb3HYP6uMy3JE.nz8hJpZ.nXl3Bde94iOKxn5eZEI1Rfsj170rMji', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 09:21:28', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5J6SHHO92741CCB', 'Asd Asd', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'asdsssd@gmail.com', '$2y$10$y3RFVSMX5yFXBTbAcgAcz.gXj1GUrl7yeaj/pwNLYRetFO5XYvs9C', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 09:22:07', 'NBAasd', '', NULL, NULL, 'MA2i95SSASD', 'Approved', NULL, NULL),
+('USR_1J5JCBS0N9F9EABA0', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'jobseeker3@gmail.com', '$2y$10$85r9JaBwmMZrnK9LYeA8EOfmjMnuDvAlxMsme.n4Hx5iKjygFHOiu', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 10:57:52', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5JCE1NFE1D671C3', 'Employer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer3@gmail.com', '$2y$10$gcY9rOxXwHGdIf84XbEpXuIwZoMh8qgDvfZV324cY2URRm23E5/dS', 'employer', 0, '', NULL, NULL, 0, NULL, 'hahahaha', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-20 10:59:03', 'NBA', 'nba@2k.com', 'https://facebook.com', '09291192929', 'MA2i95SAS', 'Approved', 'uploads/employers/empdoc_68cfcf546bd19.png', NULL),
+('USR_1J5LLAQD65A58E26F', 'Job Seeker', NULL, NULL, '09556302474', '4a', 'batangasd', 'manila', 'saas dasd qwd qwd asd', 'jobseeker4@gmail.com', '$2y$10$r97qYG35iPOC6hcaGPZ9H.1Aggm75ccJY5txBuyK/Xdmt8MiNYHN.', 'job_seeker', 0, '', 'High School', 'asdasd', 72, '2025-09-21 17:09:58', 'amputated legs', 'Visual', 'Mild', 'Wheelchair', 0x434b412b6278347430662f3579374f4b4a5347562f374832444358654e58637779736e4a69625a4c7775413d, '3123', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-21 08:13:03', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5M1Q37H8E143F78', 'Kristian Diether Alcantara', NULL, 'Male', '09556302474', '4a', 'batangasd', 'lipa', 'saas dasd qwd qwd asd', 'jobseeker5@gmail.com', '$2y$10$X6E2dO09/GhFQZNCNFVj9.P/iInkQhkW19e9EZuOGXQfzv546JRjC', 'job_seeker', 0, '', 'Bachelor', 'hahaha', 95, '2025-09-21 20:20:33', 'Intellectual', 'Visual', 'Moderate', 'Wheelchair', 0x415344415330313233313233313233, '3123', 'Verified', 'Active', NULL, NULL, NULL, 'uploads/resumes/res_68cfed917a407.pdf', 'uploads/videos/vid_68cfed917a94e.mp4', '2025-09-21 11:51:07', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5MDGBQ7248C27C5', 'Employer', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'employer4@gmail.com', '$2y$10$un7SJx.yNDo17t5J9aA5pO9xGKt8Y.yYUesaQVi6gcJUhBHqVhbX.', 'employer', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-21 15:15:31', 'NBA', 'mingchancutie@gmail.com', NULL, NULL, 'MA2i94S', 'Approved', NULL, NULL),
+('USR_1J5MDNGP793240340', 'Lebron James', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'lebronjame1s@gmail.com', '$2y$10$hlR8Gld0camUIHeg3lyyaOsYOWsLn2Qtnlqb06WJsPj6U5ebr98uS', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, 0x617364617364617364323232, 'd222', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-21 15:19:25', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5OE9KHHF861E1E6', 'Ranuel Glenn Biray', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'dviray223@gmail.com', '$2y$10$fN7gTKzRdMdLDPrJrsKBTulbfFjzbqXUt2kShiqiwQd0v8CdCVMWa', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, 0x61736461736471776571773132, 'qw12', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-22 10:07:48', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5OEISC5FEFAAF21', 'Joey Janine Lejarde', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'joeyjaninel@gmail.com', '$2y$10$IaYQv2dSyhMKgmL48vg/qO7Ddn6BJOHHkepERj3G8THNdM8G95kjS', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, 0x6768616768617364313233, 'd123', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-22 10:12:51', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5OKLRDK1853EBB9', 'Btan', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'tanbenedict48@gmail.com', '$2y$10$dIb5RLHqsHow2iDu/T9G5eF9sLQ1kCvYeEvWszJxt568vAnGlhWfK', 'job_seeker', 0, '', NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, 0x6b6173646a61736431323033, '1203', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-22 11:59:20', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5SSAARPCF2B618C', 'Asd', NULL, NULL, '09556302474', NULL, NULL, NULL, NULL, 'asd@asd.com', NULL, 'job_seeker', 0, '', NULL, NULL, 0, NULL, 'Hearing', NULL, NULL, NULL, 0x48414841313233, 'A123', 'Pending', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-24 03:29:48', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL),
+('USR_1J5SSJ78OD24BDF34', 'Kristian Diether Alcantara', NULL, 'Male', '09556302464', '4a', 'batangasd', 'lipa', 'saas dasd qwd qwd asd', 'mingchancutie@gmail.com', '$2y$10$ehZxeAUHS4gY.3w0/cwS0.6e.LfyEamp3lyeRLGkeybiy6QIOnTwG', 'job_seeker', 0, '', '', 'asdasd', 38, '2025-09-24 14:24:14', 'Speech', '', NULL, '', 0x61617764617364313233313234, '3124', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-24 03:34:40', '', '', NULL, NULL, NULL, 'Pending', NULL, 'uploads/profile/pf_68d38e8e3a4fb.png'),
+('USR_1J5STL1HNF2D40513', 'Dayet Na Employer', NULL, NULL, '09556302464', NULL, NULL, NULL, NULL, 'mingqt3143@gmail.com', '$2y$10$uuxQplOkZ89F3evtHMbfkOSPIoW2JVFH5L7JvptCTucF6vU8XfIRK', 'employer', 0, '', NULL, NULL, 0, NULL, 'Visual', NULL, NULL, NULL, NULL, NULL, 'None', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-24 03:53:08', 'Pusa', 'mingqt3143@gmail.com', NULL, NULL, 'KSZ291d', 'Approved', NULL, NULL),
+('USR_1J5T26RUFC9062FB2', 'May Bitaw To Ya', NULL, NULL, '09556302474', NULL, NULL, NULL, NULL, 'maybitaw1@gmail.com', '$2y$10$FNHas94loG57p4uTipduOe25CxgaRwrXtQFbwMakwZCvmz0jez85.', 'job_seeker', 0, '', NULL, NULL, 0, NULL, 'Visual', NULL, NULL, NULL, 0x617764313233, 'd123', 'Verified', 'Active', NULL, NULL, NULL, NULL, NULL, '2025-09-24 05:12:46', '', '', NULL, NULL, NULL, 'Pending', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -544,11 +602,19 @@ ALTER TABLE `support_tickets`
   ADD KEY `fk_support_user` (`user_id`);
 
 --
+-- Indexes for table `used_password_tokens`
+--
+ALTER TABLE `used_password_tokens`
+  ADD PRIMARY KEY (`token`),
+  ADD KEY `user_id` (`user_id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`user_id`),
   ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `uniq_business_permit` (`business_permit_number`),
   ADD KEY `idx_users_employer_status` (`employer_status`),
   ADD KEY `idx_pwd_status` (`pwd_id_status`),
   ADD KEY `idx_pwd_reviewed_at` (`pwd_id_reviewed_at`);

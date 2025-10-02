@@ -191,6 +191,12 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
                 <?php if (!empty($target->region) || !empty($target->province) || !empty($target->city)): ?>
                   <span class="jsp-chip"><i class="bi bi-geo" aria-hidden="true"></i><?php $parts=array_filter([$target->city,$target->province,$target->region]); echo htmlspecialchars(implode(', ',$parts)); ?></span>
                 <?php endif; ?>
+                <?php if (!empty($target->preferred_work_setup)): ?>
+                  <span class="jsp-chip"><i class="bi bi-building-check" aria-hidden="true"></i><?php echo htmlspecialchars($target->preferred_work_setup); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($target->preferred_location)): ?>
+                  <span class="jsp-chip"><i class="bi bi-geo-alt" aria-hidden="true"></i><?php echo htmlspecialchars($target->preferred_location); ?></span>
+                <?php endif; ?>
                 <?php if ($videoSafe): ?><span class="jsp-chip"><i class="bi bi-camera-video" aria-hidden="true"></i>Video Intro</span><?php endif; ?>
               </div>
               <?php if (!empty($target->primary_skill_summary)): ?>
@@ -230,6 +236,20 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
             <?php if (!empty($target->gender)): ?><div class="data-item"><div class="label">Gender</div><div class="value"><?php echo htmlspecialchars($target->gender); ?></div></div><?php endif; ?>
             <?php if ($resumeSafe): ?><div class="data-item"><div class="label">Resume</div><div class="value"><a href="../<?php echo htmlspecialchars($resumeSafe); ?>" target="_blank" class="text-decoration-none"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>View</a></div></div><?php endif; ?>
             <?php if ($videoSafe): ?><div class="data-item"><div class="label">Video Intro</div><div class="value"><a href="../<?php echo htmlspecialchars($videoSafe); ?>" target="_blank" class="text-decoration-none"><i class="bi bi-camera-video me-1" aria-hidden="true"></i>Watch</a></div></div><?php endif; ?>
+            <?php
+              $salParts=[];
+              if (!empty($target->expected_salary_min)) $salParts[] = number_format((int)$target->expected_salary_min);
+              if (!empty($target->expected_salary_max)) $salParts[] = number_format((int)$target->expected_salary_max);
+              $salRange = implode(' - ', $salParts);
+              $salPeriod = $target->expected_salary_period ? ucfirst($target->expected_salary_period) : '';
+              $salCur = $target->expected_salary_currency ?: '';
+              $salaryDisp = $salRange ? trim($salCur.' '.$salRange.' '.$salPeriod) : '';
+            ?>
+            <?php if ($salaryDisp): ?><div class="data-item"><div class="label">Expected Salary</div><div class="value"><?php echo htmlspecialchars($salaryDisp); ?></div></div><?php endif; ?>
+            <?php if (!empty($target->interests)): ?><div class="data-item"><div class="label">Interests</div><div class="value"><?php echo nl2br(htmlspecialchars($target->interests)); ?></div></div><?php endif; ?>
+            <?php if (!empty($target->accessibility_preferences)): ?><div class="data-item"><div class="label">Accessibility</div><div class="value"><?php echo htmlspecialchars($target->accessibility_preferences); ?></div></div><?php endif; ?>
+            <?php if (!empty($target->preferred_work_setup)): ?><div class="data-item"><div class="label">Work Setup</div><div class="value"><?php echo htmlspecialchars($target->preferred_work_setup); ?></div></div><?php endif; ?>
+            <?php if (!empty($target->preferred_location)): ?><div class="data-item"><div class="label">Preferred Location</div><div class="value"><?php echo htmlspecialchars($target->preferred_location); ?></div></div><?php endif; ?>
           </div>
         </div>
       </div>

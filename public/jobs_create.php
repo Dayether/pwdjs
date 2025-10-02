@@ -17,6 +17,7 @@ $status = $user ? ($user->employer_status ?? 'Pending') : 'Pending';
 // Enumerations / lists
 $employmentTypes = Taxonomy::employmentTypes();
 $accessTags      = Taxonomy::accessibilityTags();
+$pwdCats         = Taxonomy::disabilityCategories();
 $eduLevels       = Taxonomy::educationLevels();
 $generalSkills   = [
     '70+ WPM Typing',
@@ -122,13 +123,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors && !$duplicatePending) {
-        $data = [
+    $data = [
             'title' => $title,
             'description' => $description,
             'required_experience' => $reqExp,
             'required_education' => $reqEduRaw,
             'required_skills_input' => $skillsCsv,
-            'accessibility_tags' => implode(',', $tagsSelected),
+      'accessibility_tags' => implode(',', $tagsSelected),
+      'applicable_pwd_types' => isset($_POST['applicable_pwd_types']) ? implode(',', array_map('trim',(array)$_POST['applicable_pwd_types'])) : null,
             'location_city' => $locCity,
             'location_region' => $locRegion,
             'employment_type' => $employment,
@@ -313,6 +315,21 @@ include '../includes/nav.php';
               </div>
             <?php endforeach; ?>
           </div>
+        </fieldset>
+
+        <fieldset class="fieldset-plain" aria-labelledby="access">
+          <legend class="visually-hidden">Applicable PWD Categories</legend>
+          <div class="tags-flex mb-3">
+            <?php foreach ($pwdCats as $pcat):
+              $isPosted = isset($_POST['applicable_pwd_types']);
+              $checked = $isPosted ? in_array($pcat, (array)$_POST['applicable_pwd_types'], true) : false; ?>
+              <label class="acc-tag <?php echo $checked ? 'selected' : ''; ?>">
+                <input type="checkbox" name="applicable_pwd_types[]" value="<?php echo htmlspecialchars($pcat); ?>" <?php echo $checked ? 'checked' : ''; ?>>
+                <span><i class="bi bi-person-check me-1"></i><?php echo htmlspecialchars($pcat); ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <div class="form-hint small">Select PWD categories this job is intended for. Leave empty if open to all PWDs.</div>
         </fieldset>
 
         <div class="section-divider" aria-hidden="true"></div>

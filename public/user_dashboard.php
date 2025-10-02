@@ -28,6 +28,11 @@ $profileFields = [
   'location'             => ($user->region && $user->province && $user->city) ? 'ok' : '',
   'resume'               => $user->resume ?? '',
   'video_intro'          => $user->video_intro ?? '',
+  // Preferences / mini resume fields
+  'expected_salary'      => ($user->expected_salary_min || $user->expected_salary_max) ? 'ok' : '',
+  'preferred_work_setup' => $user->preferred_work_setup ?? '',
+  'preferred_location'   => $user->preferred_location ?? '',
+  'interests'            => $user->interests ?? '',
 ];
 
 $totalFields    = count($profileFields);
@@ -202,6 +207,29 @@ include '../includes/nav.php';
             </ul>
             <?php if (count($certs) > 4): ?><div class="small mt-1"><a href="profile_edit.php#employment-section">View all (<?php echo count($certs); ?>)</a></div><?php endif; ?>
           <?php endif; ?>
+        </div>
+
+        <!-- Preferences Snapshot -->
+        <div class="panel-card mt-4 p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h3 class="h6 fw-semibold mb-0"><span class="panel-heading-icon"><i class="bi bi-card-checklist" aria-hidden="true"></i></span>Preferences</h3>
+            <a href="profile_edit.php" class="mini-link">Edit</a>
+          </div>
+          <?php
+            $salParts=[];
+            if (!empty($user->expected_salary_min)) $salParts[] = number_format((int)$user->expected_salary_min);
+            if (!empty($user->expected_salary_max)) $salParts[] = number_format((int)$user->expected_salary_max);
+            $salRange = implode(' - ', $salParts);
+            $salPeriod = $user->expected_salary_period ? ucfirst($user->expected_salary_period) : '';
+            $salCur = $user->expected_salary_currency ?: '';
+            $salaryDisp = $salRange ? trim($salCur.' '.$salRange.' '.$salPeriod) : '';
+          ?>
+          <div class="row small">
+            <div class="col-md-6"><span class="text-muted">Work Setup:</span> <span class="fw-semibold"><?php echo htmlspecialchars($user->preferred_work_setup ?: '—'); ?></span></div>
+            <div class="col-md-6"><span class="text-muted">Location:</span> <span class="fw-semibold"><?php echo htmlspecialchars($user->preferred_location ?: '—'); ?></span></div>
+            <div class="col-md-6 mt-1"><span class="text-muted">Expected Salary:</span> <span class="fw-semibold"><?php echo htmlspecialchars($salaryDisp ?: '—'); ?></span></div>
+            <div class="col-md-6 mt-1"><span class="text-muted">Interests:</span> <span class="fw-semibold"><?php echo htmlspecialchars($user->interests ?: '—'); ?></span></div>
+          </div>
         </div>
       </div>
     </div>

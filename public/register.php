@@ -22,9 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email_raw    = $_POST['email'] ?? '';
   // No password at registration; admin will issue upon approval/verification
 
-    $role_raw     = $_POST['role'] ?? 'job_seeker';
-    $dis_sel      = $_POST['disability'] ?? '';
-    $dis_other    = trim($_POST['disability_other'] ?? '');
+  $role_raw     = $_POST['role'] ?? 'job_seeker';
+  $dis_sel      = $_POST['disability'] ?? '';
 
   // Employer-only fields
     $company_name    = trim($_POST['company_name'] ?? '');
@@ -57,25 +56,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $allowedRoles = ['job_seeker','employer'];
     $role = in_array($role_raw, $allowedRoles, true) ? $role_raw : 'job_seeker';
 
-  // Disability handling (wheelchair-focused)
+  // Disability handling (general PWD categories)
   $disability = '';
   $selectedDis = $dis_sel;
-  if ($dis_sel === 'Other Physical Disability') {
-    $disability = $dis_other;
-  } elseif ($dis_sel && $dis_sel !== 'None') {
+  if ($dis_sel && $dis_sel !== 'None') {
     $disability = $dis_sel;
   }
   // Enforce disability requirement for Job Seekers
   if ($role === 'job_seeker') {
     if ($selectedDis === '' || $selectedDis === 'None') {
-      $errors[] = 'Please select your physical disability (None is not allowed for Job Seeker accounts).';
-    }
-    if ($selectedDis === 'Other Physical Disability') {
-      if ($dis_other === '') {
-        $errors[] = 'Please specify your physical disability.';
-      } elseif (mb_strlen($dis_other) < 3 || mb_strlen($dis_other) > 120) {
-        $errors[] = 'Please provide a valid disability description (3–120 characters).';
-      }
+      $errors[] = 'Please select your disability (None is not allowed for Job Seeker accounts).';
     }
   }
 
@@ -195,25 +185,28 @@ include '../includes/nav.php';
             </select>
           </div>
 
-          <div class="col-md-6 input-floating-label" id="disabilityWrapper">
+          <div class="col-md-6 input-floating-label" id="disabilityWrapper" style="display: <?php echo (($_POST['role'] ?? 'job_seeker')==='job_seeker')?'block':'none'; ?>;">
             <label>Disability <span class="text-danger" id="disabilityReqStar" style="display:none">*</span></label>
             <select name="disability" id="disabilitySelect" class="form-select">
               <?php
                 $rolePosted = $_POST['role'] ?? 'job_seeker';
-                $selected = $_POST['disability'] ?? ($rolePosted==='job_seeker' ? '' : 'None');
+                $selected = $_POST['disability'] ?? '';
                 echo '<option value=""'.($selected===''?' selected':'').'>— Select —</option>';
                 $opts = [
-                  'Spinal Cord Injury',
-                  'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
-                  'Amputee (lower limb)',
-                  'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
-                  'Other Physical Disability'
+                  'Learning disability',
+                  'Vision impairment',
+                  'Communication disorder',
+                  'Intellectual disability',
+                  'Orthopedic disability',
+                  'Chronic illness',
+                  'Hearing loss',
+                  'Speech impairment',
+                  'Hearing disability',
+                  'Physical disability'
                 ];
-                if ($rolePosted !== 'job_seeker') { echo '<option value="None"'.($selected==='None'?' selected':'').'>None</option>'; }
                 foreach ($opts as $o) { echo '<option value="'.htmlspecialchars($o).'"'.($selected===$o?' selected':'').'>'.htmlspecialchars($o).'</option>'; }
               ?>
             </select>
-            <input type="text" name="disability_other" id="disabilityOtherInput" class="form-control mt-2 <?php echo ($selected==='Other Physical Disability')?'':'d-none'; ?>" placeholder="Specify disability" value="<?php echo htmlspecialchars($_POST['disability_other'] ?? ''); ?>">
           </div>
 
           <div class="col-md-6 input-floating-label" id="pwdIdContainer" style="display: <?php echo (($_POST['role'] ?? 'job_seeker')==='job_seeker')?'block':'none'; ?>">
@@ -284,7 +277,7 @@ const roleSelect = document.getElementById('roleSelect');
 const employerSection = document.getElementById('employerSection');
 const pwdIdContainer = document.getElementById('pwdIdContainer');
 const disabilitySelect = document.getElementById('disabilitySelect');
-const disabilityOtherInput = document.getElementById('disabilityOtherInput');
+const disabilityWrapper = document.getElementById('disabilityWrapper');
 const disabilityReqStar = document.getElementById('disabilityReqStar');
 const businessPermitInput = document.getElementById('businessPermitInput');
 const formEl = document.querySelector('form');
@@ -296,75 +289,55 @@ function updateRoleSections(){
     if (businessPermitInput) businessPermitInput.setAttribute('required','required');
     disabilityReqStar.style.display = 'none';
     disabilitySelect.removeAttribute('required');
-    disabilityOtherInput.removeAttribute('required');
+    if (disabilityWrapper) disabilityWrapper.style.display = 'none';
   } else {
     employerSection.style.display = 'none';
     pwdIdContainer.style.display = 'block';
     if (businessPermitInput) businessPermitInput.removeAttribute('required');
     disabilityReqStar.style.display = '';
     disabilitySelect.setAttribute('required','required');
-    if (disabilitySelect.value === 'Other Physical Disability') {
-      disabilityOtherInput.classList.remove('d-none');
-      disabilityOtherInput.setAttribute('required','required');
-    } else {
-      disabilityOtherInput.classList.add('d-none');
-      disabilityOtherInput.removeAttribute('required');
-    }
+    // no free-text option in general categories
+    if (disabilityWrapper) disabilityWrapper.style.display = 'block';
   }
 }
 
 roleSelect.addEventListener('change', updateRoleSections);
 
-disabilitySelect.addEventListener('change', ()=>{
-  if (disabilitySelect.value === 'Other Physical Disability') {
-    disabilityOtherInput.classList.remove('d-none');
-    if (roleSelect.value === 'job_seeker') disabilityOtherInput.setAttribute('required','required');
-  } else {
-    disabilityOtherInput.classList.add('d-none');
-    disabilityOtherInput.removeAttribute('required');
-  }
-});
 
 roleSelect.addEventListener('change', ()=>{
   const val = roleSelect.value;
   const cur = disabilitySelect.value;
   const base = [
-    'Spinal Cord Injury',
-    'Musculoskeletal Condition (e.g., cerebral palsy, muscular dystrophy)',
-    'Amputee (lower limb)',
-    'Neurological Condition (e.g., multiple sclerosis, spina bifida)',
-    'Other Physical Disability'
+    'Learning disability',
+    'Vision impairment',
+    'Communication disorder',
+    'Intellectual disability',
+    'Orthopedic disability',
+    'Chronic illness',
+    'Hearing loss',
+    'Speech impairment',
+    'Hearing disability',
+    'Physical disability'
   ];
-  const list = (val==='employer') ? ['None', ...base] : base;
+  const list = base; // Employers won't see this field
   disabilitySelect.innerHTML = '';
   const ph = document.createElement('option'); ph.value=''; ph.textContent='— Select —';
   disabilitySelect.appendChild(ph);
   list.forEach(o=>{ const opt=document.createElement('option'); opt.value=o; opt.textContent=o; disabilitySelect.appendChild(opt); });
   const toSelect = list.includes(cur) ? cur : '';
   disabilitySelect.value = toSelect;
-  disabilitySelect.dispatchEvent(new Event('change'));
+  // no dependent fields to toggle
 });
 
 formEl.addEventListener('submit', (e)=>{
   if (roleSelect.value === 'job_seeker') {
     if (!disabilitySelect.value || disabilitySelect.value === 'None') {
       e.preventDefault();
-      disabilitySelect.setCustomValidity('Please select your physical disability (None is not allowed).');
+      disabilitySelect.setCustomValidity('Please select your disability (None is not allowed).');
       disabilitySelect.reportValidity();
       return;
     } else {
       disabilitySelect.setCustomValidity('');
-    }
-    if (disabilitySelect.value === 'Other Physical Disability') {
-      const val = (disabilityOtherInput.value || '').trim();
-      if (val.length < 3 || val.length > 120) {
-        e.preventDefault();
-        disabilityOtherInput.setCustomValidity('Please provide a valid description (3–120 characters).');
-        disabilityOtherInput.reportValidity();
-        return;
-      } else {
-        disabilityOtherInput.setCustomValidity('');
-      }
     }
   }
 });

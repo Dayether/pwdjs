@@ -26,6 +26,7 @@ $generalSkills = [
 ];
 $employmentTypes = Taxonomy::employmentTypes();
 $accessTags      = Taxonomy::accessibilityTags();
+$pwdCats         = Taxonomy::disabilityCategories();
 $eduLevels       = Taxonomy::educationLevels();
 
 $errors = [];
@@ -112,13 +113,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-    $data = [
+  $data = [
         'title' => $title,
         'description' => $description,
         'required_skills_input' => $skillsCsv,
   'required_experience' => $reqExp,
   'required_education' => $reqEduRaw,
-        'accessibility_tags' => implode(',', array_map('trim',$tagsSelected)),
+    'accessibility_tags' => implode(',', array_map('trim',$tagsSelected)),
+    'applicable_pwd_types' => isset($_POST['applicable_pwd_types']) ? implode(',', array_map('trim',(array)$_POST['applicable_pwd_types'])) : ($job->applicable_pwd_types ?? null),
         'location_city' => $locCity,
         'location_region' => $locRegion,
         'remote_option' => 'Work From Home',
@@ -352,6 +354,22 @@ include '../includes/nav.php';
             <?php endforeach; ?>
           </div>
           <div id="accessHelp" class="form-text mt-1">Highlight inclusive or assistive practices relevant to this role.</div>
+        </fieldset>
+      </div>
+
+      <div class="col-12">
+        <fieldset class="border rounded p-3 pt-2" style="--bs-border-color: #e3e8ee;">
+          <legend class="float-none w-auto px-2 small fw-semibold mb-1">Applicable PWD Categories</legend>
+          <?php $curCats = array_filter(array_map('trim', explode(',', $job->applicable_pwd_types ?? ''))); ?>
+          <div class="d-flex flex-wrap gap-3" aria-describedby="pwdCatHelp">
+            <?php foreach ($pwdCats as $pcat): $isSel = in_array($pcat, $curCats, true); ?>
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="checkbox" name="applicable_pwd_types[]" id="pwdcat_<?php echo md5($pcat); ?>" value="<?php echo htmlspecialchars($pcat); ?>" <?php echo $isSel ? 'checked' : ''; ?>>
+                <label class="form-check-label small" for="pwdcat_<?php echo md5($pcat); ?>"><?php echo htmlspecialchars($pcat); ?></label>
+              </div>
+            <?php endforeach; ?>
+          </div>
+          <div id="pwdCatHelp" class="form-text mt-1">Select specific PWD categories this job is intended for. Leave empty if open to all PWDs.</div>
         </fieldset>
       </div>
 

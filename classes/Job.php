@@ -13,6 +13,7 @@ class Job {
     public ?string $required_education = null;
     public ?string $required_skills_input = null;
     public ?string $accessibility_tags = null;
+    public ?string $applicable_pwd_types = null; // CSV of targeted PWD categories
 
     public string $location_city = '';
     public string $location_region = '';
@@ -36,7 +37,8 @@ class Job {
         $this->required_experience   = isset($row['required_experience']) ? (int)$row['required_experience'] : 0;
         $this->required_education    = $row['required_education'] ?? null;
         $this->required_skills_input = $row['required_skills_input'] ?? null;
-        $this->accessibility_tags    = $row['accessibility_tags'] ?? null;
+    $this->accessibility_tags    = $row['accessibility_tags'] ?? null;
+    $this->applicable_pwd_types  = $row['applicable_pwd_types'] ?? null;
 
         $this->location_city   = $row['location_city'] ?? '';
         $this->location_region = $row['location_region'] ?? '';
@@ -85,16 +87,16 @@ class Job {
         $status = 'Open';
 
         $stmt = $pdo->prepare("
-            INSERT INTO jobs (
+                        INSERT INTO jobs (
               job_id, employer_id, title, description,
-              required_experience, required_education, required_skills_input, accessibility_tags,
+                            required_experience, required_education, required_skills_input, accessibility_tags, applicable_pwd_types,
               location_city, location_region,
               remote_option, employment_type,
                             salary_currency, salary_min, salary_max, salary_period, job_image,
               status
             ) VALUES (
               :job_id, :employer_id, :title, :description,
-              :required_experience, :required_education, :required_skills_input, :accessibility_tags,
+                            :required_experience, :required_education, :required_skills_input, :accessibility_tags, :applicable_pwd_types,
               :location_city, :location_region,
               :remote_option, :employment_type,
                             :salary_currency, :salary_min, :salary_max, :salary_period, :job_image,
@@ -111,6 +113,7 @@ class Job {
             ':required_education'   => $reqEdu,
             ':required_skills_input'=> $data['required_skills_input'] ?? '',
             ':accessibility_tags'   => $data['accessibility_tags'] ?? '',
+            ':applicable_pwd_types' => $data['applicable_pwd_types'] ?? null,
             ':location_city'        => $data['location_city'] ?? '',
             ':location_region'      => $data['location_region'] ?? '',
             ':remote_option'        => $remote,
@@ -139,13 +142,14 @@ class Job {
         $remote = 'Work From Home';
 
         $stmt = $pdo->prepare("
-            UPDATE jobs SET
+                        UPDATE jobs SET
               title = :title,
               description = :description,
               required_experience = :required_experience,
               required_education = :required_education,
               required_skills_input = :required_skills_input,
-              accessibility_tags = :accessibility_tags,
+                            accessibility_tags = :accessibility_tags,
+                            applicable_pwd_types = :applicable_pwd_types,
               location_city = :location_city,
               location_region = :location_region,
               remote_option = :remote_option,
@@ -166,6 +170,7 @@ class Job {
             ':required_education'  => $reqEdu,
             ':required_skills_input'=> $data['required_skills_input'] ?? '',
             ':accessibility_tags'  => $data['accessibility_tags'] ?? '',
+            ':applicable_pwd_types'=> $data['applicable_pwd_types'] ?? null,
             ':location_city'       => $data['location_city'] ?? '',
             ':location_region'     => $data['location_region'] ?? '',
             ':remote_option'       => $remote,

@@ -43,6 +43,15 @@ class ProfileCompleteness {
         // Summary
         if ($has('primary_skill_summary')) $score += 10;
 
+    // Preferences / Mini resume
+    if (!empty($user['preferred_work_setup'])) $score += 5;
+    if (!empty($user['preferred_location'])) $score += 3;
+    if (!empty($user['interests'])) $score += 5;
+    if (!empty($user['expected_salary_min']) || !empty($user['expected_salary_max'])) $score += 5;
+
+    // Cap to 100
+    if ($score > 100) $score = 100;
+
         $upd = $pdo->prepare("
             UPDATE users
             SET profile_completeness=?, profile_last_calculated=NOW()

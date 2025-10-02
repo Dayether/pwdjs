@@ -147,4 +147,24 @@ class Taxonomy
             'Adaptable / Quick Learner'
         ];
     }
+
+    /**
+     * Standardized PWD disability categories (11 generalized types used across the app)
+     */
+    public static function disabilityCategories(): array
+    {
+        return [
+            'Visual Impairment',
+            'Hearing Impairment',
+            'Speech Impairment',
+            'Mobility Impairment',
+            'Upper Limb Impairment',
+            'Lower Limb Impairment',
+            'Intellectual Disability',
+            'Learning Disability',
+            'Psychosocial Disability',
+            'Autism Spectrum',
+            'Chronic Illness'
+        ];
+    }
 }
