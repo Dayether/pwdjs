@@ -100,21 +100,26 @@ class User {
             'business_permit_number','employer_doc'
         ];
 
-        // Detect if profile_picture column exists (cached static for performance)
-        static $hasProfilePic = null;
-        if ($hasProfilePic === null) {
+        // Detect existing columns on `users` table once and cache
+        static $userColumns = null;
+        if ($userColumns === null) {
+            $userColumns = [];
             try {
                 $pdoCheck = Database::getConnection();
-                $res = $pdoCheck->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
-                $hasProfilePic = $res && $res->fetch() ? true : false;
+                $cols = $pdoCheck->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($cols as $c) {
+                    $name = $c['Field'] ?? null;
+                    if ($name) $userColumns[$name] = true;
+                }
             } catch (Throwable $e) {
-                $hasProfilePic = false;
+                // If introspection fails, keep as empty to avoid adding unknown fields
+                $userColumns = [];
             }
         }
-        if ($hasProfilePic) {
+        // Conditionally allow profile_picture if column exists
+        if (isset($userColumns['profile_picture'])) {
             $allowed[] = 'profile_picture';
         } else {
-            // Column not present; drop any provided value to prevent SQL error
             unset($data['profile_picture']);
         }
 
@@ -134,7 +139,7 @@ class User {
         $set = [];
         $vals = [];
         foreach ($data as $k=>$v) {
-            if (in_array($k,$allowed,true)) {
+            if (in_array($k,$allowed,true) && isset($userColumns[$k])) {
                 $set[] = "$k = ?";
                 $vals[] = $v;
             }
@@ -143,8 +148,13 @@ class User {
         $vals[] = $userId;
         $sql = "UPDATE users SET ".implode(',',$set)." WHERE user_id=?";
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare($sql);
-        return $stmt->execute($vals);
+        try {
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute($vals);
+        } catch (Throwable $e) {
+            // Swallow and return false so the caller can surface a friendly message
+            return false;
+        }
     }
 
     public static function register(array $input): bool {

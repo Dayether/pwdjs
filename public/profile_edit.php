@@ -8,6 +8,7 @@ require_once '../classes/Certification.php';
 require_once '../classes/ProfileCompleteness.php';
 require_once '../classes/Taxonomy.php';
 require_once '../classes/Sensitive.php';
+require_once '../classes/Skill.php';
 
 Helpers::requireLogin();
 Helpers::requireRole('job_seeker');
@@ -16,6 +17,36 @@ if (!$user) Helpers::redirect('login.php');
 
 $errors = [];
 $flashRedirect = null; // where to redirect after successful sub-action
+// Detect if preference columns exist; show guidance if missing
+$prefColumnsMissing = [];
+try {
+  $pdoChk = Database::getConnection();
+  $cols = $pdoChk->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC);
+  $have = [];
+  foreach ($cols as $c) { $have[$c['Field']] = true; }
+  foreach (['expected_salary_currency','expected_salary_min','expected_salary_max','expected_salary_period','interests','accessibility_preferences','preferred_location','preferred_work_setup'] as $col) {
+    if (!isset($have[$col])) $prefColumnsMissing[] = $col;
+  }
+} catch (Throwable $e) { /* ignore */ }
+/* ---------------------------
+   SKILLS ADD/REMOVE
+---------------------------- */
+if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='add_skill') {
+  $raw = trim($_POST['skill_names'] ?? '');
+  $names = $raw !== '' ? array_filter(array_map('trim', explode(',', $raw))) : [];
+  if ($names) {
+    Skill::addSkillsToUser($user->user_id, $names);
+    ProfileCompleteness::compute($user->user_id);
+    Helpers::flash('msg','Skill(s) added.');
+    $flashRedirect = 'profile_edit.php#tab-skills';
+  }
+}
+if (isset($_GET['del_skill'])) {
+  Skill::removeUserSkill($user->user_id, $_GET['del_skill']);
+  ProfileCompleteness::compute($user->user_id);
+  Helpers::flash('msg','Skill removed.');
+  Helpers::redirect('profile_edit.php#tab-skills');
+}
 
 /* ---------------------------
    EXPERIENCE ADD
@@ -156,6 +187,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['form'] ?? '')==='profile') {
     $update['preferred_location'] = trim($_POST['preferred_location'] ?? '');
     $update['preferred_work_setup'] = in_array(($_POST['preferred_work_setup'] ?? ''), ['On-site','Hybrid','Remote'], true) ? $_POST['preferred_work_setup'] : null;
 
+    // Sync selected general/soft skills into user_skills (subset only)
+    if (!empty($generalSkills)) {
+      $selectedGeneral = isset($_POST['general_skills']) ? array_filter(array_map('trim', (array)$_POST['general_skills'])) : [];
+      Skill::syncUserSkillsSubsetByName($user->user_id, $generalSkills, $selectedGeneral);
+    }
+
     // PWD ID: allow setting ONLY if not already stored
     if (!$user->pwd_id_last4) {
       if (isset($_POST['pwd_id_number']) && $_POST['pwd_id_number'] !== '') {
@@ -256,8 +293,14 @@ if ($flashRedirect && !$errors) {
 /* Lists */
 $experiences = Experience::listByUser($user->user_id);
 $certs       = Certification::listByUser($user->user_id);
+$userSkills  = Skill::getSkillsForUser($user->user_id);
 // Normalized accessibility preferences for pre-selection
 $normalizedAcc = User::listAccessibilityPrefs($user->user_id);
+// General / soft skills universe (same as employer job create)
+$generalSkills = method_exists('Taxonomy','generalSkills') ? Taxonomy::generalSkills() : [];
+// Build a quick set of the user's current skill names (lowercased)
+$__userSkillNameSet = [];
+foreach ($userSkills as $__us) { $__userSkillNameSet[mb_strtolower($__us['name'])] = true; }
 
 include '../includes/header.php';
 include '../includes/nav.php';
@@ -289,6 +332,16 @@ include '../includes/nav.php';
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
 <?php endforeach; ?>
+
+<?php if ($prefColumnsMissing): ?>
+  <div class="alert alert-warning alert-dismissible fade show">
+    <i class="bi bi-info-circle me-1"></i>
+    Some preference fields won't save until DB migration is applied.
+    Missing columns: <code><?php echo htmlspecialchars(implode(', ', $prefColumnsMissing)); ?></code>.
+    Apply migration file <strong>config/migrations/20251002_user_preferences.sql</strong> and reload.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+<?php endif; ?>
 
 <form method="post" enctype="multipart/form-data" class="pe-shell mb-4 fade-up fade-delay-2" id="profileEditForm">
   <input type="hidden" name="form" value="profile">
@@ -478,6 +531,21 @@ include '../includes/nav.php';
             <?php endforeach; ?>
           </div>
         </div>
+
+        <?php if (!empty($generalSkills)): ?>
+        <div class="col-12">
+          <label class="form-label">General / Soft Skills</label>
+          <div class="d-flex flex-wrap gap-2">
+            <?php foreach ($generalSkills as $gs): $checked = isset($__userSkillNameSet[mb_strtolower($gs)]); ?>
+              <label class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="general_skills[]" value="<?php echo htmlspecialchars($gs); ?>" <?php echo $checked?'checked':''; ?>>
+                <span class="form-check-label"><?php echo htmlspecialchars($gs); ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <div class="form-text">Check the soft skills that apply to you to improve matching with employer requirements.</div>
+        </div>
+        <?php endif; ?>
       </div>
       <div class="mini-divider"></div>
       <h2 class="pe-head" style="margin-top:.25rem;"><span class="icon"><i class="bi bi-folder2-open"></i></span>Documents</h2>
@@ -502,12 +570,49 @@ include '../includes/nav.php';
         </div>
       </div>
       <div class="sticky-save pe-actions">
-        <button class="btn btn-gradient"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Changes</button>
+        <button type="submit" class="btn btn-gradient"><i class="bi bi-save me-1" aria-hidden="true"></i>Save Changes</button>
         <a href="user_dashboard.php" class="btn btn-outline-secondary">Cancel</a>
       </div>
     </div>
   </div>
+
+  <!-- Close the main profile form BEFORE the Skills section to avoid nested forms -->
 </form>
+
+<div class="pe-card" id="tab-skills">
+    <div class="pe-card-inner">
+      <h2 class="pe-head"><span class="icon"><i class="bi bi-stars"></i></span>Skills</h2>
+      <?php if ($userSkills): ?>
+        <div class="mb-2">
+          <?php foreach ($userSkills as $us): ?>
+            <span class="badge rounded-pill text-bg-light border me-1 mb-1">
+              <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($us['name']); ?>
+              <a class="text-decoration-none ms-1" title="Remove" href="profile_edit.php?del_skill=<?php echo htmlspecialchars($us['skill_id']); ?>" onclick="return confirm('Remove this skill?')">
+                <i class="bi bi-x-circle"></i>
+              </a>
+            </span>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <div class="text-muted small mb-2">No skills added yet.</div>
+      <?php endif; ?>
+
+      <div class="add-inline-form">
+        <h3>Add Skills</h3>
+        <form method="post" class="row g-2 align-items-end">
+          <input type="hidden" name="form" value="add_skill">
+          <div class="col-md-8">
+            <label class="form-label small mb-1" for="skill_names">Type skill names (comma separated)</label>
+            <input type="text" id="skill_names" name="skill_names" class="form-control form-control-sm" placeholder="e.g., PHP, JavaScript, Excel">
+            <div class="form-text">Tip: Include tools and frameworks you use. You can add multiple at once using commas.</div>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button class="btn btn-sm btn-gradient"><i class="bi bi-plus"></i> Add</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
 <div class="pe-card mb-4 fade-up fade-delay-3" id="employment-section">
   <div class="pe-card-inner">
@@ -534,19 +639,24 @@ include '../includes/nav.php';
 
     <div class="add-inline-form mb-4">
       <h3>Add Experience</h3>
-      <form method="post" class="row g-2 align-items-end">
+      <form method="post" class="row g-3 align-items-start">
         <input type="hidden" name="form" value="add_experience">
         <div class="col-md-4 col-sm-6">
-          <input type="text" name="exp_company" class="form-control form-control-sm" placeholder="Company *" required>
+          <label class="form-label small mb-1" for="exp_company">Company *</label>
+          <input type="text" id="exp_company" name="exp_company" class="form-control form-control-sm" required>
         </div>
         <div class="col-md-4 col-sm-6">
-          <input type="text" name="exp_position" class="form-control form-control-sm" placeholder="Position *" required>
+          <label class="form-label small mb-1" for="exp_position">Position *</label>
+          <input type="text" id="exp_position" name="exp_position" class="form-control form-control-sm" required>
         </div>
         <div class="col-md-2">
-          <input type="date" name="exp_start_date" class="form-control form-control-sm" required>
+          <label for="exp_start_date" class="form-label small mb-1">Start Date</label>
+          <input type="date" id="exp_start_date" name="exp_start_date" class="form-control form-control-sm" required>
         </div>
         <div class="col-md-2">
-          <input type="date" name="exp_end_date" class="form-control form-control-sm">
+          <label for="exp_end_date" class="form-label small mb-1">End Date</label>
+          <input type="date" id="exp_end_date" name="exp_end_date" class="form-control form-control-sm" aria-describedby="expEndHelp">
+          <div id="expEndHelp" class="form-text small">Leave blank or check Current if ongoing.</div>
         </div>
         <div class="col-12 d-flex align-items-center gap-2">
           <div class="form-check">
@@ -580,25 +690,32 @@ include '../includes/nav.php';
 
     <div class="add-inline-form">
       <h3>Add Certification</h3>
-      <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+      <form method="post" enctype="multipart/form-data" class="row g-3 align-items-start">
         <input type="hidden" name="form" value="add_cert">
         <div class="col-md-4 col-sm-6">
-          <input type="text" name="cert_name" class="form-control form-control-sm" placeholder="Name *" required>
+          <label class="form-label small mb-1" for="cert_name">Name *</label>
+          <input type="text" id="cert_name" name="cert_name" class="form-control form-control-sm" required>
         </div>
         <div class="col-md-3">
-          <input type="text" name="cert_issuer" class="form-control form-control-sm" placeholder="Issuer">
+          <label class="form-label small mb-1" for="cert_issuer">Issuer</label>
+          <input type="text" id="cert_issuer" name="cert_issuer" class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
-          <input type="date" name="cert_issued_date" class="form-control form-control-sm">
+          <label for="cert_issued_date" class="form-label small mb-1">Issued Date</label>
+          <input type="date" id="cert_issued_date" name="cert_issued_date" class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
-          <input type="date" name="cert_expiry_date" class="form-control form-control-sm">
+          <label for="cert_expiry_date" class="form-label small mb-1">Expiry Date</label>
+          <input type="date" id="cert_expiry_date" name="cert_expiry_date" class="form-control form-control-sm" aria-describedby="certExpHelp">
+          <div id="certExpHelp" class="form-text small">Leave blank if this certification has no expiry.</div>
         </div>
         <div class="col-md-3">
-          <input type="text" name="cert_credential_id" class="form-control form-control-sm" placeholder="Credential ID">
+          <label class="form-label small mb-1" for="cert_credential_id">Credential ID</label>
+          <input type="text" id="cert_credential_id" name="cert_credential_id" class="form-control form-control-sm">
         </div>
         <div class="col-md-3">
-          <input type="file" name="cert_attachment" class="form-control form-control-sm">
+          <label class="form-label small mb-1" for="cert_attachment">Attachment</label>
+          <input type="file" id="cert_attachment" name="cert_attachment" class="form-control form-control-sm">
         </div>
         <div class="col-md-2 d-grid">
           <button class="btn btn-sm btn-gradient"><i class="bi bi-plus"></i> Add</button>
@@ -626,6 +743,25 @@ include '../includes/nav.php';
   const videoInput = document.getElementById('videoInput');
   const resumeFeedback = document.getElementById('resumeFeedback');
   const videoFeedback = document.getElementById('videoFeedback');
+  // Experience date helpers
+  const expStart = document.getElementById('exp_start_date');
+  const expEnd = document.getElementById('exp_end_date');
+  const expCurrent = document.getElementById('exp_is_current');
+  function syncExpDates(){
+    if(expStart && expEnd){ expEnd.min = expStart.value || ''; }
+    if(expCurrent && expEnd){ expEnd.disabled = !!expCurrent.checked; if(expCurrent.checked) expEnd.value=''; }
+  }
+  expStart && expStart.addEventListener('change', syncExpDates);
+  expEnd && expEnd.addEventListener('change', syncExpDates);
+  expCurrent && expCurrent.addEventListener('change', syncExpDates);
+  syncExpDates();
+  // Certification date helpers
+  const certIssued = document.getElementById('cert_issued_date');
+  const certExpiry = document.getElementById('cert_expiry_date');
+  function syncCertDates(){ if(certIssued && certExpiry){ certExpiry.min = certIssued.value || ''; } }
+  certIssued && certIssued.addEventListener('change', syncCertDates);
+  certExpiry && certExpiry.addEventListener('change', syncCertDates);
+  syncCertDates();
 
   function calcAge() {
     if (!dobInput || !ageBadge || !dobInput.value) { ageBadge && (ageBadge.textContent=''); return; }

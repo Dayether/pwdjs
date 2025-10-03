@@ -136,6 +136,7 @@ if (!empty($employer->created_at)) {
           </div>
           <div class="emp-actions">
             <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i></a>
+            <a href="company.php?user_id=<?php echo urlencode($employer->user_id); ?>" class="btn btn-outline-secondary btn-sm" title="View public page"><i class="bi bi-eye"></i></a>
             <?php if ($isSelf): ?>
               <a href="employer_edit.php" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil-square"></i></a>
               <a href="employer_dashboard.php" class="btn btn-gradient btn-sm" title="Dashboard"><i class="bi bi-speedometer2"></i></a>
@@ -164,8 +165,8 @@ if (!empty($employer->created_at)) {
       <div class="ep-left-card h-100">
         <h2 class="visually-hidden">Company Details</h2>
         <dl class="ep-details-dl">
-          <dt>Display Name</dt>
-          <dd><?php echo htmlspecialchars($employer->name); ?></dd>
+          <dt>Company Name</dt>
+          <dd><?php echo htmlspecialchars($employer->company_name ?: $employer->name); ?></dd>
           <?php if ($employer->company_website): ?>
             <dt>Website</dt>
             <dd><a href="<?php echo htmlspecialchars($employer->company_website); ?>" target="_blank" rel="noopener"><?php echo htmlspecialchars($employer->company_website); ?></a></dd>
@@ -205,6 +206,11 @@ if (!empty($employer->created_at)) {
           <h2><i class="bi bi-briefcase"></i><span>Jobs Posted</span><span class="badge bg-light text-dark ms-1" style="font-size:.65rem;"><?php echo count($jobs); ?></span></h2>
           <?php if ($isSelf): ?><a href="jobs_create.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i><span>Post Job</span></a><?php endif; ?>
         </div>
+        <div class="d-flex flex-wrap gap-2 mb-2" role="toolbar" aria-label="Filter jobs by status">
+          <button type="button" class="btn btn-sm btn-outline-secondary active" data-filter="all">All</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="open">Open</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="closed">Closed</button>
+        </div>
         <?php if (!$jobs): ?>
           <div class="ep-empty"><i class="bi bi-info-circle me-1"></i>No jobs posted yet.</div>
         <?php else: ?>
@@ -221,7 +227,8 @@ if (!empty($employer->created_at)) {
               </thead>
               <tbody>
                 <?php foreach ($jobs as $j): ?>
-                  <tr>
+                  <?php $rowStatus = strtolower($j['status']); ?>
+                  <tr data-status="<?php echo htmlspecialchars($rowStatus); ?>">
                     <td><a href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>"><?php echo htmlspecialchars($j['title']); ?></a></td>
                     <td>
                       <?php $js=$j['status']; $jbCls=strtolower($js); ?>
@@ -232,9 +239,17 @@ if (!empty($employer->created_at)) {
                     <td><?php echo htmlspecialchars($j['employment_type']); ?></td>
                     <td>
                       <?php
-                        if ($j['salary_min'] && $j['salary_max']) {
-                          echo htmlspecialchars(number_format($j['salary_min'])) . ' - ' . htmlspecialchars(number_format($j['salary_max'])) . ' ' . htmlspecialchars($j['salary_currency']);
-                        } else echo '—';
+                        $cur = $j['salary_currency'] ?: 'PHP';
+                        $min = $j['salary_min'] ?: null;
+                        $max = $j['salary_max'] ?: null;
+                        if ($min && $max) {
+                          echo htmlspecialchars($cur.' '.number_format($min).' - '.number_format($max));
+                        } elseif ($min || $max) {
+                          $one = $min ?: $max;
+                          echo htmlspecialchars($cur.' '.number_format($one));
+                        } else {
+                          echo '—';
+                        }
                       ?>
                     </td>
                     <td><?php echo htmlspecialchars(date('Y-m-d', strtotime($j['created_at']))); ?></td>
@@ -249,3 +264,24 @@ if (!empty($employer->created_at)) {
   </div>
 </div>
 <?php include '../includes/footer.php'; ?>
+<script>
+  (function(){
+    const toolbar = document.querySelector('[aria-label="Filter jobs by status"]');
+    if (!toolbar) return;
+    const buttons = Array.from(toolbar.querySelectorAll('button[data-filter]'));
+    const rows = Array.from(document.querySelectorAll('.ep-jobs-table tbody tr'));
+    function applyFilter(f){
+      rows.forEach(tr=>{
+        const s = (tr.getAttribute('data-status')||'').toLowerCase();
+        tr.style.display = (f==='all' || s===f) ? '' : 'none';
+      });
+    }
+    buttons.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        buttons.forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilter(btn.getAttribute('data-filter'));
+      });
+    });
+  })();
+</script>

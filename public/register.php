@@ -4,6 +4,7 @@ require_once '../classes/Database.php';
 require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Name.php';
+require_once '../classes/Taxonomy.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -192,19 +193,10 @@ include '../includes/nav.php';
                 $rolePosted = $_POST['role'] ?? 'job_seeker';
                 $selected = $_POST['disability'] ?? '';
                 echo '<option value=""'.($selected===''?' selected':'').'>— Select —</option>';
-                $opts = [
-                  'Learning disability',
-                  'Vision impairment',
-                  'Communication disorder',
-                  'Intellectual disability',
-                  'Orthopedic disability',
-                  'Chronic illness',
-                  'Hearing loss',
-                  'Speech impairment',
-                  'Hearing disability',
-                  'Physical disability'
-                ];
-                foreach ($opts as $o) { echo '<option value="'.htmlspecialchars($o).'"'.($selected===$o?' selected':'').'>'.htmlspecialchars($o).'</option>'; }
+                $opts = Taxonomy::disabilityCategories();
+                foreach ($opts as $o) {
+                  echo '<option value="'.htmlspecialchars($o).'"'.($selected===$o?' selected':'').'>'.htmlspecialchars($o).'</option>';
+                }
               ?>
             </select>
           </div>

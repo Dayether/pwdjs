@@ -43,20 +43,23 @@ $closedJobs = count(array_filter($myJobs, fn($j)=>($j['status'] ?? '')==='Closed
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Collect + sanitize
-    $title       = trim($_POST['title'] ?? '');
-    $employment  = $_POST['employment_type'] ?? 'Full time';
-    if (!in_array($employment, $employmentTypes, true)) $employment = 'Full time';
+  $title       = trim($_POST['title'] ?? '');
+  $employment  = $_POST['employment_type'] ?? '';
+  if (!in_array($employment, $employmentTypes, true)) $employment = '';
     $locCity     = trim($_POST['location_city'] ?? '');
     $locRegion   = trim($_POST['location_region'] ?? '');
-    $salary_currency = strtoupper(trim($_POST['salary_currency'] ?? 'PHP')) ?: 'PHP';
+  $salary_currency = strtoupper(trim($_POST['salary_currency'] ?? ''));
     $salary_min  = ($_POST['salary_min'] !== '' && $_POST['salary_min'] !== null) ? max(0,(int)$_POST['salary_min']) : null;
     $salary_max  = ($_POST['salary_max'] !== '' && $_POST['salary_max'] !== null) ? max(0,(int)$_POST['salary_max']) : null;
-    $salary_period = in_array($_POST['salary_period'] ?? 'monthly', ['monthly','yearly','hourly'], true) ? $_POST['salary_period'] : 'monthly';
-    $reqExp      = (int)($_POST['required_experience'] ?? 0);
-    $reqEduRaw   = trim($_POST['required_education'] ?? '');
+  $salary_period = $_POST['salary_period'] ?? '';
+  if (!in_array($salary_period, ['monthly','yearly','hourly'], true)) $salary_period = '';
+  $reqExpRaw   = trim((string)($_POST['required_experience'] ?? ''));
+  $reqExp      = ($reqExpRaw === '' ? null : max(0,(int)$reqExpRaw));
+  $reqEduRaw   = trim($_POST['required_education'] ?? '');
+  if (strcasecmp($reqEduRaw, 'Any') === 0) { $reqEduRaw = ''; }
     $description = trim($_POST['description'] ?? '');
 
-    // Skills (checkbox general + comma separated extra)
+  // Skills (checkbox general + comma separated extra)
     $skillsSelected = $_POST['required_skills'] ?? [];
     if (!is_array($skillsSelected)) $skillsSelected = [$skillsSelected];
     $skillsSelected = array_filter(array_map('trim',$skillsSelected));
@@ -66,16 +69,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach (array_merge($skillsSelected,$extraTokens) as $s) {
         if ($s==='') continue; $k = mb_strtolower($s); if (!isset($merged[$k])) $merged[$k]=$s; }
     $skillsCsv = implode(', ', $merged);
+  if ($skillsCsv === '') {
+    $errors[] = 'Select at least one skill or add in Additional Skills.';
+  }
 
     // Accessibility tags
-    $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
-    $tagsSelected = array_filter(array_map('trim',$tagsSelected));
+  $tagsSelected = (array)($_POST['accessibility_tags'] ?? []);
+  $tagsSelected = array_filter(array_map('trim',$tagsSelected));
 
-    if ($title === '') $errors[] = 'Job title required';
-    if ($description === '') $errors[] = 'Description required';
+  if ($title === '') $errors[] = 'Job title required';
+  if ($employment === '') $errors[] = 'Employment type is required';
+  if ($description === '') $errors[] = 'Description required';
+  if ($locCity === '') $errors[] = 'City is required';
+  if ($locRegion === '') $errors[] = 'Region / Province is required';
+  if ($salary_currency === '') $errors[] = 'Salary currency is required';
+  if ($salary_period === '') $errors[] = 'Salary period is required';
+  if ($reqExp === null) $errors[] = 'Experience (years) is required';
     if ($salary_min !== null && $salary_max !== null && $salary_min > $salary_max) {
         $errors[] = 'Salary min cannot exceed salary max';
     }
+  if (count($tagsSelected) === 0) $errors[] = 'Select at least one Accessibility & Inclusion tag.';
 
     // Duplicate detection (title similarity against recent employer jobs)
     if (!$errors && $title !== '') {
@@ -122,7 +135,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if (!$errors && !$duplicatePending) {
+  // Require at least one PWD category
+  $pwdSelected = isset($_POST['applicable_pwd_types']) ? array_filter(array_map('trim',(array)$_POST['applicable_pwd_types'])) : [];
+  if (!$errors && !$duplicatePending && count($pwdSelected) === 0) {
+    $errors[] = 'Select at least one Applicable PWD Category.';
+  }
+
+  if (!$errors && !$duplicatePending) {
     $data = [
             'title' => $title,
             'description' => $description,
@@ -130,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'required_education' => $reqEduRaw,
             'required_skills_input' => $skillsCsv,
       'accessibility_tags' => implode(',', $tagsSelected),
-      'applicable_pwd_types' => isset($_POST['applicable_pwd_types']) ? implode(',', array_map('trim',(array)$_POST['applicable_pwd_types'])) : null,
+      'applicable_pwd_types' => implode(',', $pwdSelected),
             'location_city' => $locCity,
             'location_region' => $locRegion,
             'employment_type' => $employment,
@@ -166,7 +185,30 @@ include '../includes/nav.php';
       .input-floating-label.select-filled { background:#fff; }
       .input-floating-label.select-filled > label { opacity:.85; }
       .input-floating-label.force-top {background:#fff !important;}
-      .input-floating-label.force-top > label {opacity:.85;}
+      /* Pin the label above the control and avoid overlap with placeholder */
+      .input-floating-label.force-top > label {
+        position:absolute;
+        top:-0.55rem;
+        left:.75rem;
+        background:#fff;
+        padding:0 .25rem;
+        font-size:.78rem;
+        line-height:1;
+        opacity:.85;
+        transform:none;
+      }
+      .input-floating-label.force-top select.form-select,
+      .input-floating-label.force-top input.form-control,
+      .input-floating-label.force-top textarea.form-control {
+        /* extra space is not strictly required since label sits above border, but keep consistent */
+        padding-top:.6rem;
+      }
+      .group-hint {
+        display:flex; align-items:center; gap:.4rem; margin:.25rem 0 .5rem; color:#6c757d;
+      }
+      .group-hint .bi { color:#6c757d; }
+      .invalid-msg { color:#dc3545; font-size:.85rem; margin-top:.25rem; }
+      .invalid-msg.d-none { display:none; }
     </style>
     <div class="jc-compact-card">
       <div class="jccc-head">
@@ -226,9 +268,10 @@ include '../includes/nav.php';
             <label>Job Title *</label>
             <input name="title" required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" class="form-control">
           </div>
-          <div class="input-floating-label">
-            <label>Employment Type</label>
-            <select name="employment_type" class="form-select">
+          <div class="input-floating-label force-top">
+            <label>Employment Type *</label>
+            <select name="employment_type" class="form-select" required>
+              <option value="" disabled <?php if (empty($_POST['employment_type'])) echo 'selected'; ?>>Select employment type</option>
               <?php foreach ($employmentTypes as $t): ?>
                 <option value="<?php echo htmlspecialchars($t); ?>" <?php if (($_POST['employment_type'] ?? '') === $t) echo 'selected'; ?>><?php echo htmlspecialchars($t); ?></option>
               <?php endforeach; ?>
@@ -239,19 +282,19 @@ include '../includes/nav.php';
         <h5 class="section-head" id="loccomp"><i class="bi bi-geo-alt me-1"></i>Location & Compensation</h5>
         <div class="grid-2 gap">
           <div class="input-floating-label">
-            <label>City (optional)</label>
-            <input name="location_city" value="<?php echo htmlspecialchars($_POST['location_city'] ?? ''); ?>" class="form-control" aria-describedby="hintCity">
+            <label>City *</label>
+            <input name="location_city" required value="<?php echo htmlspecialchars($_POST['location_city'] ?? ''); ?>" class="form-control" aria-describedby="hintCity">
           </div>
           <div class="input-floating-label">
-            <label>Region / Province</label>
-            <input name="location_region" value="<?php echo htmlspecialchars($_POST['location_region'] ?? ''); ?>" class="form-control">
+            <label>Region / Province *</label>
+            <input name="location_region" required value="<?php echo htmlspecialchars($_POST['location_region'] ?? ''); ?>" class="form-control">
           </div>
         </div>
 
         <div class="grid-3 gap mt-3">
-          <div class="input-floating-label">
-            <label>Salary Currency</label>
-            <input name="salary_currency" value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? 'PHP'); ?>" class="form-control">
+          <div class="input-floating-label force-top">
+            <label>Salary Currency *</label>
+            <input name="salary_currency" required value="<?php echo htmlspecialchars($_POST['salary_currency'] ?? ''); ?>" placeholder="PHP" class="form-control">
           </div>
           <div class="input-floating-label">
             <label>Salary Min</label>
@@ -264,11 +307,12 @@ include '../includes/nav.php';
         </div>
 
         <div class="grid-2 gap mt-3">
-          <div class="input-floating-label">
-            <label>Salary Period</label>
-            <select name="salary_period" class="form-select">
+          <div class="input-floating-label force-top">
+            <label>Salary Period *</label>
+            <select name="salary_period" class="form-select" required>
+              <option value="" disabled <?php if (empty($_POST['salary_period'])) echo 'selected'; ?>>Select period</option>
               <?php foreach (['monthly','yearly','hourly'] as $p): ?>
-                <option value="<?php echo $p; ?>" <?php if (($_POST['salary_period'] ?? 'monthly') === $p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
+                <option value="<?php echo $p; ?>" <?php if (($_POST['salary_period'] ?? '') === $p) echo 'selected'; ?>><?php echo ucfirst($p); ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -284,13 +328,14 @@ include '../includes/nav.php';
         <h5 class="section-head" id="skills"><i class="bi bi-stars me-1"></i>Skills &amp; Qualifications</h5>
         <div class="grid-3 gap">
           <div class="input-floating-label">
-            <label>Experience (years)</label>
-            <input name="required_experience" type="number" min="0" value="<?php echo htmlspecialchars($_POST['required_experience'] ?? '0'); ?>" class="form-control">
+            <label>Experience (years) *</label>
+            <input name="required_experience" type="number" min="0" required value="<?php echo htmlspecialchars($_POST['required_experience'] ?? ''); ?>" class="form-control">
           </div>
           <div class="input-floating-label force-top">
-            <label>Education Requirement</label>
-            <select name="required_education" class="form-select" aria-describedby="eduHelp">
-              <option value="">Any</option>
+            <label>Education Requirement *</label>
+            <select name="required_education" class="form-select" aria-describedby="eduHelp" required>
+              <option value="" disabled <?php if (($_POST['required_education'] ?? '') === '') echo 'selected'; ?>>Select education requirement</option>
+              <option value="Any" <?php if (($_POST['required_education'] ?? '') === 'Any') echo 'selected'; ?>>Any</option>
               <?php foreach ($eduLevels as $lvl): ?>
                 <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if (($_POST['required_education'] ?? '') === $lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
               <?php endforeach; ?>
@@ -301,10 +346,14 @@ include '../includes/nav.php';
             <input name="additional_skills" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>" class="form-control" aria-describedby="addSkillsHint">
           </div>
         </div>
-  <div id="eduHelp" class="form-hint small mt-n1 mb-2">Leave blank if any level accepted.</div>
+  <div id="eduHelp" class="form-hint small mt-n1 mb-2">Select "Any" if all education levels are accepted.</div>
   <fieldset class="mt-3 fieldset-plain" aria-labelledby="skills">
-          <legend class="visually-hidden">General / Soft Skills</legend>
-          <div class="row g-2 gen-skills-grid">
+          <legend class="visually-hidden">General / Soft Skills (at least 1 required)</legend>
+          <div class="group-hint small" id="skillsHint">
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="To help matching and quality of applicants, at least one skill is required."></i>
+            <span>At least one skill is required.</span>
+          </div>
+          <div class="row g-2 gen-skills-grid" data-required-group="skills">
             <?php foreach ($generalSkills as $gs):
               $checked = (!empty($_POST['required_skills']) && in_array($gs, (array)$_POST['required_skills'], true)) ? 'checked' : ''; ?>
               <div class="col-sm-6 col-lg-4">
@@ -315,11 +364,16 @@ include '../includes/nav.php';
               </div>
             <?php endforeach; ?>
           </div>
+          <div class="invalid-msg d-none" data-for-group="skills">Please select at least one skill or add skills in the text field.</div>
         </fieldset>
 
         <fieldset class="fieldset-plain" aria-labelledby="access">
-          <legend class="visually-hidden">Applicable PWD Categories</legend>
-          <div class="tags-flex mb-3">
+          <legend class="visually-hidden">Applicable PWD Categories (at least 1 required)</legend>
+          <div class="group-hint small" id="pwdHint">
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="We require at least one target PWD category so job seekers can discover the right opportunities."></i>
+            <span>Select at least one PWD category for this job.</span>
+          </div>
+          <div class="tags-flex mb-3" data-required-group="pwdcats">
             <?php foreach ($pwdCats as $pcat):
               $isPosted = isset($_POST['applicable_pwd_types']);
               $checked = $isPosted ? in_array($pcat, (array)$_POST['applicable_pwd_types'], true) : false; ?>
@@ -329,14 +383,19 @@ include '../includes/nav.php';
               </label>
             <?php endforeach; ?>
           </div>
-          <div class="form-hint small">Select PWD categories this job is intended for. Leave empty if open to all PWDs.</div>
+          <div class="form-hint small">Select at least one PWD category this job is intended for.</div>
+          <div class="invalid-msg d-none" data-for-group="pwdcats">Please select at least one Applicable PWD Category.</div>
         </fieldset>
 
         <div class="section-divider" aria-hidden="true"></div>
         <h5 class="section-head" id="access"><i class="bi bi-universal-access me-1"></i>Accessibility &amp; Inclusion</h5>
         <fieldset class="fieldset-plain" aria-labelledby="access">
-          <legend class="visually-hidden">Accessibility & Inclusion Tags</legend>
-          <div class="tags-flex mb-3">
+          <legend class="visually-hidden">Accessibility & Inclusion Tags (at least 1 required)</legend>
+          <div class="group-hint small" id="accessHint">
+            <i class="bi bi-info-circle" data-bs-toggle="tooltip" title="At least one tag helps set expectations around inclusion and accommodations."></i>
+            <span>Select at least one Accessibility & Inclusion tag.</span>
+          </div>
+          <div class="tags-flex mb-3" data-required-group="accesstags">
             <?php foreach ($accessTags as $tag):
               $isPosted = isset($_POST['accessibility_tags']);
               $checked = $isPosted ? in_array($tag, (array)$_POST['accessibility_tags'], true) : false; ?>
@@ -346,6 +405,7 @@ include '../includes/nav.php';
               </label>
             <?php endforeach; ?>
           </div>
+          <div class="invalid-msg d-none" data-for-group="accesstags">Please select at least one Accessibility & Inclusion tag.</div>
         </fieldset>
 
         <div class="section-divider" aria-hidden="true"></div>
@@ -384,10 +444,16 @@ include '../includes/nav.php';
     // initial
     syncFloating(inp);
   });
-  // For select elements always treat as filled to avoid overlap with first option like 'Any'
+  // For select elements: only mark filled when a non-empty option is selected
   document.querySelectorAll('.input-floating-label select').forEach(function(sel){
-    var wrap = sel.closest('.input-floating-label');
-    if(wrap){ wrap.classList.add('filled','select-filled'); }
+    function sync(){
+      var wrap = sel.closest('.input-floating-label');
+      if(!wrap) return;
+      if((sel.value||'').trim() !== '') wrap.classList.add('filled','select-filled');
+      else wrap.classList.remove('filled','select-filled');
+    }
+    sel.addEventListener('change', sync);
+    sync();
   });
 
   // Skill chips: toggle selected style when checkbox changes
@@ -417,6 +483,23 @@ include '../includes/nav.php';
       if(!form) return;
       var bar = document.getElementById('jobProgressBar');
       var percentEl = document.getElementById('cpbPercent');
+      // Bootstrap tooltips
+      if (window.bootstrap) {
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el){
+          try { new bootstrap.Tooltip(el); } catch(e) {}
+        });
+      }
+      function showGroupError(groupAttr, show){
+        var msg = form.querySelector('.invalid-msg[data-for-group="'+groupAttr+'"]');
+        if(!msg) return;
+        msg.classList.toggle('d-none', !show);
+      }
+      function groupSatisfied(groupAttr){
+        var wrap = form.querySelector('[data-required-group="'+groupAttr+'"]');
+        if(!wrap) return true;
+        var anyChecked = !!wrap.querySelector('input[type=checkbox]:checked');
+        return anyChecked;
+      }
       function reqFields(){
         // Only count visible required inputs/textareas (not hidden duplicate confirm input)
         return Array.from(form.querySelectorAll('[required]')).filter(function(el){ return !el.disabled && el.type !== 'hidden'; });
@@ -426,7 +509,18 @@ include '../includes/nav.php';
       function update(){
         var fields = reqFields();
         var done = fields.filter(filled).length;
-        var pct = fields.length? Math.round((done/fields.length)*100):0;
+        // Add virtual required groups for skills, pwdcats, and accessibility tags
+        var virtualReqs = 3; // skills + pwdcats + accesstags
+        var virtualDone = 0;
+        if(groupSatisfied('skills')) virtualDone++;
+        if(groupSatisfied('pwdcats')) virtualDone++;
+        if(groupSatisfied('accesstags')) virtualDone++;
+        // Toggle inline errors as user interacts
+        showGroupError('skills', !groupSatisfied('skills'));
+        showGroupError('pwdcats', !groupSatisfied('pwdcats'));
+        showGroupError('accesstags', !groupSatisfied('accesstags'));
+        var total = fields.length + virtualReqs;
+        var pct = total? Math.round(((done + virtualDone)/total)*100):0;
         if(bar){
           var fill = bar.querySelector('.cpb-fill'); if(fill){ fill.style.width=pct+'%'; }
           bar.setAttribute('aria-valuenow', pct);
@@ -436,6 +530,10 @@ include '../includes/nav.php';
       }
       form.addEventListener('input', update);
       form.addEventListener('change', update);
+      form.addEventListener('submit', function(e){
+        var missing = (!groupSatisfied('skills') || !groupSatisfied('pwdcats') || !groupSatisfied('accesstags'));
+        if(missing){ e.preventDefault(); update(); return false; }
+      });
       update();
     })();
 })();

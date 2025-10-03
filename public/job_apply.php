@@ -26,7 +26,7 @@ $success = false;
 
 // Hard lock pre-check using profile before showing form
 $elig = Matching::canApply($me, $job);
-if (!$elig['ok'] && Matching::HARD_LOCK) {
+if (!$elig['ok'] && Matching::hardLock()) {
   $errors = array_merge($errors, $elig['reasons']);
 }
 
@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   // Re-evaluate after form submission in case candidate indicated more info
   $elig = Matching::canApply($me, $job);
-  if (!$elig['ok'] && Matching::HARD_LOCK) {
+  if (!$elig['ok'] && Matching::hardLock()) {
     $errors = array_merge($errors, $elig['reasons']);
   }
 
@@ -60,6 +60,15 @@ include '../includes/nav.php';
 <div class="card border-0 shadow-sm">
   <div class="card-body p-4">
     <h2 class="h5 fw-semibold mb-3"><i class="bi bi-send me-2"></i>Apply for: <?php echo htmlspecialchars($job->title); ?></h2>
+
+    <?php if (isset($elig) && is_array($elig)): ?>
+      <div class="mb-3 small">
+        <span class="badge bg-secondary">Skill match: <?php echo round(($elig['skill_pct'] ?? 0)*100); ?>%</span>
+        <?php if (!empty($elig['score'])): ?>
+          <span class="badge bg-info text-dark ms-2">Overall score: <?php echo (int)round($elig['score']); ?>/100</span>
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
 
     <?php foreach ($errors as $e): ?>
       <div class="alert alert-danger"><?php echo htmlspecialchars($e); ?></div>

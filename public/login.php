@@ -207,7 +207,7 @@ include '../includes/nav.php';
           <div class="mb-3 position-relative input-floating-label">
             <label>Password</label>
             <input type="password" name="password" id="loginPassword" class="form-control" required>
-            <span class="password-toggle" id="togglePassword"><i class="bi bi-eye"></i></span>
+            <span class="password-toggle" id="togglePassword" role="button" tabindex="0" aria-label="Toggle password visibility"><i class="bi bi-eye-slash"></i></span>
           </div>
           <div class="d-grid mt-4">
             <button class="btn btn-gradient py-2">
@@ -221,7 +221,7 @@ include '../includes/nav.php';
           Don't have an account? <a href="register.php">Create one</a>
         </div>
         <div class="text-center">
-          <div class="form-note">Need help? <a href="support_contact.php">Contact Support</a></div>
+          <div class="form-note">Need help? <a href="support_contact">Contact Support</a></div>
         </div>
       </div>
     </div>
@@ -266,11 +266,25 @@ document.addEventListener('DOMContentLoaded', function(){
   const pw = document.getElementById('loginPassword');
   const tgl = document.getElementById('togglePassword');
   if (pw && tgl) {
-    tgl.addEventListener('click', ()=>{
-      const is = pw.getAttribute('type') === 'password';
-      pw.setAttribute('type', is ? 'text':'password');
-      tgl.innerHTML = is ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    function syncIcon(){
+      const visible = pw.getAttribute('type') === 'text';
+      tgl.innerHTML = visible ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    }
+    function togglePw(){
+      const isHidden = pw.getAttribute('type') === 'password';
+      pw.setAttribute('type', isHidden ? 'text' : 'password');
+      syncIcon();
+    }
+    // Click & keyboard support
+    tgl.addEventListener('click', togglePw);
+    tgl.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        togglePw();
+      }
     });
+    // Ensure icon matches initial state
+    syncIcon();
   }
   // Floating labels (mark filled or focused)
   document.querySelectorAll('.input-floating-label input, .input-floating-label select').forEach(inp => {

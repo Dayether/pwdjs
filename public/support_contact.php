@@ -339,13 +339,13 @@ const backBtn = document.getElementById('backBtn');
 if (backBtn) {
   if (backBtn.tagName === 'A') {
     let href = backBtn.getAttribute('href') || '';
-    if (/pwdjs\/public\/.*pwdjs\/public\//i.test(href)) {
+  if (/pwdjs\/public\/.*pwdjs\/public\//i.test(href)) {
       const idx = href.toLowerCase().lastIndexOf('pwdjs/public/');
       if (idx !== -1) {
         href = href.substring(idx + 'pwdjs/public/'.length);
       }
       href = href.replace(/^public\//i,'').replace(/^pwdjs\//i,'');
-      if (href === '' || href === 'support_contact.php') {
+      if (href === '' || href === 'support_contact.php' || href === 'support_contact') {
         href = 'index.php';
       }
       backBtn.setAttribute('href', href);

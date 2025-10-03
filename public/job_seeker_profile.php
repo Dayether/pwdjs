@@ -5,6 +5,7 @@ require_once '../classes/Helpers.php';
 require_once '../classes/User.php';
 require_once '../classes/Experience.php';
 require_once '../classes/Certification.php';
+require_once '../classes/Skill.php';
 
 Helpers::requireLogin();
 
@@ -94,6 +95,11 @@ $applications = [];
 // Fetch experience & certifications (always safe once authorized; use user id)
 $experiences = Experience::listByUser($target->user_id);
 $certs = Certification::listByUser($target->user_id);
+// Fetch user skills (names)
+$skills = [];
+try {
+  $skills = Skill::getSkillsForUser($target->user_id); // array of [skill_id, name]
+} catch (Throwable $e) { $skills = []; }
 try {
     $pdo = Database::getConnection();
     if ($viewerRole === 'admin' || $isSelf) {
@@ -207,14 +213,11 @@ foreach (['msg'=>'success','error'=>'danger','warn'=>'warning','info'=>'info'] a
             </div>
           </div>
           <h2 class="h6 fw-bold mb-3 text-uppercase small">Profile Details</h2>
-      <?php // Skill tags placeholder (replace with actual retrieval if implemented later)
-      $skillTags = []; // e.g. $skillTags = User::listSkills($target->user_id);
-      ?>
-          <?php if (!empty($skillTags)): ?>
+          <?php if (!empty($skills)): ?>
             <div class="mb-3">
               <div class="d-flex flex-wrap gap-1">
-                <?php foreach ($skillTags as $sk): ?>
-                  <span class="badge rounded-pill text-bg-light border" style="font-weight:500; font-size:.65rem; letter-spacing:.5px;"><i class="bi bi-stars me-1" aria-hidden="true"></i><?php echo htmlspecialchars($sk); ?></span>
+                <?php foreach ($skills as $sk): ?>
+                  <span class="badge rounded-pill text-bg-light border" style="font-weight:500; font-size:.65rem; letter-spacing:.5px;"><i class="bi bi-stars me-1" aria-hidden="true"></i><?php echo htmlspecialchars($sk['name']); ?></span>
                 <?php endforeach; ?>
               </div>
             </div>

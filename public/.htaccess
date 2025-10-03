@@ -2,12 +2,17 @@ RewriteEngine On
 RewriteBase /pwdjs/public/
 
 # 1. Canonical redirect: any direct *.php request -> extensionless
-#    Works even if user manually types the .php filename.
+#    Do NOT redirect POST requests (to avoid losing method/body) and skip API endpoints
 RewriteCond %{THE_REQUEST} \s/+[^\s]*?(.+?)\.php[\s?] [NC]
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{REQUEST_URI} !^/pwdjs/public/api_ [NC]
 RewriteRule ^(.+?)\.php$ /pwdjs/public/$1 [R=301,L,NE]
 
 # 2. Block path-info after .php (e.g., file.php/extra) by redirecting to clean
+#    Do NOT redirect POST requests and skip API endpoints
 RewriteCond %{THE_REQUEST} \s/+[^\s]*?(.+?)\.php/ [NC]
+RewriteCond %{REQUEST_METHOD} !POST
+RewriteCond %{REQUEST_URI} !^/pwdjs/public/api_ [NC]
 RewriteRule ^(.+?)\.php/ /pwdjs/public/$1 [R=301,L,NE]
 
 # 3. Allow direct access to static assets / uploads before other rewrites

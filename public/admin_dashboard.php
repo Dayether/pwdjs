@@ -114,10 +114,7 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
 
 <div class="dash-header fade-in-up">
   <h2><i class="bi bi-speedometer2"></i> Admin Dashboard</h2>
-  <div class="d-flex gap-2 flex-wrap">
-    <a href="reports.php" class="btn btn-sm btn-outline-light"><i class="bi bi-bar-chart me-1"></i>Reports</a>
-    <a href="support.php" class="btn btn-sm btn-outline-light"><i class="bi bi-life-preserver me-1"></i>Support Tickets</a>
-  </div>
+  
 </div>
 
 <div class="metrics-grid">
@@ -179,6 +176,7 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
     <a href="employer_jobs.php"><span><i class="bi bi-briefcase me-1"></i>Jobs</span><i class="bi bi-arrow-right-short fs-5"></i></a>
     <a href="admin_reports.php"><span><i class="bi bi-flag me-1"></i>Reports</span><i class="bi bi-arrow-right-short fs-5"></i></a>
     <a href="admin_support_tickets.php"><span><i class="bi bi-life-preserver me-1"></i>Support</span><i class="bi bi-arrow-right-short fs-5"></i></a>
+    
   </div>
 </div>
 

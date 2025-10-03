@@ -389,7 +389,7 @@ function fmt_salary($cur, $min, $max, $period) {
       const q = (input.value || '').trim();
       if (q.length < 2) { clearLists(); await loadHistory(); if(hisList.children.length) show(); else hide(); return; }
       if (q === lastQ) return; lastQ = q;
-      const data = await fetchJSON('api_search.php?action=suggest&q=' + encodeURIComponent(q));
+  const data = await fetchJSON('api_search?action=suggest&q=' + encodeURIComponent(q));
       clearLists();
       const suggestions = (data && Array.isArray(data.suggestions)) ? data.suggestions : [];
       if (suggestions.length) { sugHeader.style.display='block'; renderListWithCounts(sugList, suggestions); }
@@ -408,13 +408,13 @@ function fmt_salary($cur, $min, $max, $period) {
   wrap.addEventListener('mousedown', ()=>{ if (hideTimer) { clearTimeout(hideTimer); hideTimer=null; } });
 
   async function loadHistory(){
-    const data = await fetchJSON('api_search.php?action=history');
+  const data = await fetchJSON('api_search?action=history');
     const history = (data && Array.isArray(data.history)) ? data.history : [];
     if (history.length){ hisHeader.style.display='block'; hisBar.style.display='flex'; renderListText(hisList, history); }
   }
 
   clearBtn?.addEventListener('click', async ()=>{
-    const r = await fetchJSON('api_search.php?action=clear_history');
+  const r = await fetchJSON('api_search?action=clear_history');
     if (r && r.ok) { clearLists(); hide(); }
   });
 
@@ -474,6 +474,13 @@ function fmt_salary($cur, $min, $max, $period) {
               <div class="d-flex w-100 justify-content-between">
                 <h5 class="mb-1 d-flex align-items-center gap-2">
                   <?php echo $title; ?>
+                  <?php if (Helpers::isLoggedIn() && Helpers::isJobSeeker()): ?>
+                    <?php
+                      // Fast check from precomputed set in JS is not available in PHP here,
+                      // so we add a placeholder span to be toggled by JS after selection.
+                    ?>
+                    <span class="badge text-bg-success applied-badge" style="display:none;">Applied</span>
+                  <?php endif; ?>
                   <?php
                   $matchBadge = '';
                   if ($me) {
@@ -522,7 +529,37 @@ function fmt_salary($cur, $min, $max, $period) {
   <script>
   (function(){
     const jobsData = <?php
-      $jobsForJs = array_map(function($j){
+      // Pre-compute which jobs the current user has already applied to
+      $appliedSet = [];
+      $viewerForElig = null;
+      if (Helpers::isLoggedIn() && Helpers::isJobSeeker()) {
+        try { $viewerForElig = User::findById($_SESSION['user_id']); } catch (Throwable $e) { $viewerForElig = null; }
+      }
+      if (Helpers::isLoggedIn() && Helpers::isJobSeeker() && $jobs) {
+        try {
+          $ids = array_map(fn($r)=>$r['job_id'], $jobs);
+          $ids = array_filter($ids, fn($v)=>$v!==null && $v!=='');
+          if ($ids) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $pdoTmp = Database::getConnection();
+            $stmtAp = $pdoTmp->prepare("SELECT job_id FROM applications WHERE user_id = ? AND job_id IN ($placeholders)");
+            $params = array_merge([$_SESSION['user_id']], $ids);
+            $stmtAp->execute($params);
+            $rows = $stmtAp->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            foreach ($rows as $jid) { $appliedSet[(string)$jid] = true; }
+          }
+        } catch (Throwable $e) { /* ignore */ }
+      }
+
+      $jobsForJs = array_map(function($j) use ($appliedSet, $viewerForElig){
+        $eligOk = null; $eligReasons = [];
+        if ($viewerForElig) {
+          try {
+            $elig = Matching::canApply($viewerForElig, new Job($j));
+            $eligOk = (bool)($elig['ok'] ?? false);
+            $eligReasons = is_array($elig['reasons'] ?? null) ? $elig['reasons'] : [];
+          } catch (Throwable $e) { $eligOk = null; $eligReasons = []; }
+        }
         return [
           'id' => (string)($j['job_id'] ?? ''),
           'title' => (string)($j['title'] ?? ''),
@@ -540,6 +577,9 @@ function fmt_salary($cur, $min, $max, $period) {
           'created_at' => (string)($j['created_at'] ?? ''),
           'job_image' => (string)($j['job_image'] ?? ''),
           'description' => (string)($j['description'] ?? ''),
+          'applied' => isset($appliedSet[(string)($j['job_id'] ?? '')]),
+          'elig_ok' => $eligOk,
+          'elig_reasons' => $eligReasons
         ];
       }, $jobs);
       echo json_encode($jobsForJs, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
@@ -548,6 +588,18 @@ function fmt_salary($cur, $min, $max, $period) {
   const list = document.getElementById('job-list');
   const panel = document.getElementById('job-detail-panel');
   const rightPane = document.getElementById('rightPane');
+
+  // Current user context injected from PHP
+  const CURRENT_USER = {
+    loggedIn: <?php echo Helpers::isLoggedIn() ? 'true' : 'false'; ?>,
+    role: <?php echo json_encode($_SESSION['role'] ?? ''); ?>,
+    csrf: <?php echo json_encode(Helpers::csrfToken()); ?>,
+    loginUrl: <?php
+      $redir = 'index.php' . (!empty($_SERVER['QUERY_STRING']) ? ('?' . $_SERVER['QUERY_STRING']) : '');
+      echo json_encode('login.php?redirect=' . $redir);
+    ?>
+  };
+  const HARD_LOCK = <?php echo Matching::hardLock() ? 'true' : 'false'; ?>;
 
   // Build a fast lookup by job id to avoid any equality quirks
   const jobsMap = Object.create(null);
@@ -568,23 +620,88 @@ function fmt_salary($cur, $min, $max, $period) {
       const salary = fmtSalary(job.salary_currency || 'PHP', job.salary_min, job.salary_max, job.salary_period || 'month');
       const tags = (job.tags || '').split(',').map(t=>t.trim()).filter(Boolean);
       const created = job.created_at ? new Date(job.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '';
+      const wasApplied = !!job.applied;
+      const eligKnown = (typeof job.elig_ok !== 'undefined' && job.elig_ok !== null);
+      const isHardLocked = HARD_LOCK && CURRENT_USER.loggedIn && CURRENT_USER.role === 'job_seeker' && eligKnown && job.elig_ok === false;
+      const warnBlock = isHardLocked ? `
+        <div class="alert alert-warning mb-2 small"><i class="bi bi-shield-exclamation me-1"></i>
+          You can't apply to this job because your profile doesn't meet the minimum requirements.
+        </div>` : '';
+
       panel.innerHTML = `
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <h4 class="mb-1">${escapeHtml(job.title)}</h4>
-              <div class="text-muted mb-2">${escapeHtml(job.company)} · ${escapeHtml(job.employment_type || '')}${loc? ' · ' + escapeHtml(loc): ''}</div>
-              <div class="mb-2"><i class="bi bi-cash-coin" aria-hidden="true"></i> ${escapeHtml(salary)}</div>
-              ${tags.length ? `<div class="mb-2">${tags.map(t=>`<span class='badge bg-light text-dark border me-1 mb-1'>${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-              <div class="small text-muted">Posted ${escapeHtml(created)}</div>
+          <div class="detail-header sticky-header">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <h4 class="mb-1">${escapeHtml(job.title)}</h4>
+                <div class="text-muted mb-2">${escapeHtml(job.company)} · ${escapeHtml(job.employment_type || '')}${loc? ' · ' + escapeHtml(loc): ''}</div>
+                <div class="mb-2"><i class="bi bi-cash-coin" aria-hidden="true"></i> ${escapeHtml(salary)}</div>
+                ${tags.length ? `<div class="mb-2">${tags.map(t=>`<span class='badge bg-light text-dark border me-1 mb-1'>${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+                <div class="small text-muted">Posted ${escapeHtml(created)}</div>
+              </div>
             </div>
           </div>
           <hr/>
           <div class="job-desc" style="white-space:pre-wrap">${escapeHtml(job.description || 'No description provided.')}</div>
         </div>
+        <div class="card-footer bg-white">
+          ${warnBlock}
+          <div class="d-flex gap-2">
+            <a class="btn btn-primary" href="job_view.php?job_id=${encodeURIComponent(job.id)}"><i class="bi bi-box-arrow-up-right me-1"></i>View posting</a>
+            ${wasApplied
+              ? `<button type="button" class="btn btn-success" disabled><i class="bi bi-check2-circle me-1"></i>Applied</button>`
+              : (isHardLocked
+                  ? `<button type="button" class="btn btn-secondary" disabled><i class="bi bi-lock me-1"></i>Apply Disabled</button>`
+                  : `<button type="button" class="btn btn-outline-primary" data-action="apply" data-job-id="${escapeHtml(job.id)}" data-job-title="${escapeHtml(job.title)}" data-href="job_view.php?job_id=${encodeURIComponent(job.id)}&apply=1" onclick="return window.__idxApply && window.__idxApply(this);"><i class="bi bi-send me-1"></i>Apply Now</button>`
+                )
+            }
+          </div>
+        </div>`;
+
+      // Fade-in animation
+      try {
+        panel.querySelector('.card-body')?.classList.add('fade-in');
+        panel.querySelector('.card-footer')?.classList.add('fade-in');
+      } catch(_){}
+
+      // Wire Apply button
+      const applyBtn = panel.querySelector('[data-action="apply"]');
+      if (applyBtn) {
+        applyBtn.addEventListener('click', (e) => {
+          e && e.preventDefault && e.preventDefault();
+          const jid = applyBtn.getAttribute('data-job-id');
+          const jtitle = applyBtn.getAttribute('data-job-title') || 'this job';
+          if (job.applied) {
+            showToast('You have already applied to this job.', 'info');
+            return;
+          }
+          if (HARD_LOCK && CURRENT_USER.loggedIn && CURRENT_USER.role==='job_seeker' && eligKnown && job.elig_ok===false) {
+            const reasons = Array.isArray(job.elig_reasons) && job.elig_reasons.length ? ('\n- ' + job.elig_reasons.join('\n- ')) : '';
+            showToast('You can\'t apply yet. Please review the job requirements.' + (reasons? '\n' + reasons : ''), 'warning');
+            return;
+          }
+          openApplyConfirm(jid, jtitle, applyBtn);
+        });
+      }
+    }
+
+    function renderSkeleton(){
+      panel.innerHTML = `
+        <div class="card-body">
+          <div class="skeleton-title skeleton-line mb-2"></div>
+          <div class="skeleton-sub skeleton-line w-50 mb-3"></div>
+          <div class="skeleton-chip-group mb-2">
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+            <span class="skeleton-chip"></span>
+          </div>
+          <div class="skeleton-line w-75 mb-1"></div>
+          <div class="skeleton-line w-100 mb-1"></div>
+          <div class="skeleton-line w-90 mb-1"></div>
+        </div>
         <div class="card-footer bg-white d-flex gap-2">
-          <a class="btn btn-primary" href="job_view.php?job_id=${encodeURIComponent(job.id)}"><i class="bi bi-box-arrow-up-right me-1"></i>View posting</a>
-          <a class="btn btn-outline-primary" href="job_apply.php?job_id=${encodeURIComponent(job.id)}"><i class="bi bi-send me-1"></i>Apply</a>
+          <div class="skeleton-btn"></div>
+          <div class="skeleton-btn"></div>
         </div>`;
     }
 
@@ -600,9 +717,18 @@ function fmt_salary($cur, $min, $max, $period) {
       list.querySelectorAll('.job-item').forEach(a=>{ a.classList.remove('active'); a.setAttribute('aria-selected','false'); });
       el.classList.add('active');
       el.setAttribute('aria-selected','true');
-      renderDetail(job);
+      // Skeleton then render
+      renderSkeleton();
+      setTimeout(()=>{ renderDetail(job); }, 120);
       // Reset detail scroll to top so user sees new content start
       if (rightPane) rightPane.scrollTop = 0;
+
+      // Update Applied badge visibility for this item based on job.applied
+      const badge = el.querySelector('.applied-badge');
+      if (badge) {
+        if (job && job.applied) { badge.style.display = 'inline-block'; }
+        else { badge.style.display = 'none'; }
+      }
     }
 
     list?.addEventListener('click', (e)=>{ const a=e.target.closest('.job-item'); if(a) selectItem(a); });
@@ -611,10 +737,273 @@ function fmt_salary($cur, $min, $max, $period) {
       let idx = items.findIndex(x=>x.classList.contains('active'));
       if (e.key==='ArrowDown'){ e.preventDefault(); idx = Math.min(items.length-1, idx+1); items[idx]?.focus(); selectItem(items[idx]); }
       if (e.key==='ArrowUp'){ e.preventDefault(); idx = Math.max(0, idx-1); items[idx]?.focus(); selectItem(items[idx]); }
-      if (e.key==='Enter'){ const a=document.activeElement.closest('.job-item'); if(a) selectItem(a); }
+      if (e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){ e.preventDefault(); const a=document.activeElement.closest('.job-item'); if(a) selectItem(a); }
     });
 
     // Default: do not auto-select; show placeholder until user clicks an item
+  })();
+  </script>
+  
+  <!-- Apply Confirm Modal -->
+  <div class="modal fade" id="applyConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title"><i class="bi bi-send me-2"></i>Apply to this job?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">You're about to apply to:</div>
+          <div class="fw-semibold" id="applyJobTitle">Job Title</div>
+          <div class="small text-muted mt-2">We'll use your current profile details. You can update your profile anytime.</div>
+          <div class="alert alert-warning small mt-3 d-none" id="applyWarn"></div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">No</button>
+          <button type="button" class="btn btn-primary" id="applyYesBtn"><i class="bi bi-check2 me-1"></i>Yes, apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast container -->
+  <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080;"></div>
+  
+  <script>
+  // Minimal toast helper
+  function showToast(message, type='info', delay=3800){
+    if (!message || !message.trim()) return;
+    const c = document.getElementById('toastContainer');
+    const iconMap = { success:'bi-check-circle', danger:'bi-x-circle', warning:'bi-exclamation-triangle', info:'bi-info-circle' };
+    const el = document.createElement('div');
+    el.className = 'toast align-items-center text-bg-'+type+' border-0 mb-2';
+    el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
+    el.innerHTML = '<div class="d-flex">\
+      <div class="toast-body"><i class="bi '+(iconMap[type]||iconMap.info)+' me-2"></i>'+message+'</div>\
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>\
+    </div>';
+    c.appendChild(el);
+    if (window.bootstrap) (new bootstrap.Toast(el,{delay})).show();
+  }
+
+  function showActionToast(message, actionLabel, onAction, type='success', delay=4200){
+    if (!message || !message.trim()) return;
+    const c = document.getElementById('toastContainer');
+    const iconMap = { success:'bi-check-circle', danger:'bi-x-circle', warning:'bi-exclamation-triangle', info:'bi-info-circle' };
+    const el = document.createElement('div');
+    el.className = 'toast align-items-center text-bg-'+type+' border-0 mb-2';
+    el.setAttribute('role','alert'); el.setAttribute('aria-live','assertive'); el.setAttribute('aria-atomic','true');
+    el.innerHTML = `
+      <div class="d-flex align-items-center">
+        <div class="toast-body flex-grow-1"><i class="bi ${iconMap[type]||iconMap.info} me-2"></i>${message}</div>
+        <button type="button" class="btn btn-light btn-sm me-2" data-action="toast-action">${actionLabel}</button>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>`;
+    c.appendChild(el);
+    const t = window.bootstrap ? new bootstrap.Toast(el,{delay}) : null;
+    if (onAction) {
+      el.querySelector('[data-action="toast-action"]').addEventListener('click', (e)=>{
+        e.preventDefault(); onAction(); t && t.hide();
+      });
+    }
+    t && t.show();
+  }
+
+  let applyCtx = { jobId:null, jobTitle:'', btn:null };
+  async function quickApply(jobId, btnEl, yesBtnEl){
+    // Set loading states
+    let originalYesHtml = null;
+    if (yesBtnEl) { originalYesHtml = yesBtnEl.innerHTML; yesBtnEl.disabled = true; yesBtnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…'; }
+    let originalBtnHtml = null;
+    if (btnEl) { originalBtnHtml = btnEl.innerHTML; btnEl.disabled = true; btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…'; }
+    try {
+      const fd = new FormData();
+      fd.append('action','quick_apply');
+      fd.append('job_id', jobId);
+      fd.append('csrf', CURRENT_USER.csrf || '');
+  const r = await fetch('api_apply', { method:'POST', body: fd, credentials:'same-origin' });
+      const data = await r.json().catch(()=>null);
+      if (!r.ok || !data) throw new Error('Network error');
+      if (data.redirect) { window.location.href = data.redirect; return; }
+      if (data.ok) {
+        showActionToast(data.message || 'Application submitted.', 'Undo', async ()=>{
+          if (!confirm('Cancel this application?')) return;
+          try {
+            const fd2 = new FormData();
+            fd2.append('job_id', jobId);
+            fd2.append('csrf', CURRENT_USER.csrf || '');
+            const r2 = await fetch('api_application_cancel', { method:'POST', body: fd2, credentials:'same-origin' });
+            const j2 = await r2.json().catch(()=>null);
+            if (!r2.ok || !j2) throw new Error('Network error');
+            if (j2.ok) {
+              if (btnEl) { btnEl.classList.remove('btn-success'); btnEl.classList.add('btn-outline-primary'); btnEl.disabled = false; btnEl.innerHTML = '<i class="bi bi-send me-1"></i>Apply Now'; }
+              const job = jobsMap[String(jobId)]; if (job) job.applied = false;
+              const li = document.querySelector('.job-item[data-id="'+CSS.escape(String(jobId))+'"]');
+              li && li.querySelector('.applied-badge') && li.querySelector('.applied-badge').remove();
+              showToast('Application cancelled.', 'success');
+            } else {
+              showToast(j2.message || 'Failed to cancel.', 'warning');
+            }
+          } catch (e) { showToast('Something went wrong. Please try again.', 'danger'); }
+        }, 'success');
+        if (btnEl) { btnEl.classList.remove('btn-outline-primary'); btnEl.classList.add('btn-success'); btnEl.disabled = true; btnEl.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Applied'; }
+        const job = jobsMap[String(jobId)]; if (job) job.applied = true;
+      } else {
+        showToast((data && data.message) || 'Unable to apply.', 'warning');
+        if (data && data.reasons && data.reasons.length) {
+          const warnEl = document.getElementById('applyWarn');
+          if (warnEl) { warnEl.textContent = data.reasons.join('\n'); warnEl.classList.remove('d-none'); }
+        }
+      }
+    } catch (e) {
+      showToast('Something went wrong. Please try again.', 'danger');
+    } finally {
+      if (yesBtnEl) { yesBtnEl.disabled = false; yesBtnEl.innerHTML = originalYesHtml || '<i class="bi bi-check2 me-1"></i>Yes, apply'; }
+      if (btnEl) {
+        const isApplied = btnEl.classList.contains('btn-success');
+        if (!isApplied) { btnEl.disabled = false; btnEl.innerHTML = originalBtnHtml || '<i class="bi bi-send me-1"></i>Apply Now'; }
+      }
+    }
+  }
+
+  function openApplyConfirm(jobId, jobTitle, btnEl){
+    // Not logged in or not job seeker -> redirect to login
+    if (!CURRENT_USER.loggedIn || CURRENT_USER.role !== 'job_seeker') {
+      showToast('Please login as Job Seeker to apply.', 'warning', 1800);
+      setTimeout(()=>{ window.location.href = CURRENT_USER.loginUrl; }, 1500);
+      return;
+    }
+    applyCtx = { jobId: jobId, jobTitle: jobTitle, btn: btnEl };
+    const titleEl = document.getElementById('applyJobTitle');
+    const warnEl = document.getElementById('applyWarn');
+    if (titleEl) titleEl.textContent = jobTitle || 'this job';
+    if (warnEl) { warnEl.classList.add('d-none'); warnEl.textContent=''; }
+    const modalEl = document.getElementById('applyConfirmModal');
+    if (window.bootstrap && modalEl) {
+      try { if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl); } catch(_){}
+      const m = new bootstrap.Modal(modalEl);
+      m.show();
+    } else if (modalEl) {
+      // Manual modal fallback (no Bootstrap)
+      try {
+        // prepare backdrop
+        const bd = document.createElement('div');
+        bd.className = 'modal-backdrop fade show';
+        bd.style.zIndex = 1990;
+        document.body.appendChild(bd);
+        // show modal
+        document.body.classList.add('modal-open');
+        modalEl.style.display = 'block';
+        modalEl.classList.add('show');
+        modalEl.setAttribute('aria-modal','true');
+        modalEl.removeAttribute('aria-hidden');
+        // attach one-time close handlers
+        const closeEls = modalEl.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        const manualClose = () => {
+          try { modalEl.classList.remove('show'); modalEl.style.display='none'; modalEl.setAttribute('aria-hidden','true'); modalEl.removeAttribute('aria-modal'); document.body.classList.remove('modal-open'); bd.remove(); } catch(_){ }
+        };
+        closeEls.forEach(el=>{ el.addEventListener('click', manualClose, { once:true }); });
+        // store to hide later after submit
+        window.__manualApplyModalClose = manualClose;
+      } catch(_) {
+        // Fallback to native confirm if manual modal fails
+        if (confirm('Apply to "' + (jobTitle || 'this job') + '"?')) {
+          quickApply(jobId, btnEl, null);
+        }
+      }
+    }
+  }
+
+  // Expose to global for reliability with delegated handlers
+  window.openApplyConfirm = openApplyConfirm;
+
+  (function(){
+    const yesBtn = document.getElementById('applyYesBtn');
+    if (!yesBtn) return;
+    yesBtn.addEventListener('click', async function(){
+      if (!applyCtx.jobId) return;
+      await quickApply(applyCtx.jobId, applyCtx.btn, yesBtn);
+      // Hide modal if Bootstrap available
+      const modalEl = document.getElementById('applyConfirmModal');
+      if (window.bootstrap && modalEl) { bootstrap.Modal.getInstance(modalEl)?.hide(); }
+      else if (typeof window.__manualApplyModalClose === 'function') { try { window.__manualApplyModalClose(); } catch(_){} }
+    });
+  })();
+  
+  // Explicit global helper so Apply button works even if scoping/binding fails
+  window.__idxApply = function(btn){
+    try {
+      const jid = btn.getAttribute('data-job-id');
+      const jtitle = btn.getAttribute('data-job-title') || 'this job';
+      openApplyConfirm(jid, jtitle, btn);
+    } catch(e) {
+      // last resort
+      const href = btn.getAttribute('data-href');
+      if (href) window.location.href = href;
+    }
+    return false;
+  };
+
+  // Safety net: delegated handler in case the local panel handler didn't bind
+  // Ensures clicking the Apply button in the right panel always opens confirmation
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('#job-detail-panel [data-action="apply"]');
+    if (!btn) return;
+    e.preventDefault();
+    const jid = btn.getAttribute('data-job-id');
+    const jtitle = btn.getAttribute('data-job-title') || 'this job';
+    openApplyConfirm(jid, jtitle, btn);
+  });
+  </script>
+  <style>
+    /* Ensure modal is always above any pane/hero layers */
+    .modal { z-index: 2000; }
+    .modal-backdrop { z-index: 1990; }
+  </style>
+  <!-- Safety-net: ensure Apply Now opens modal even if other scripts fail to bind -->
+  <script>
+  (function(){
+  function fallbackOpenApply(anchorEl, ev){
+      try { ev && ev.preventDefault && ev.preventDefault(); } catch(_){}
+  var jid = anchorEl.getAttribute('data-job-id') || '';
+  var jtitle = anchorEl.getAttribute('data-job-title') || 'this job';
+      window.__pendingApply = { id: jid, btn: anchorEl };
+      // Set modal title if present
+      var t = document.getElementById('applyJobTitle'); if (t) t.textContent = jtitle;
+      var modalEl = document.getElementById('applyConfirmModal');
+      if (window.bootstrap && modalEl) {
+        try { if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl); } catch(_){}
+        try { window.bootstrap.Modal.getOrCreateInstance(modalEl).show(); return; } catch(_){}
+      }
+      // Fallback: native confirm then navigate
+      if (confirm('Apply to "' + jtitle + '"?')) {
+        var href = anchorEl.getAttribute('href') || anchorEl.getAttribute('data-href');
+        if (href) window.location.href = href;
+      }
+    }
+
+    // Global delegated click: if page-specific openApplyConfirm exists, let it handle; else use fallback
+  document.addEventListener('click', function(e){
+      var target = e.target || e.srcElement;
+      if (!target || !target.closest) return;
+      var a = target.closest('#job-detail-panel [data-action="apply"]');
+      if (!a) return;
+      if (typeof window.openApplyConfirm === 'function') return; // page script will handle
+      fallbackOpenApply(a, e);
+    });
+
+    // When Yes is clicked in modal but page did not set applyCtx/handler, navigate as a last resort
+    document.addEventListener('click', function(e){
+      var yes = e.target && e.target.closest && e.target.closest('#applyYesBtn');
+      if (!yes) return;
+      try {
+        if (typeof window.applyCtx !== 'undefined' && window.applyCtx && window.applyCtx.jobId) return; // page handler active
+      } catch(_){}
+      if (window.__pendingApply && window.__pendingApply.btn) {
+        var href = window.__pendingApply.btn.getAttribute('href') || window.__pendingApply.btn.getAttribute('data-href');
+        if (href) { e.preventDefault(); window.location.href = href; }
+      }
+    });
   })();
   </script>
   <div class="d-flex justify-content-center mt-3">
@@ -627,36 +1016,63 @@ function fmt_salary($cur, $min, $max, $period) {
   </div>
   <?php endif; ?>
 <?php else: ?>
-  <div class="row g-3">
-    <?php foreach ($companies as $co): ?>
-      <div class="col-md-6 col-lg-4">
-        <div class="card shadow-sm h-100 border-0">
-          <div class="card-body d-flex align-items-center gap-3">
-            <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#f5f7fb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <?php if (!empty($co['profile_picture'])): ?>
-                <img src="../<?php echo htmlspecialchars($co['profile_picture']); ?>" alt="Logo" style="width:100%;height:100%;object-fit:cover;"/>
-              <?php else: ?>
-                <i class="bi bi-building" style="font-size:1.35rem;color:#6c757d" aria-hidden="true"></i>
-              <?php endif; ?>
-            </div>
-            <div class="min-w-0">
-              <h3 class="h6 fw-semibold mb-1 text-truncate"><?php echo htmlspecialchars($co['company_name'] ?: 'Company'); ?></h3>
-              <div class="small text-muted text-truncate">
-                <?php $loc=trim(($co['city']?:'').(($co['city']??'') && ($co['region']??'') ? ', ' : '').($co['region']?:'')); echo htmlspecialchars($loc); ?>
-              </div>
-              <div class="mt-1"><span class="badge bg-light text-dark"><i class="bi bi-briefcase me-1"></i><?php echo (int)$co['jobs_count']; ?> job<?php echo ((int)$co['jobs_count']===1?'':'s'); ?></span></div>
-            </div>
-          </div>
-          <div class="card-footer bg-white border-0 pt-0 pb-3 px-3">
-            <a class="btn btn-sm btn-outline-primary w-100" href="company.php?user_id=<?php echo urlencode($co['user_id']); ?>">View company</a>
-          </div>
-        </div>
+  <section class="trusted-employers-section">
+    <div class="container">
+      <div class="section-head text-center mb-3">
+        <div class="section-eyebrow">Our Partners</div>
+        <h2 class="section-heading">Trusted Employers</h2>
+        <p class="section-sub">Here are some of our approved, WFH‑friendly employers. Click a logo to view the company.</p>
       </div>
+    </div>
+  <div class="employer-strip" role="list" aria-label="Approved WFH employers">
+    <?php foreach ($companies as $co): ?>
+      <?php
+        $name = trim((string)($co['company_name'] ?? 'Company'));
+        $initial = mb_strtoupper(mb_substr($name, 0, 1));
+        $img = trim((string)($co['profile_picture'] ?? ''));
+        $jobsC = (int)($co['jobs_count'] ?? 0);
+        $label = $name . ' (' . $jobsC . ' job' . ($jobsC===1 ? '' : 's') . ')';
+      ?>
+      <a role="listitem"
+         class="emp-item"
+         href="company.php?user_id=<?php echo urlencode($co['user_id']); ?>"
+         title="<?php echo htmlspecialchars($label); ?>"
+         aria-label="View company: <?php echo htmlspecialchars($label); ?>">
+        <span class="emp-circle">
+          <?php if ($img !== ''): ?>
+            <img src="../<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($name); ?> logo">
+          <?php else: ?>
+            <span class="emp-initial" aria-hidden="true"><?php echo htmlspecialchars($initial); ?></span>
+          <?php endif; ?>
+        </span>
+        <span class="emp-caption">
+          <span class="emp-name" title="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span>
+          <span class="emp-count"><?php echo $jobsC; ?> job<?php echo ($jobsC===1?'':'s'); ?></span>
+        </span>
+      </a>
     <?php endforeach; ?>
-    <?php if (!$companies): ?>
-      <div class="col-12"><div class="alert alert-secondary">No approved employers with WFH jobs yet.</div></div>
-    <?php endif; ?>
-  </div>
+    </div>
+  </section>
+  <?php if (!$companies): ?>
+    <div class="alert alert-secondary">No approved employers with WFH jobs yet.</div>
+  <?php endif; ?>
+  <style>
+    .trusted-employers-section{ padding: 10px 0 18px; }
+    .trusted-employers-section .section-eyebrow{ font-size:.78rem; letter-spacing:.6px; font-weight:700; color:#6c7a91; text-transform:uppercase; }
+    .trusted-employers-section .section-heading{ font-size:1.35rem; font-weight:700; margin:0.1rem 0 0.25rem; }
+    .trusted-employers-section .section-sub{ margin:0 auto; max-width:780px; color:#64748b; }
+
+  .employer-strip{ display:flex; flex-wrap:wrap; gap:22px 22px; justify-content:flex-start; padding:8px 8px 2px; }
+  .emp-item{ width:450px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; text-decoration:none; color:inherit; }
+  .emp-circle{ width:450px; height:450px; border-radius:50%; overflow:hidden; border:2px solid #e6ecf5; background:#f5f7fb; display:flex; align-items:center; justify-content:center; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+    .emp-circle img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .emp-item:hover .emp-circle{ transform: translateY(-2px); box-shadow: 0 10px 22px -14px rgba(13,110,253,.35), 0 6px 16px -12px rgba(0,0,0,.08); border-color:#c8d7f0; }
+    .emp-initial{ font-weight:700; font-size:1.6rem; color:#334155; }
+    .emp-caption{ line-height:1.15; }
+    .emp-name{ font-weight:600; font-size:.95rem; color:#0b132a; display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .emp-count{ font-size:.78rem; color:#64748b; display:block; }
+    @media (max-width: 576px){ .emp-item{ width:110px; } .emp-circle{ width:110px; height:110px; } }
+  </style>
 <?php endif; ?>
 
 <?php if ($pages > 1): ?>
@@ -682,11 +1098,44 @@ function fmt_salary($cur, $min, $max, $period) {
   #job-list .job-item { outline: none; display:block; }
   #job-list .job-item:focus { box-shadow: 0 0 0 .2rem rgba(13,110,253,.25); }
   /* Add comfortable spacing between job items on the left */
-  #job-list .list-group-item { margin-bottom: .5rem; border-radius: .5rem; border: 1px solid rgba(0,0,0,.2) !important; }
-  #job-list .list-group-item:hover { border-color: rgba(0,0,0,.3) !important; }
-  #job-list .job-item.active { border-color: #0d6efd !important; }
+  #job-list .list-group-item { margin-bottom: .5rem; border-radius: .5rem; border: 1px solid rgba(0,0,0,.2) !important; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease, background-color .15s ease; }
+  #job-list .list-group-item:hover { border-color: rgba(0,0,0,.3) !important; box-shadow: 0 6px 18px -12px rgba(13,110,253,.35), 0 4px 12px -8px rgba(0,0,0,.08); transform: translateY(-1px); }
+  #job-list .job-item.active { border-color: #0d6efd !important; background:#f0f6ff; }
   #job-list .list-group-item:last-child { margin-bottom: 0; }
   .badge-match { font-size: .72rem; letter-spacing:.2px; }
+  .applied-badge { margin-left:.5rem; font-size:.7rem; }
+
+  /* Ensure good contrast for list text, especially on active (light) background */
+  #job-list .job-item { opacity: 1; }
+  #job-list .job-item h5 { color: #0b132a; font-weight: 600; letter-spacing: .2px; }
+  #job-list .job-item.active h5 { color: #0b132a; }
+  #job-list .job-item p { color: #495057; }
+  #job-list .job-item .small { color: #495057; }
+  #job-list .job-item .text-muted { color: #5c677d !important; }
+
+  /* Sticky header in detail panel */
+  .sticky-header { position: sticky; top: 0; z-index: 5; background:#fff; padding-top:.25rem; padding-bottom:.25rem; }
+  .sticky-header + hr { margin-top:.5rem; }
+
+  /* Fade-in for detail content */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+  #job-detail-panel .fade-in { animation: fadeIn .18s ease-in both; }
+
+  /* Skeleton styles */
+  @keyframes shimmer { 0% { background-position: -450px 0; } 100% { background-position: 450px 0; } }
+  .skeleton-line { height: 12px; border-radius:6px; background: #e9eef5; position:relative; overflow:hidden; }
+  .skeleton-line::after { content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 50%, rgba(255,255,255,0) 100%); transform: translateX(-100%); animation: shimmer 1s infinite; }
+  .skeleton-line.w-50{ width:50%; }
+  .skeleton-line.w-75{ width:75%; }
+  .skeleton-line.w-90{ width:90%; }
+  .skeleton-line.w-100{ width:100%; }
+  .skeleton-title{ width:60%; height:18px; }
+  .skeleton-sub{ height:10px; }
+  .skeleton-chip-group{ display:flex; gap:.4rem; }
+  .skeleton-chip{ display:inline-block; height:18px; width:70px; border-radius:999px; background:#e9eef5; position:relative; overflow:hidden; }
+  .skeleton-chip::after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 50%, rgba(255,255,255,0) 100%); transform: translateX(-100%); animation: shimmer 1s infinite; }
+  .skeleton-btn{ height:36px; width:140px; border-radius:.375rem; background:#e9eef5; position:relative; overflow:hidden; }
+  .skeleton-btn::after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.7) 50%, rgba(255,255,255,0) 100%); transform: translateX(-100%); animation: shimmer 1s infinite; }
 </style>
 <?php endif; ?>
 

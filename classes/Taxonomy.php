@@ -80,14 +80,16 @@ class Taxonomy
         foreach ($levels as $lvl) {
             $rank[mb_strtolower($lvl)] = $i++;
         }
-        // Ensure aliases map to same rank
-        $rank['masters'] = $rank['masteral'] ?? ($rank['masteral'] = $rank['masteral'] ?? $i);
-        $rank['master']  = $rank['masteral'];
-        $rank['postgraduate'] = $rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? 0)));
-        if (isset($rank['post graduate'])) {
-            $rank['postgraduate'] = $rank['post graduate'];
-        }
-        $rank['phd'] = $rank['doctorate'] ?? ($rank['doctorate'] = $rank['doctorate'] ?? $i);
+        // Synonyms map to their canonical level ranks
+        $rank['masters']         = $rank['masteral'] ?? ($rank['masteral'] = end($rank));
+        $rank['master']          = $rank['masteral'];
+        $rank['masters degree']  = $rank['masteral'];
+        $rank['bachelor degree'] = $rank['bachelor'] ?? ($rank['bachelor'] = $rank['college'] ?? 0);
+        $rank['college graduate']= $rank['college'] ?? 0;
+        $rank['postgraduate']    = $rank['post graduate'] ?? ($rank['post graduate'] = $rank['post graduate'] ?? 0);
+        $rank['phd']             = $rank['doctorate'] ?? 0;
+        $rank['hs']              = $rank['high school'] ?? 0;
+        $rank['shs']             = $rank['senior high school'] ?? 0;
         return $rank;
     }
 
@@ -153,18 +155,61 @@ class Taxonomy
      */
     public static function disabilityCategories(): array
     {
+        // Registration-driven set (align employer job targeting to these)
         return [
-            'Visual Impairment',
-            'Hearing Impairment',
-            'Speech Impairment',
-            'Mobility Impairment',
-            'Upper Limb Impairment',
-            'Lower Limb Impairment',
-            'Intellectual Disability',
-            'Learning Disability',
-            'Psychosocial Disability',
-            'Autism Spectrum',
-            'Chronic Illness'
+            'Learning disability',
+            'Vision impairment',
+            'Communication disorder',
+            'Intellectual disability',
+            'Orthopedic disability',
+            'Chronic illness',
+            'Hearing loss',
+            'Speech impairment',
+            'Hearing disability',
+            'Physical disability'
         ];
+    }
+
+    /**
+     * Canonicalize disability labels to one of disabilityCategories().
+     * Returns canonical string or null if it cannot map.
+     */
+    public static function canonicalizeDisability(?string $input): ?string
+    {
+        if ($input === null) return null;
+        $t = trim($input);
+        if ($t === '') return '';
+        $lk = mb_strtolower($t);
+        static $map = null;
+        if ($map === null) {
+            $map = [];
+            foreach (self::disabilityCategories() as $c) {
+                $map[mb_strtolower($c)] = $c; // exact labels allowed
+            }
+            // Synonyms / legacy labels from earlier employer list → registration labels
+            // Visual
+            $map['visual impairment']     = 'Vision impairment';
+            $map['vision impairment']     = 'Vision impairment';
+            $map['visual disability']     = 'Vision impairment';
+            // Hearing
+            $map['hearing impairment']    = 'Hearing disability'; // collapse to registration bucket
+            // keep explicit ones too (already exact: hearing loss, hearing disability)
+            // Speech / communication
+            $map['speech impairment']     = 'Speech impairment';
+            $map['speech disorder']       = 'Speech impairment';
+            $map['communication disorder']= 'Communication disorder';
+            // Mobility / physical / orthopedic / limb
+            $map['mobility impairment']   = 'Physical disability';
+            $map['upper limb impairment'] = 'Physical disability';
+            $map['lower limb impairment'] = 'Physical disability';
+            $map['orthopedic disability'] = 'Orthopedic disability';
+            $map['physical disability']   = 'Physical disability';
+            // Neuro / psychosocial
+            $map['psychosocial disability'] = 'Chronic illness';
+            $map['autism spectrum']         = 'Communication disorder';
+            $map['asd']                     = 'Communication disorder';
+            $map['autism']                  = 'Communication disorder';
+        }
+        return $map[$lk] ?? null;
     }
 }

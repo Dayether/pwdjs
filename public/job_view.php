@@ -21,6 +21,7 @@ require_once '../classes/Taxonomy.php';
 require_once '../classes/User.php';
 require_once '../classes/Application.php';
 require_once '../classes/Matching.php';
+require_once '../classes/Skill.php';
 
 $job_id = $_GET['job_id'] ?? '';
 $job = Job::findById($job_id);
@@ -84,6 +85,55 @@ if ($explicitReturn && ($tmp = $sanitizeBack($explicitReturn))) {
 }
 
 $loginApplyRedirect = 'login.php?redirect=' . urlencode('job_view.php?job_id=' . $job->job_id);
+
+// Quick Apply handler (post to same page)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'quick_apply') {
+  if (empty($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'job_seeker') {
+    Helpers::redirect($loginApplyRedirect);
+  }
+  // Optional CSRF check (best effort)
+  if (!Helpers::verifyCsrf($_POST['csrf'] ?? '')) {
+    Helpers::flash('error','Invalid or expired form. Please try again.');
+    Helpers::redirect('job_view.php?job_id=' . urlencode($job->job_id));
+  }
+
+  $actor = User::findById($_SESSION['user_id']);
+  if (!$actor) {
+    Helpers::flash('error','Unable to load your profile. Please re-login.');
+    Helpers::redirect('job_view.php?job_id=' . urlencode($job->job_id));
+  }
+  // Prevent duplicate
+  if (Application::userHasApplied($actor->user_id, $job->job_id)) {
+    Helpers::flash('info','You have already applied to this job.');
+    Helpers::redirect('job_view.php?job_id=' . urlencode($job->job_id));
+  }
+
+  // Eligibility check
+  $elig = Matching::canApply($actor, $job);
+  if (!$elig['ok'] && Matching::hardLock()) {
+    // Show top-of-page reasons
+    Helpers::flash('warn','You can\'t apply yet. Please review the requirements below.');
+    if (!empty($elig['reasons'])) {
+      Helpers::flash('error', implode("\n", $elig['reasons']));
+    }
+    Helpers::redirect('job_view.php?job_id=' . urlencode($job->job_id));
+  }
+
+  // Build defaults from profile for quick apply
+  $years = (int)($actor->experience ?? 0);
+  $userSkillIds = Matching::userSkillIds($actor->user_id);
+  $jobSkillIds  = Matching::jobSkillIds($job->job_id);
+  $selectedForApp = array_values(array_intersect(array_map('strval',$userSkillIds), array_map('strval',$jobSkillIds)));
+  $appEdu = $actor->education_level ?: ($actor->education ?: '');
+
+  $ok = Application::createWithDetails($actor, $job, $years, $selectedForApp, $appEdu);
+  if ($ok) {
+    Helpers::flash('msg','Application submitted.');
+  } else {
+    Helpers::flash('error','Submission failed or you already applied.');
+  }
+  Helpers::redirect('job_view.php?job_id=' . urlencode($job->job_id));
+}
 
 // Precompute matching info if viewer is a job seeker
 $matchInfo = null;
@@ -483,6 +533,40 @@ include '../includes/nav.php';
                   <?php endforeach; ?>
                 </div>
               <?php endif; ?>
+              <?php
+                // Build breakdown
+                $viewerObj = isset($viewer) ? $viewer : User::findById($_SESSION['user_id']);
+                $bd = $viewerObj ? Matching::breakdown($viewerObj, $job) : null;
+                $missingNames = [];
+                if ($bd && !empty($bd['missing_skill_ids'])) {
+                  try {
+                    $all = Skill::getSkillsForJob($job->job_id); // id+name
+                    $map = [];
+                    foreach ($all as $row) { $map[(string)$row['skill_id']] = $row['name']; }
+                    foreach ($bd['missing_skill_ids'] as $ms) {
+                      $missingNames[] = $map[(string)$ms] ?? ('#'.$ms);
+                    }
+                  } catch (Throwable $e) { /* ignore */ }
+                }
+              ?>
+              <?php if ($bd): ?>
+                <div class="mt-2">
+                  <a class="small" data-bs-toggle="collapse" href="#scoreBreakdown" role="button" aria-expanded="false" aria-controls="scoreBreakdown">
+                    Why this score?
+                  </a>
+                  <div class="collapse mt-2" id="scoreBreakdown">
+                    <div class="small">
+                      <div>Experience: <strong><?php echo number_format($bd['exp'],2); ?>/40</strong> (You: <?php echo (int)$bd['user_years']; ?> yr<?php echo ((int)$bd['user_years']===1?'':'s'); ?>; Req: <?php echo (int)$bd['job_required_years']; ?>)</div>
+                      <div>Skills: <strong><?php echo number_format($bd['skills'],2); ?>/40</strong>
+                        <?php if ($missingNames): ?>
+                          <div class="text-muted">Missing: <?php echo htmlspecialchars(implode(', ', $missingNames)); ?></div>
+                        <?php endif; ?>
+                      </div>
+                      <div>Education: <strong><?php echo number_format($bd['edu'],2); ?>/20</strong> (You: <?php echo htmlspecialchars($bd['user_education'] ?: '—'); ?>; Req: <?php echo htmlspecialchars($bd['job_required_education'] ?: '—'); ?>)</div>
+                    </div>
+                  </div>
+                </div>
+              <?php endif; ?>
             </div>
           </div>
         <?php endif; ?>
@@ -523,7 +607,7 @@ include '../includes/nav.php';
             <div class="alert alert-info mb-0">
               <i class="bi bi-check2-circle me-1"></i>You have already applied to this job.
             </div>
-          <?php elseif ($matchInfo && !$matchInfo['ok'] && Matching::HARD_LOCK): ?>
+          <?php elseif ($matchInfo && !$matchInfo['ok'] && Matching::hardLock()): ?>
             <div class="alert alert-warning mb-2">
               <i class="bi bi-shield-exclamation me-1"></i>
               You can't apply to this job because your profile doesn't meet the minimum requirements.
@@ -537,9 +621,9 @@ include '../includes/nav.php';
               <i class="bi bi-lock me-1"></i>Apply Disabled
             </a>
           <?php else: ?>
-            <a class="btn btn-primary btn-lg" href="job_apply.php?job_id=<?php echo urlencode($job->job_id); ?>">
+            <button id="applyNowBtn" class="btn btn-primary btn-lg" type="button" data-job-id="<?php echo htmlspecialchars($job->job_id); ?>">
               <i class="bi bi-send me-1"></i>Apply Now
-            </a>
+            </button>
           <?php endif; ?>
         <?php elseif (!empty($_SESSION['user_id']) && $viewerRole === 'job_seeker' && $isEmployerSuspended): ?>
           <hr>
@@ -711,12 +795,35 @@ include '../includes/nav.php';
 @media (min-width:992px){ .jobv-title { font-size:1.6rem; } .job-hero-wrap img,.job-hero-placeholder{ height:260px; } }
 </style>
 <?php include '../includes/footer.php'; ?>
+<!-- Apply Confirm Modal (Job View) -->
+<?php if (!empty($_SESSION['user_id']) && $viewerRole === 'job_seeker' && !$isEmployerSuspended && (!$alreadyApplied) && !($matchInfo && !$matchInfo['ok'] && Matching::hardLock())): ?>
+<div class="modal fade" id="jobViewApplyConfirm" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title"><i class="bi bi-send me-2"></i>Apply to this job?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">You're about to apply to:</div>
+        <div class="fw-semibold"><?php echo Helpers::sanitizeOutput($job->title); ?></div>
+        <div class="small text-muted mt-2">We'll use your current profile details. You can update your profile anytime.</div>
+        <div class="alert alert-warning small mt-3 d-none" id="jvApplyWarn"></div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">No</button>
+        <button type="button" class="btn btn-primary" id="jvApplyYes"><i class="bi bi-check2 me-1"></i>Yes, apply</button>
+      </div>
+    </div>
+  </div>
+  </div>
+<?php endif; ?>
 <!-- Report Job Modal -->
 <?php if (Helpers::isJobSeeker()): ?>
 <div class="modal fade" id="reportJobModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form method="post" action="job_report_submit.php" class="needs-validation" novalidate>
+  <form method="post" action="job_report_submit" class="needs-validation" novalidate>
         <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($job->job_id); ?>">
         <div class="modal-header py-2">
           <h5 class="modal-title"><i class="bi bi-flag me-2"></i>Report Job</h5>
@@ -788,6 +895,70 @@ document.addEventListener('DOMContentLoaded', function() {
       showDynamicToast('You need to login to apply for this job.', 'warning', 1800);
       setTimeout(()=>{ window.location.href = this.href; }, 1700);
     });
+  }
+
+  // Job View Apply flow (confirmation + API)
+  const applyBtn = document.getElementById('applyNowBtn');
+  if (applyBtn) {
+    const jobId = applyBtn.getAttribute('data-job-id');
+    const csrf = <?php echo json_encode(Helpers::csrfToken()); ?>;
+    function doQuickApply(btnEl, yesBtnEl){
+      let origYes = null, origBtn = null;
+      if (yesBtnEl) { origYes = yesBtnEl.innerHTML; yesBtnEl.disabled = true; yesBtnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…'; }
+      if (btnEl) { origBtn = btnEl.innerHTML; btnEl.disabled = true; btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting…'; }
+      (async () => {
+        try {
+          const fd = new FormData(); fd.append('action','quick_apply'); fd.append('job_id', jobId); fd.append('csrf', csrf);
+          // Use extensionless path to avoid any servers that canonicalize .php URLs
+          const r = await fetch('api_apply', { method:'POST', body: fd, credentials:'same-origin' });
+          let data = null;
+          try { data = await r.json(); } catch(_) { data = null; }
+          // Handle redirect even if HTTP status is non-2xx
+          if (data && data.redirect) { window.location.href = data.redirect; return; }
+          if (!data) throw new Error('Network error');
+          if (data.ok) {
+            showDynamicToast(data.message || 'Application submitted.', 'success', 3800);
+            if (btnEl) { btnEl.classList.remove('btn-primary'); btnEl.classList.add('btn-success'); btnEl.disabled = true; btnEl.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Applied'; }
+          } else {
+            showDynamicToast(data.message || 'Unable to apply.', 'warning', 3800);
+            if (data.reasons && data.reasons.length) {
+              const warn = document.getElementById('jvApplyWarn');
+              if (warn) { warn.textContent = data.reasons.join('\n'); warn.classList.remove('d-none'); }
+            }
+          }
+        } catch (e) {
+          showDynamicToast('Something went wrong. Please try again.', 'danger', 3800);
+        } finally {
+          if (yesBtnEl) { yesBtnEl.disabled = false; yesBtnEl.innerHTML = origYes || '<i class="bi bi-check2 me-1"></i>Yes, apply'; }
+          if (btnEl && !btnEl.classList.contains('btn-success')) { btnEl.disabled = false; btnEl.innerHTML = origBtn || '<i class="bi bi-send me-1"></i>Apply Now'; }
+        }
+      })();
+    }
+
+    function openConfirm(){
+      const modalEl = document.getElementById('jobViewApplyConfirm');
+      if (window.bootstrap && modalEl) {
+        const m = new bootstrap.Modal(modalEl); m.show();
+        const yes = document.getElementById('jvApplyYes');
+        if (yes) {
+          const handler = () => { doQuickApply(applyBtn, yes); bootstrap.Modal.getInstance(modalEl)?.hide(); yes.removeEventListener('click', handler); };
+          yes.addEventListener('click', handler);
+        }
+      } else {
+        if (confirm('Apply to this job?')) { doQuickApply(applyBtn, null); }
+      }
+    }
+
+    applyBtn.addEventListener('click', openConfirm);
+
+    // If navigated with ?apply=1, auto-open confirmation for smoother flow from outside Apply
+    try {
+      const usp = new URLSearchParams(window.location.search);
+      if (usp.get('apply') === '1') {
+        // Delay slightly to ensure Bootstrap modal is ready
+        setTimeout(openConfirm, 150);
+      }
+    } catch (e) { /* no-op */ }
   }
 });
 
