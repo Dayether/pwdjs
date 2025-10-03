@@ -28,6 +28,8 @@ try {
     if (!isset($have[$col])) $prefColumnsMissing[] = $col;
   }
 } catch (Throwable $e) { /* ignore */ }
+// General / soft skills universe (same as employer job create) - define early so POST handlers can use it
+$generalSkills = method_exists('Taxonomy','generalSkills') ? Taxonomy::generalSkills() : [];
 /* ---------------------------
    SKILLS ADD/REMOVE
 ---------------------------- */
@@ -296,8 +298,6 @@ $certs       = Certification::listByUser($user->user_id);
 $userSkills  = Skill::getSkillsForUser($user->user_id);
 // Normalized accessibility preferences for pre-selection
 $normalizedAcc = User::listAccessibilityPrefs($user->user_id);
-// General / soft skills universe (same as employer job create)
-$generalSkills = method_exists('Taxonomy','generalSkills') ? Taxonomy::generalSkills() : [];
 // Build a quick set of the user's current skill names (lowercased)
 $__userSkillNameSet = [];
 foreach ($userSkills as $__us) { $__userSkillNameSet[mb_strtolower($__us['name'])] = true; }
@@ -536,6 +536,7 @@ include '../includes/nav.php';
         <div class="col-12">
           <label class="form-label">General / Soft Skills</label>
           <div class="d-flex flex-wrap gap-2">
+            <input type="hidden" name="general_skills" value="">
             <?php foreach ($generalSkills as $gs): $checked = isset($__userSkillNameSet[mb_strtolower($gs)]); ?>
               <label class="form-check form-check-inline">
                 <input class="form-check-input" type="checkbox" name="general_skills[]" value="<?php echo htmlspecialchars($gs); ?>" <?php echo $checked?'checked':''; ?>>
