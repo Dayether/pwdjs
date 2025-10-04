@@ -18,8 +18,23 @@ if ($loggedIn && $role==='employer') {
 ?>
 <nav class="navbar navbar-expand-lg navbar-themed sticky-top">
   <div class="container-fluid px-3 px-lg-4">
+    <?php
+      // Reuse favicon (set in header) as nav logo if available on disk
+      $logoFallback = 'assets/images/hero/logo.png';
+      $logoCandidates = [
+        'favicon.png',
+        'favicon.ico',
+        'public/assets/favicon.png',
+        $logoFallback
+      ];
+      $foundLogo = $logoFallback;
+      foreach ($logoCandidates as $cand) {
+        $disk = __DIR__.'/../'.ltrim($cand,'/');
+        if (is_file($disk)) { $foundLogo = $cand; break; }
+      }
+    ?>
     <a class="navbar-brand fw-semibold d-flex align-items-center gap-2 <?php echo nav_active('about.php',$currentPage); ?>" href="about.php" aria-label="PWD Portal Home">
-      <img src="assets/images/hero/logo.png" alt="PWD Portal Logo" class="brand-logo" onerror="this.style.display='none';" />
+      <img src="<?php echo htmlspecialchars($foundLogo); ?>" alt="PWD Portal Logo" class="brand-logo" onerror="this.src='<?php echo htmlspecialchars($logoFallback); ?>';" />
       <span class="text-ink">PWD Portal</span>
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">

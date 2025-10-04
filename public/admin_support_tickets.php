@@ -68,6 +68,11 @@ include '../includes/header.php';
   <div class="admin-main">
     <style>
       .tickets-topbar{display:flex;flex-direction:column;gap:.9rem;margin-bottom:1.1rem}
+      .tickets-topbar h2{font-size:1.25rem;font-weight:700;letter-spacing:.55px;margin:0;background:linear-gradient(90deg,#ffffff,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent;display:flex;align-items:center;gap:.6rem;line-height:1.1;}
+      .tickets-topbar h2 i{background:linear-gradient(135deg,#60a5fa,#818cf8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}
+      @media (prefers-color-scheme: light){.tickets-topbar h2{background:linear-gradient(90deg,#1e293b,#2563eb);color:transparent;} .tickets-topbar h2 i{background:linear-gradient(135deg,#2563eb,#4f46e5);} }
+      .tickets-topbar .d-flex{border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:.55rem;}
+      @media (prefers-color-scheme: light){.tickets-topbar .d-flex{border-color:rgba(0,0,0,.08);} }
       .t-chips{display:flex;flex-wrap:wrap;gap:.55rem}
       .t-chip{--bd:rgba(255,255,255,.08);display:inline-flex;align-items:center;gap:.45rem;font-size:.62rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .7rem;border:1px solid var(--bd);background:#162335;color:#c3d2e6;border-radius:8px;cursor:pointer;transition:.25s}
       .t-chip:hover{background:#1f3856;color:#fff}

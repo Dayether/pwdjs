@@ -16,6 +16,24 @@ if (session_status() === PHP_SESSION_NONE) {
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php $BASE = rtrim(BASE_URL, '/'); ?>
 <link href="<?php echo $BASE; ?>/public/assets/styles.css?v=20250926b" rel="stylesheet">
+<?php
+  // Dynamic favicon detection (prefers root favicon files; falls back to existing logo)
+  $__favCandidates = [
+    $BASE.'/favicon.ico' => __DIR__.'/../public/favicon.ico',
+    $BASE.'/favicon.png' => __DIR__.'/../public/favicon.png',
+    $BASE.'/public/assets/favicon.png' => __DIR__.'/../public/assets/favicon.png',
+    $BASE.'/public/assets/images/hero/logo.png' => __DIR__.'/../public/assets/images/hero/logo.png', // fallback to logo
+  ];
+  $__favHref = null;
+  foreach ($__favCandidates as $href=>$disk) {
+    if (is_file($disk)) { $__favHref = $href; break; }
+  }
+  if ($__favHref) {
+    $ext = pathinfo(parse_url($__favHref, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION);
+    $type = ($ext==='ico') ? 'image/x-icon' : (($ext==='svg') ? 'image/svg+xml' : 'image/png');
+    echo '<link rel="icon" href="'.htmlspecialchars($__favHref).'" type="'.$type.'">';
+  }
+?>
 <style>
   /* Sticky footer layout helpers */
   .page-wrapper {

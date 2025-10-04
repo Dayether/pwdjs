@@ -70,8 +70,11 @@ include '../includes/header.php';
   <div class="admin-main">
 <style>
   /* Dashboard enhanced styling */
-  .dash-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
-  .dash-header h2{font-size:1.05rem;font-weight:600;letter-spacing:.5px;display:flex;align-items:center;gap:.55rem;margin:0}
+  .dash-header{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1.4rem;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:.55rem;}
+  @media (prefers-color-scheme: light){.dash-header{border-color:rgba(0,0,0,.08);} }
+  .dash-header h2{font-size:1.35rem;font-weight:700;letter-spacing:.6px;display:flex;align-items:center;gap:.6rem;margin:0;line-height:1.1;position:relative;background:linear-gradient(90deg,#fff,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .dash-header h2 i{background:linear-gradient(135deg,#60a5fa,#818cf8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}
+  @media (prefers-color-scheme: light){.dash-header h2{background:linear-gradient(90deg,#1e293b,#2563eb);color:transparent;} .dash-header h2 i{background:linear-gradient(135deg,#2563eb,#4f46e5);} }
   .metrics-grid{--cols:4;display:grid;gap:1rem;margin-bottom:1.5rem;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}
   .metric-card{position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.06);background:linear-gradient(140deg,#151f34,#0e1421);border-radius:14px;padding:1rem 1rem 1rem 1rem;display:flex;flex-direction:column;justify-content:space-between;min-height:120px}
   .metric-card:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 85% 15%,rgba(255,255,255,.09),transparent 60%);}  

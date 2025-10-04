@@ -132,10 +132,24 @@ include '../includes/header.php';
 <div class="admin-layout">
   <?php include '../includes/admin_sidebar.php'; ?>
   <div class="admin-main">
-<div class="d-flex align-items-center justify-content-between mb-3">
-  <div>
-    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-sm btn-outline-secondary me-2" onclick="if(document.referrer){history.back(); return false;}"><i class="bi bi-arrow-left"></i></a>
-    <span class="h5 fw-semibold align-middle">Job Seeker Verification</span>
+<style>
+  /* Job seeker verification enhanced heading styling */
+  .js-verif-topbar{display:flex;flex-direction:column;gap:.9rem;margin-bottom:1.15rem;animation:fadeIn .45s ease both}
+  .js-verif-topbar .bar{display:flex;align-items:center;flex-wrap:wrap;gap:.75rem;border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:.55rem}
+  @media (prefers-color-scheme: light){.js-verif-topbar .bar{border-color:rgba(0,0,0,.08);} }
+  .js-verif-topbar h2{margin:0;font-size:1.28rem;font-weight:700;letter-spacing:.55px;display:flex;align-items:center;gap:.55rem;line-height:1.05;background:linear-gradient(90deg,#ffffff,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative}
+  .js-verif-topbar h2 i{background:linear-gradient(135deg,#60a5fa,#818cf8);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}
+  @media (prefers-color-scheme: light){.js-verif-topbar h2{background:linear-gradient(90deg,#1e293b,#2563eb);} .js-verif-topbar h2 i{background:linear-gradient(135deg,#2563eb,#4f46e5);} }
+  .js-verif-topbar a.back-btn{--clr-border:rgba(255,255,255,.15);--clr-fg:#c4d2e4;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;height:34px;padding:.45rem .85rem;font-size:.7rem;font-weight:600;letter-spacing:.05em;border:1px solid var(--clr-border);background:#182637;color:var(--clr-fg);border-radius:8px;text-decoration:none;transition:.25s}
+  .js-verif-topbar a.back-btn:hover{background:#22364d;color:#fff;border-color:#3b5f89}
+  @media (prefers-color-scheme: light){.js-verif-topbar a.back-btn{background:#f1f5f9;color:#334155;border-color:#cbd5e1;} .js-verif-topbar a.back-btn:hover{background:#e2e8f0;border-color:#94a3b8;color:#1e293b;} }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+
+<div class="js-verif-topbar">
+  <div class="bar">
+    <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-btn" onclick="if(document.referrer){history.back(); return false;}"><i class="bi bi-arrow-left"></i><span>Back</span></a>
+    <h2><i class="bi bi-person-badge-check"></i> Job Seeker Verification</h2>
   </div>
 </div>
 
