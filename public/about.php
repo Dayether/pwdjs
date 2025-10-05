@@ -171,6 +171,31 @@ try {
   transform: scale(1.1) rotate(5deg);
 }
 
+/* Inverse variant (improved contrast vs gradient) */
+.feature-card-inverse {
+  background: linear-gradient(135deg, #0d60f2 0%, #5a18e6 55%, #6d2af2 100%);
+  color:#ffffff;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 12px 32px -8px rgba(13,110,253,.55), 0 6px 20px -6px rgba(102,16,242,.45);
+  position:relative;
+}
+.feature-card-inverse::before {
+  content:'';
+  position:absolute;inset:0;
+  background:radial-gradient(circle at 30% 25%, rgba(255,255,255,.25), transparent 60%),
+             radial-gradient(circle at 80% 70%, rgba(255,255,255,.18), transparent 65%);
+  pointer-events:none;
+}
+.feature-icon-inverse {
+  width:4rem;height:4rem;border-radius:1rem;
+  background:#fff; color:#0d6efd; display:flex;align-items:center;justify-content:center;font-size:1.5rem;
+  box-shadow:0 6px 18px -4px rgba(0,0,0,.25);
+}
+.text-inverse-heading { color:#ffffff !important; text-shadow:0 1px 3px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.35); }
+.text-inverse-body { color:#ffffff !important; font-size:.98rem; line-height:1.55; font-weight:500; text-shadow:0 1px 3px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.35); }
+.feature-card-inverse:hover { box-shadow:0 20px 42px -8px rgba(13,110,253,.55),0 10px 28px -6px rgba(102,16,242,.45); }
+.feature-card-inverse:hover .feature-icon-inverse { transform:scale(1.1) rotate(4deg); }
+
 /* Stats Cards */
 .stat-card {
   background: rgba(255, 255, 255, 0.95);
@@ -827,13 +852,13 @@ try {
         </div>
         
         <div class="col-lg-4">
-          <div class="feature-card bg-gradient text-white" style="background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-purple) 100%);">
-            <div class="feature-icon bg-white text-primary mb-3">
-              <i class="bi bi-heart-fill"></i>
+          <div class="feature-card feature-card-inverse" aria-labelledby="feat-community-title" aria-describedby="feat-community-desc">
+            <div class="feature-icon feature-icon-inverse mb-3">
+              <i class="bi bi-heart-fill" aria-hidden="true"></i>
             </div>
-            <h4 class="h5 fw-semibold mb-3">Community Driven</h4>
-            <p class="mb-0 text-white-75">
-              Your feedback shapes our roadmap. Together, we're building a more inclusive future for PWD employment.
+            <h4 id="feat-community-title" class="h5 fw-semibold mb-3 text-inverse-heading">Community Driven</h4>
+            <p id="feat-community-desc" class="mb-0 text-inverse-body">
+              Your feedback shapes our roadmap. Together we build a more inclusive future for accessible employment.
             </p>
           </div>
         </div>

@@ -377,4 +377,116 @@ class User {
         $upd = $pdo->prepare("UPDATE users SET employer_status=? WHERE user_id=? AND role='employer'");
         return $upd->execute([$newStatus,$userId]);
     }
+
+    /* ===================== CANDIDATE SALARY SEARCH (EMPLOYERS) ===================== */
+    // Contract:
+    //  Inputs (array criteria): budget_min (int|null), budget_max (int|null), period (monthly|yearly|hourly), include_unspecified(bool), page(int>=1), limit(int<=100)
+    //  Overlap logic: candidate_min <= employer_budget_max AND candidate_max >= employer_budget_min
+    //  Null handling: candidates with NULL min or max are excluded from indexed overlap query; optionally appended if include_unspecified=true
+    //  Returns: ['results'=>[], 'page'=>int, 'limit'=>int, 'has_more'=>bool, 'total_overlapping'=>int]
+    public static function searchCandidatesBySalary(array $criteria): array {
+        $pdo = Database::getConnection();
+
+        $budgetMin = isset($criteria['budget_min']) && is_numeric($criteria['budget_min']) ? (int)$criteria['budget_min'] : null;
+        $budgetMax = isset($criteria['budget_max']) && is_numeric($criteria['budget_max']) ? (int)$criteria['budget_max'] : null;
+        $period    = isset($criteria['period']) ? strtolower((string)$criteria['period']) : 'monthly';
+        $includeUnspecified = !empty($criteria['include_unspecified']);
+        $page  = isset($criteria['page']) && (int)$criteria['page'] > 0 ? (int)$criteria['page'] : 1;
+        $limit = isset($criteria['limit']) && (int)$criteria['limit'] > 0 ? (int)$criteria['limit'] : 25;
+        if ($limit > 100) $limit = 100; // safety cap
+
+        $allowedPeriods = ['monthly','yearly','hourly'];
+        if (!in_array($period, $allowedPeriods, true)) {
+            $period = 'monthly';
+        }
+
+        // Normalize budgets: if only one given, mirror to avoid open-ended huge range issues
+        if ($budgetMin === null && $budgetMax !== null) $budgetMin = 0;
+        if ($budgetMax === null && $budgetMin !== null) $budgetMax = $budgetMin; // treat exact value
+        if ($budgetMin === null && $budgetMax === null) {
+            // Default broad range (will effectively return lowest expected first)
+            $budgetMin = 0;
+            $budgetMax = 999999999; // sufficiently high sentinel
+        }
+        if ($budgetMin > $budgetMax) {
+            [$budgetMin,$budgetMax] = [$budgetMax,$budgetMin];
+        }
+
+        $offset = ($page - 1) * $limit;
+        $overlapSql = "
+            SELECT user_id,name,primary_skill_summary,expected_salary_currency,expected_salary_min,expected_salary_max,expected_salary_period,profile_picture,experience
+            FROM users
+            WHERE role='job_seeker'
+              AND (job_seeker_status IS NULL OR job_seeker_status!='Suspended')
+              AND expected_salary_period = :period
+              AND expected_salary_min IS NOT NULL
+              AND expected_salary_max IS NOT NULL
+              AND expected_salary_min <= :bmax
+              AND expected_salary_max >= :bmin
+            ORDER BY expected_salary_min ASC, expected_salary_max ASC, name ASC
+            LIMIT $limit OFFSET $offset
+        ";
+        $st = $pdo->prepare($overlapSql);
+        $st->execute([
+            ':period' => $period,
+            ':bmax'   => $budgetMax,
+            ':bmin'   => $budgetMin
+        ]);
+        $results = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        // Total overlapping (for pagination UI). Separate COUNT(*) to leverage index with same predicates.
+        $countSql = "
+            SELECT COUNT(*) FROM users
+            WHERE role='job_seeker'
+              AND (job_seeker_status IS NULL OR job_seeker_status!='Suspended')
+              AND expected_salary_period = :period
+              AND expected_salary_min IS NOT NULL
+              AND expected_salary_max IS NOT NULL
+              AND expected_salary_min <= :bmax
+              AND expected_salary_max >= :bmin
+        ";
+        $cst = $pdo->prepare($countSql);
+        $cst->execute([
+            ':period' => $period,
+            ':bmax'   => $budgetMax,
+            ':bmin'   => $budgetMin
+        ]);
+        $totalOverlapping = (int)$cst->fetchColumn();
+
+        // Optionally append unspecified salary candidates (null min or max) AFTER overlap results if include_unspecified requested and page=1.
+        // We only append on first page to avoid duplication complexity across pages.
+        if ($includeUnspecified && $page === 1 && count($results) < $limit) {
+            $remaining = $limit - count($results);
+            if ($remaining > 0) {
+                $unsql = "
+                    SELECT user_id,name,primary_skill_summary,expected_salary_currency,expected_salary_min,expected_salary_max,expected_salary_period,profile_picture,experience
+                    FROM users
+                    WHERE role='job_seeker'
+                      AND (job_seeker_status IS NULL OR job_seeker_status!='Suspended')
+                      AND (expected_salary_min IS NULL OR expected_salary_max IS NULL)
+                      AND (expected_salary_period = :period OR expected_salary_period IS NULL)
+                    ORDER BY name ASC
+                    LIMIT $remaining
+                ";
+                $ust = $pdo->prepare($unsql);
+                $ust->execute([':period'=>$period]);
+                $unspecified = $ust->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                $results = array_merge($results, $unspecified);
+            }
+        }
+
+        $hasMore = ($offset + $limit) < $totalOverlapping; // Only counts overlapping set (unspecified not counted towards total pages)
+
+        return [
+            'results'           => $results,
+            'page'              => $page,
+            'limit'             => $limit,
+            'has_more'          => $hasMore,
+            'total_overlapping' => $totalOverlapping,
+            'budget_min'        => $budgetMin,
+            'budget_max'        => $budgetMax,
+            'period'            => $period,
+            'include_unspecified' => (bool)$includeUnspecified
+        ];
+    }
 }

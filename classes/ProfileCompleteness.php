@@ -92,4 +92,30 @@ class ProfileCompleteness {
             return (int)$q->fetchColumn();
         } catch(Throwable $e) { return 0; }
     }
+
+    /**
+     * Ensure we have a (recent) profile_completeness score; recompute if null or stale.
+     * @param string $userId
+     * @param int $maxAgeMinutes Recompute if last_calculated older than this many minutes (default 1440 = 24h)
+     */
+    public static function ensure(string $userId, int $maxAgeMinutes = 1440): int {
+        $pdo = Database::getConnection();
+        $st = $pdo->prepare("SELECT profile_completeness, profile_last_calculated FROM users WHERE user_id=? LIMIT 1");
+        $st->execute([$userId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) return 0;
+        $score = (int)($row['profile_completeness'] ?? 0);
+        $last  = $row['profile_last_calculated'] ?? null;
+        $stale = true;
+        if ($last) {
+            $ts = strtotime($last);
+            if ($ts !== false && $ts > (time() - ($maxAgeMinutes * 60))) {
+                $stale = false;
+            }
+        }
+        if ($score === 0 || $stale) {
+            $score = self::compute($userId);
+        }
+        return $score;
+    }
 }

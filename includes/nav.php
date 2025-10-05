@@ -43,11 +43,13 @@ if ($loggedIn && $role==='employer') {
 
     <div class="collapse navbar-collapse" id="mainNav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link <?php echo nav_active('index.php',$currentPage); ?>" href="index.php">
-            <i class="bi bi-search me-1"></i>Find Jobs
-          </a>
-        </li>
+        <?php if (!($loggedIn && $role==='employer')): ?>
+          <li class="nav-item">
+            <a class="nav-link <?php echo nav_active('index.php',$currentPage); ?>" href="index.php">
+              <i class="bi bi-search me-1"></i>Find Jobs
+            </a>
+          </li>
+        <?php endif; ?>
 
         <?php if ($loggedIn && $role==='job_seeker'): ?>
           <li class="nav-item">
@@ -63,6 +65,7 @@ if ($loggedIn && $role==='employer') {
               <i class="bi bi-speedometer2 me-1"></i>Dashboard
             </a>
           </li>
+          <?php /* Candidates link removed for employer per request */ ?>
         <?php endif; ?>
 
         <?php if ($loggedIn && $role==='admin'): ?>

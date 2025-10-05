@@ -13,6 +13,8 @@ require_once '../classes/User.php';
 
 include '../includes/header.php';
 include '../includes/nav.php';
+// Profile completeness nudge (job seekers)
+include_once '../includes/profile_nudge.php';
 
 $pdo = Database::getConnection();
 
@@ -24,6 +26,7 @@ $tag     = trim($_GET['tag'] ?? '');
 $region  = trim($_GET['region'] ?? '');
 $city    = trim($_GET['city'] ?? '');
 $minPay  = ($_GET['min_pay'] ?? '') !== '' ? max(0, (int)$_GET['min_pay']) : '';
+$includeUnspecPay = isset($_GET['inc_pay_unspec']) && $_GET['inc_pay_unspec'] === '1';
 $page    = max(1, (int)($_GET['p'] ?? 1));
 $sort    = trim($_GET['sort'] ?? 'newest'); // newest|oldest|pay_high|pay_low
 $perPage = 12;
@@ -62,12 +65,49 @@ if ($hasFilters) {
   $params = [];
 
   if ($q !== '') { $where[] = "(j.title LIKE :q OR j.description LIKE :q OR u.company_name LIKE :q)"; $params[':q'] = '%' . $q . '%'; }
-  if ($edu !== '') { $where[] = "(j.required_education = :edu OR j.required_education = '' OR j.required_education IS NULL)"; $params[':edu'] = $edu; }
+  // Hierarchical education filter: selecting a higher level includes all lower (user assumed qualified above requirement)
+  if ($edu !== '') {
+    // Build ordered list + rank map (ascending order already guaranteed by Taxonomy::educationLevels())
+    $ranked = array_values($eduLevels); // e.g. [Elementary, High School, ..., Doctorate]
+    $idx = array_search($edu, $ranked, true);
+    if ($idx === false) {
+      // Fallback to equality behavior if value not recognized
+      $where[] = "(j.required_education = :edu OR j.required_education = '' OR j.required_education IS NULL)";
+      $params[':edu'] = $edu;
+    } else {
+      $eligible = array_slice($ranked, 0, $idx + 1); // all lower-or-equal levels
+      // Prepare placeholders
+      $eduPh = [];
+      foreach ($eligible as $i => $lvlName) {
+        $ph = ":edu_lvl_$i";
+        $eduPh[] = $ph;
+        $params[$ph] = $lvlName;
+      }
+      // Include blank / NULL meaning "no specific requirement"
+  // Use double quotes outside so we can include single quotes for empty string literal safely
+  $where[] = "( (j.required_education IN (" . implode(',', $eduPh) . ")) OR j.required_education = '' OR j.required_education IS NULL)";
+    }
+  }
+  // Experience logic already matches the idea: if you specify max years you want jobs requiring <= that.
   if ($maxExp !== '') { $where[] = "j.required_experience <= :maxExp"; $params[':maxExp'] = $maxExp; }
   if ($tag !== '') { $where[] = "FIND_IN_SET(:tag, j.accessibility_tags)"; $params[':tag'] = $tag; }
   if ($region !== '') { $where[] = "j.location_region LIKE :region"; $params[':region'] = '%' . $region . '%'; }
   if ($city !== '') { $where[] = "j.location_city LIKE :city"; $params[':city'] = '%' . $city . '%'; }
-  if ($minPay !== '') { $where[] = "((j.salary_max IS NOT NULL AND j.salary_max >= :minPay) OR (j.salary_min IS NOT NULL AND j.salary_min >= :minPay))"; $params[':minPay'] = $minPay; }
+  if ($minPay !== '') {
+    // Refined min pay logic with optional inclusion of fully unspecified salaries:
+    //  - Explicit min exists AND >= desired
+    //  - OR no min but max exists AND max >= desired
+    //  - OR (when includeUnspecPay) both min & max are NULL (unspecified pay)
+    if ($includeUnspecPay) {
+      $where[] = "( (j.salary_min IS NOT NULL AND j.salary_min >= :minPay) OR (j.salary_min IS NULL AND j.salary_max IS NOT NULL AND j.salary_max >= :minPay) OR (j.salary_min IS NULL AND j.salary_max IS NULL) )";
+    } else {
+      $where[] = "( (j.salary_min IS NOT NULL AND j.salary_min >= :minPay) OR (j.salary_min IS NULL AND j.salary_max IS NOT NULL AND j.salary_max >= :minPay) )";
+    }
+    $params[':minPay'] = $minPay;
+  } elseif (!$includeUnspecPay) {
+    // If no min pay filter but still excluding unspecified is FALSE -> default show all.
+    // Nothing to add. If we wanted to hide unspecified by default we would add condition here; current behavior keeps them.
+  }
 
   $whereSql = implode(' AND ', $where);
 
@@ -102,6 +142,15 @@ if ($hasFilters) {
   $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
   $stmt->execute();
   $jobs = $stmt->fetchAll();
+  // Count unspecified pay jobs on current page (both min & max NULL)
+  $unspecifiedCountPage = 0;
+  if ($jobs) {
+    foreach ($jobs as $jj) {
+      if (array_key_exists('salary_min',$jj) && array_key_exists('salary_max',$jj) && $jj['salary_min'] === null && $jj['salary_max'] === null) {
+        $unspecifiedCountPage++;
+      }
+    }
+  }
 } else {
   // Company directory (only approved employers who posted WFH jobs)
   try {
@@ -259,6 +308,13 @@ function fmt_salary($cur, $min, $max, $period) {
         </div>
       </div>
       <div class="col-md-3 col-lg-2">
+        <label class="form-label filter-bold-label d-block" style="font-size:1rem; visibility:hidden">Include</label>
+        <div class="form-check mt-2 ms-1">
+          <input class="form-check-input" type="checkbox" value="1" id="inc-pay-unspec" name="inc_pay_unspec" <?php echo $includeUnspecPay?'checked':''; ?>>
+          <label class="form-check-label small" for="inc-pay-unspec">Include unspecified pay</label>
+        </div>
+      </div>
+      <div class="col-md-3 col-lg-2">
         <label class="form-label filter-bold-label" for="filter-access" style="font-size:1rem">Accessibility</label>
         <div class="input-icon-group">
           <span class="i-icon" aria-hidden="true"><i class="bi bi-universal-access"></i></span>
@@ -287,6 +343,33 @@ function fmt_salary($cur, $min, $max, $period) {
         Approved WFH employers · Showing <?php echo count($companies); ?> of <?php echo $companiesTotal; ?> compan<?php echo $companiesTotal===1?'y':'ies'; ?><?php if ($pages > 1) echo ' · Page ' . $page . ' of ' . $pages; ?>
       <?php endif; ?>
     </div>
+    <?php if ($hasFilters && ($minPay !== '' || $includeUnspecPay)): ?>
+      <div class="mt-2 d-flex flex-wrap gap-2" aria-label="Active pay filters">
+        <?php if ($minPay !== ''): ?>
+          <span class="badge rounded-pill text-bg-primary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-cash-coin"></i> Min <?php echo number_format((int)$minPay); ?>
+          </span>
+        <?php endif; ?>
+        <?php if ($includeUnspecPay): ?>
+          <span class="badge rounded-pill text-bg-secondary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-question-circle"></i> Including unspecified
+          </span>
+          <?php if (($unspecifiedCountPage ?? 0) > 0): ?>
+            <span class="badge rounded-pill text-bg-light border d-inline-flex align-items-center gap-1 text-muted">
+              + <?php echo (int)$unspecifiedCountPage; ?> job<?php echo $unspecifiedCountPage===1?'':'s'; ?> w/o pay data
+            </span>
+          <?php endif; ?>
+        <?php endif; ?>
+        <span class="small text-muted">Logic: show jobs where stated minimum ≥ your value, or only a maximum exists and still ≥ your value.</span>
+      </div>
+      <?php if ($minPay !== '' && (int)$minPay >= 50000 && $includeUnspecPay): ?>
+        <div id="highMinPayInfo" class="alert alert-info px-3 py-2 mt-2 mb-0 small" role="note">
+          High minimum selected (<?php echo number_format((int)$minPay); ?>). Unspecified salary jobs are still listed – review details before applying.
+        </div>
+      <?php else: ?>
+        <div id="highMinPayInfo" class="d-none"></div>
+      <?php endif; ?>
+    <?php endif; ?>
     <?php if (!empty($relatedSuggestions)): ?>
     <div class="mt-2" aria-label="Related searches">
       <div class="small text-muted mb-1">Related searches:</div>
@@ -322,6 +405,29 @@ function fmt_salary($cur, $min, $max, $period) {
   
 </section>
 <?php endif; ?>
+
+<script>
+// Dynamic client-side helper for high min pay info bubble visibility
+document.addEventListener('DOMContentLoaded', function(){
+  const payInput = document.getElementById('filter-pay');
+  const incUnspec = document.getElementById('inc-pay-unspec');
+  const info = document.getElementById('highMinPayInfo');
+  if (!payInput || !incUnspec || !info) return;
+  function updateInfo(){
+    const val = parseInt(payInput.value, 10);
+    const show = !isNaN(val) && val >= 50000 && incUnspec.checked;
+    if (show) {
+      info.classList.remove('d-none');
+      info.classList.add('alert','alert-info','px-3','py-2','mt-2','mb-0','small');
+      info.textContent = 'High minimum selected (' + val.toLocaleString() + '). Unspecified salary jobs are still listed – review details before applying.';
+    } else {
+      info.classList.add('d-none');
+    }
+  }
+  payInput.addEventListener('input', updateInfo);
+  incUnspec.addEventListener('change', updateInfo);
+});
+</script>
 
 <script>
 (function(){
