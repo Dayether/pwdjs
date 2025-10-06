@@ -19,12 +19,24 @@ include_once '../includes/profile_nudge.php';
 $pdo = Database::getConnection();
 
 // Inputs
-$q       = trim($_GET['q'] ?? '');
+// NEW Simplified Search Inputs (Professor feedback): What / Where / Disability
+// Maintain backward compatibility by still reading legacy parameters if present.
+$whatRaw = trim($_GET['what'] ?? '');
+if ($whatRaw === '' && isset($_GET['q'])) { $whatRaw = trim($_GET['q']); }
+$whereUnified = trim($_GET['where'] ?? '');
+// If unified where not used, allow legacy region/city individually
+$region  = trim($_GET['region'] ?? '');
+$city    = trim($_GET['city'] ?? '');
+if ($whereUnified === '' && $region !== '' && $city !== '') {
+  $whereUnified = $city; // prefer specific city if both provided
+}
+$disability = trim($_GET['disability'] ?? ($_GET['pwd_type'] ?? ''));
+
+// Legacy / advanced (hidden in simplified UI but still processed if manually supplied)
+$q       = $whatRaw; // keep existing variable name for suggestion/history logic downstream
 $edu     = trim($_GET['edu'] ?? '');
 $maxExp  = ($_GET['max_exp'] ?? '') !== '' ? max(0, (int)$_GET['max_exp']) : '';
 $tag     = trim($_GET['tag'] ?? '');
-$region  = trim($_GET['region'] ?? '');
-$city    = trim($_GET['city'] ?? '');
 $minPay  = ($_GET['min_pay'] ?? '') !== '' ? max(0, (int)$_GET['min_pay']) : '';
 $includeUnspecPay = isset($_GET['inc_pay_unspec']) && $_GET['inc_pay_unspec'] === '1';
 $page    = max(1, (int)($_GET['p'] ?? 1));
@@ -36,7 +48,7 @@ $eduLevels  = Taxonomy::educationLevels();
 $accessTags = Taxonomy::accessibilityTags();
 
 // Determine if user is actively searching/filtering
-$hasFilters = ($q !== '' || $edu !== '' || $maxExp !== '' || $tag !== '' || $region !== '' || $city !== '' || $minPay !== '');
+$hasFilters = ($q !== '' || $whereUnified !== '' || $disability !== '' || $edu !== '' || $maxExp !== '' || $tag !== '' || $region !== '' || $city !== '' || $minPay !== '');
 
 // Related suggestions to display as chips under the search (only when searching)
 $relatedSuggestions = [];
@@ -55,6 +67,9 @@ $total = 0;
 $companies = [];
 $companiesTotal = 0;
 
+// Canonical disability list comes from Taxonomy to match registration & job posting forms
+$disabilityOptions = Taxonomy::disabilityCategories();
+
 if ($hasFilters) {
   // Build job filters (Approved employers, WFH only)
   $where = [
@@ -63,8 +78,10 @@ if ($hasFilters) {
     "j.remote_option = 'Work From Home'"
   ];
   $params = [];
+  $extraJoin = '';
 
   if ($q !== '') { $where[] = "(j.title LIKE :q OR j.description LIKE :q OR u.company_name LIKE :q)"; $params[':q'] = '%' . $q . '%'; }
+  if ($whereUnified !== '') { $where[] = "(j.location_region LIKE :where OR j.location_city LIKE :where)"; $params[':where'] = '%' . $whereUnified . '%'; }
   // Hierarchical education filter: selecting a higher level includes all lower (user assumed qualified above requirement)
   if ($edu !== '') {
     // Build ordered list + rank map (ascending order already guaranteed by Taxonomy::educationLevels())
@@ -91,8 +108,11 @@ if ($hasFilters) {
   // Experience logic already matches the idea: if you specify max years you want jobs requiring <= that.
   if ($maxExp !== '') { $where[] = "j.required_experience <= :maxExp"; $params[':maxExp'] = $maxExp; }
   if ($tag !== '') { $where[] = "FIND_IN_SET(:tag, j.accessibility_tags)"; $params[':tag'] = $tag; }
-  if ($region !== '') { $where[] = "j.location_region LIKE :region"; $params[':region'] = '%' . $region . '%'; }
-  if ($city !== '') { $where[] = "j.location_city LIKE :city"; $params[':city'] = '%' . $city . '%'; }
+  // Legacy region/city filters (ignored if unified where used) maintained for backward compatibility
+  if ($whereUnified === '') {
+    if ($region !== '') { $where[] = "j.location_region LIKE :region"; $params[':region'] = '%' . $region . '%'; }
+    if ($city !== '') { $where[] = "j.location_city LIKE :city"; $params[':city'] = '%' . $city . '%'; }
+  }
   if ($minPay !== '') {
     // Refined min pay logic with optional inclusion of fully unspecified salaries:
     //  - Explicit min exists AND >= desired
@@ -109,10 +129,16 @@ if ($hasFilters) {
     // Nothing to add. If we wanted to hide unspecified by default we would add condition here; current behavior keeps them.
   }
 
+  // Disability filter (normalized mapping table)
+  if ($disability !== '') {
+    $extraJoin .= " JOIN job_applicable_pwd_types jap ON jap.job_id = j.job_id AND jap.pwd_type = :disability";
+    $params[':disability'] = $disability;
+  }
+
   $whereSql = implode(' AND ', $where);
 
   // Count jobs
-  $sqlCount = "SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE $whereSql";
+  $sqlCount = "SELECT COUNT(DISTINCT j.job_id) FROM jobs j JOIN users u ON u.user_id = j.employer_id $extraJoin WHERE $whereSql";
   $stmt = $pdo->prepare($sqlCount);
   foreach ($params as $k => $v) $stmt->bindValue($k, $v);
   $stmt->execute();
@@ -126,13 +152,14 @@ if ($hasFilters) {
 
   // Fetch paged job list
   $sqlList = "
-    SELECT j.job_id, j.title, j.description, j.created_at, j.required_experience, j.required_education,
+    SELECT DISTINCT j.job_id, j.title, j.description, j.created_at, j.required_experience, j.required_education,
       j.location_city, j.location_region, j.employment_type,
       j.salary_currency, j.salary_min, j.salary_max, j.salary_period,
       j.accessibility_tags, j.job_image,
       u.company_name, u.user_id AS employer_id
     FROM jobs j
     JOIN users u ON u.user_id = j.employer_id
+    $extraJoin
     WHERE $whereSql
   ORDER BY $orderSql
     LIMIT :limit OFFSET :offset";
@@ -217,43 +244,121 @@ function fmt_salary($cur, $min, $max, $period) {
   return "{$cur} {$range} / " . ucfirst($period);
 }
 ?>
-<div class="job-filters-card mb-4" style="margin-top: 1rem;">
-  <div class="job-filters-inner p-3 p-md-4">
+<style>
+  /* Compact filter bar adjustments */
+  .compact-filters{background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 4px 12px -4px rgba(0,0,0,.05);}
+  .filters-condensed label.filter-bold-label{margin-bottom:.25rem;font-weight:600;}
+  .filters-condensed .form-control,.filters-condensed .form-select{padding-top:.55rem;padding-bottom:.55rem;}
+  .filters-condensed #filter-what{height:2.85rem !important;}
+  .filters-condensed #filter-where,.filters-condensed #filter-disability{height:2.85rem !important;}
+  .filters-condensed button.btn, .filters-condensed a.btn{height:2.85rem !important;white-space:nowrap;}
+  .job-filters-card{position:sticky;top:0;z-index:50;background:linear-gradient(#ffffff,#ffffffcc);backdrop-filter:saturate(140%) blur(4px);}  
+  /* Give more space to results by reducing margin below filters */
+  .job-filters-card + .container{margin-top:.35rem;}
+  /* Two-pane layout tweaks */
+  #two-pane{--gap:1rem;}
+  @media (min-width:992px){
+    /* Override to new 55/45 ratio */
+    #two-pane.two-pane-flex{display:flex;flex-wrap:nowrap;align-items:stretch;margin-left:-.75rem;margin-right:-.75rem;padding-left:0;padding-right:0;}
+    /* Edge-to-edge feel: increase list a bit while keeping readable detail */
+    #two-pane .col-results{flex:0 0 58%;max-width:58%;display:flex;flex-direction:column;padding-left:.75rem;padding-right:.35rem;}
+    #two-pane .col-detail{flex:0 0 42%;max-width:42%;display:flex;flex-direction:column;position:relative;padding-right:.75rem;padding-left:.65rem;}
+    #two-pane .pane-divider{position:absolute;left:0;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,rgba(0,0,0,.08),rgba(0,0,0,.02));}
+    #two-pane .pane-scroll{padding-right:.5rem;}
+    #two-pane .detail-scroll{padding-left:0;padding-right:.25rem;}
+    #two-pane .detail-card{border:1px solid #e2e8f0;background:#fff;box-shadow:0 1px 2px -1px rgba(0,0,0,.08),0 2px 4px -2px rgba(0,0,0,.06);}
+    /* Tighten list item horizontal padding so more text fits */
+    #leftPane .list-group-item{padding:0.85rem 0.9rem;}
+    #leftPane .list-group-item h5{font-size:1rem;margin-bottom:.35rem;}
+    #leftPane .list-group-item small{font-size:.74rem;}
+  }
+  @media (max-width:991.98px){
+    #two-pane.two-pane-flex{display:block;}
+    #two-pane .pane-divider{display:none;}
+    #two-pane .detail-scroll{margin-top:1rem;padding-left:0;}
+  }
+  /* Provide more vertical room for list items */
+  #leftPane .list-group-item{min-height:112px;}
+  #leftPane{scrollbar-width:thin;}
+  #rightPane{scrollbar-width:thin;}
+  /* Increase list group card visual weight */
+  #job-list .list-group-item{background:#fff;}
+  body.search-active .landing-hero, body.search-active .features-section, body.search-active .steps-section, body.search-active .testimonials-section, body.search-active .cta-section{display:none !important;}
+  body.search-active{background:#f8fafc;}
+  /* Scroll shadow indicators */
+  .pane-scroll{position:relative;}
+  .pane-scroll:before,.pane-scroll:after{content:"";position:sticky;left:0;right:0;z-index:4;height:12px;display:block;}
+  .pane-scroll:before{top:0;background:linear-gradient(rgba(255,255,255,.9),rgba(255,255,255,0));}
+  .pane-scroll:after{bottom:0;background:linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.9));}
+  /* Detail panel card full height */
+  #rightPane #job-detail-panel{min-height:100%;}
+  /* Reduce heading spacing */
+  #filters-title{font-size:1.05rem;}
+  .filters-sub{display:none;}
+  .filters-heading{margin-bottom:.35rem;}
+    .filters-floating-meta{position:absolute;top:.5rem;right:.75rem;}
+    .job-filters-inner{position:relative;}
+    @media (max-width:991.98px){.filters-floating-meta{display:none !important;}}
+  /* Related search chips smaller */
+  [aria-label="Related searches"] .btn{font-size:.7rem;padding:.25rem .6rem;}
+</style>
+<div class="job-filters-card mb-3" style="margin-top:.5rem;">
+  <div class="job-filters-inner p-2 p-md-3 compact-filters">
     <a id="job-filters"></a>
-    <div class="filters-heading d-flex align-items-center gap-2 flex-wrap">
-      <div class="fh-icon" aria-hidden="true"><i class="bi bi-funnel"></i></div>
-      <h2 id="filters-title" class="mb-0">Find Accessible Work From Home Jobs</h2>
+    <!-- Original heading kept for mobile only -->
+    <div class="d-lg-none mb-2">
+      <div class="filters-heading d-flex align-items-center gap-2 flex-wrap mb-1">
+        <div class="fh-icon" aria-hidden="true"><i class="bi bi-funnel"></i></div>
+        <h2 id="filters-title" class="mb-0" style="font-size:1rem;">Find Accessible Work From Home Jobs</h2>
+        <?php if ($hasFilters): ?>
+          <span class="badge rounded-pill text-bg-light ms-1" title="Total results"><?php echo (int)$total; ?> job<?php echo ((int)$total===1?'':'s'); ?></span>
+        <?php endif; ?>
+      </div>
+      <p class="filters-sub small text-muted mb-2" id="filters-desc">Quickly search verified WFH roles from approved employers.</p>
       <?php if ($hasFilters): ?>
-        <span class="badge rounded-pill text-bg-light ms-1" title="Total results"><?php echo (int)$total; ?> job<?php echo ((int)$total===1?'':'s'); ?></span>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-2" aria-label="Sort options">
+        <?php
+          $sorts = [
+            'newest' => ['label' => 'Newest', 'icon' => 'bi-clock'],
+            'oldest' => ['label' => 'Oldest', 'icon' => 'bi-clock-history'],
+            'pay_high' => ['label' => 'High pay', 'icon' => 'bi-graph-up'],
+            'pay_low' => ['label' => 'Low pay', 'icon' => 'bi-graph-down'],
+          ];
+          foreach ($sorts as $key=>$conf):
+            $qsSort = $_GET; $qsSort['sort'] = $key; $qsSort['p'] = 1; $url = 'index.php?' . http_build_query($qsSort);
+            $active = ($sort === $key);
+        ?>
+          <a href="<?php echo htmlspecialchars($url); ?>" class="btn btn-sm <?php echo $active ? 'btn-primary' : 'btn-outline-primary'; ?> rounded-pill">
+            <i class="bi <?php echo $conf['icon']; ?> me-1"></i><?php echo htmlspecialchars($conf['label']); ?>
+          </a>
+        <?php endforeach; ?>
+      </div>
       <?php endif; ?>
     </div>
-    <p class="filters-sub" id="filters-desc">Quickly search verified WFH roles from approved employers.</p>
-    <?php if ($hasFilters): ?>
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-2" aria-label="Sort options">
-      <?php
-        $sorts = [
-          'newest' => ['label' => 'Newest', 'icon' => 'bi-clock'],
-          'oldest' => ['label' => 'Oldest', 'icon' => 'bi-clock-history'],
-          'pay_high' => ['label' => 'High pay', 'icon' => 'bi-graph-up'],
-          'pay_low' => ['label' => 'Low pay', 'icon' => 'bi-graph-down'],
-        ];
-        foreach ($sorts as $key=>$conf):
-          $qsSort = $_GET; $qsSort['sort'] = $key; $qsSort['p'] = 1; $url = 'index.php?' . http_build_query($qsSort);
-          $active = ($sort === $key);
-      ?>
-        <a href="<?php echo htmlspecialchars($url); ?>" class="btn btn-sm <?php echo $active ? 'btn-primary' : 'btn-outline-primary'; ?> rounded-pill">
-          <i class="bi <?php echo $conf['icon']; ?> me-1"></i><?php echo htmlspecialchars($conf['label']); ?>
-        </a>
-      <?php endforeach; ?>
+    <!-- Floating (desktop) meta block -->
+    <div class="filters-floating-meta d-none d-lg-block" aria-hidden="false">
+      <div class="d-flex flex-column align-items-end gap-1">
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+          <div class="text-primary small fw-semibold d-flex align-items-center gap-1"><i class="bi bi-funnel"></i> <span>WFH Jobs</span></div>
+          <?php if ($hasFilters): ?><span class="badge rounded-pill text-bg-light" title="Total results"><?php echo (int)$total; ?> job<?php echo ((int)$total===1?'':'s'); ?></span><?php endif; ?>
+        </div>
+        <?php if ($hasFilters): ?>
+        <div class="sort-chips d-flex flex-wrap justify-content-end gap-1" aria-label="Sort options (desktop)">
+          <?php foreach ($sorts as $key=>$conf): $qsSort = $_GET; $qsSort['sort']=$key; $qsSort['p']=1; $url='index.php?'.http_build_query($qsSort); $active=($sort===$key); ?>
+            <a href="<?php echo htmlspecialchars($url); ?>" class="btn btn-xs btn-sm <?php echo $active ? 'btn-primary' : 'btn-outline-primary'; ?> rounded-pill" style="font-size:.62rem;padding:.2rem .55rem;">
+              <i class="bi <?php echo $conf['icon']; ?> me-1"></i><?php echo htmlspecialchars($conf['label']); ?>
+            </a>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
     </div>
-    <?php endif; ?>
-    <form class="row g-3 align-items-end" method="get" role="search" aria-labelledby="filters-title" aria-describedby="filters-desc filters-results-line">
-      <div class="col-lg-5">
-        <label class="form-label filter-bold-label" for="filter-keyword" style="font-size:1rem">Keyword</label>
+  <form class="row g-2 align-items-end filters-condensed" method="get" role="search" aria-labelledby="filters-title" aria-describedby="filters-desc filters-results-line">
+  <div class="col-12 col-lg-4 col-xl-5 order-1">
+        <label class="form-label filter-bold-label" for="filter-what" style="font-size:1rem">What</label>
         <div class="input-icon-group position-relative">
           <span class="i-icon" aria-hidden="true"><i class="bi bi-search"></i></span>
-          <input id="filter-keyword" type="text" name="q" class="form-control filter-bold" placeholder="Title or company" value="<?php echo htmlspecialchars($q); ?>" style="height:3.1rem;font-size:1.05rem;" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="kw-suggest-list">
-          <!-- Suggestions/History dropdown -->
+          <input id="filter-what" type="text" name="what" class="form-control filter-bold" placeholder="Job title or company" value="<?php echo htmlspecialchars($q); ?>" style="height:3.1rem;font-size:1.05rem;" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="kw-suggest-list">
           <div id="kw-suggest" class="dropdown-menu shadow" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1050; max-height:300px; overflow:auto;">
             <div class="small text-muted px-3 pt-2" id="kw-suggest-header" style="display:none;">Suggestions</div>
             <ul id="kw-suggest-list" class="list-unstyled mb-0"></ul>
@@ -265,74 +370,77 @@ function fmt_salary($cur, $min, $max, $period) {
           </div>
         </div>
       </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-edu" style="font-size:1rem">Education</label>
+  <div class="col-6 col-md-4 col-lg-3 col-xl-2 order-2">
+        <label class="form-label filter-bold-label" for="filter-where" style="font-size:1rem">Where</label>
         <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-mortarboard"></i></span>
-          <select id="filter-edu" name="edu" class="form-select filter-bold" style="height:3.1rem;font-size:1.05rem;">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-geo"></i></span>
+          <input id="filter-where" name="where" class="form-control filter-bold" placeholder="Region or city" value="<?php echo htmlspecialchars($whereUnified); ?>" style="height:3.1rem;font-size:1.05rem;">
+        </div>
+      </div>
+  <div class="col-6 col-md-3 col-lg-2 col-xl-2 order-3">
+        <label class="form-label filter-bold-label" for="filter-disability" style="font-size:1rem">Disability</label>
+        <div class="input-icon-group">
+          <span class="i-icon" aria-hidden="true"><i class="bi bi-person-wheelchair"></i></span>
+          <select id="filter-disability" name="disability" class="form-select filter-bold" style="height:3.1rem;font-size:1.05rem;">
             <option value="">Any</option>
-            <?php foreach ($eduLevels as $lvl): ?>
-              <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>>
-                <?php echo htmlspecialchars($lvl); ?>
-              </option>
+            <?php foreach ($disabilityOptions as $opt): ?>
+              <option value="<?php echo htmlspecialchars($opt); ?>" <?php if ($disability === $opt) echo 'selected'; ?>><?php echo htmlspecialchars($opt); ?></option>
             <?php endforeach; ?>
           </select>
         </div>
       </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-exp" style="font-size:1rem">Max exp (yrs)</label>
-        <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></span>
-          <input id="filter-exp" type="number" name="max_exp" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($maxExp); ?>" style="height:3.1rem;font-size:1.05rem;">
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-region" style="font-size:1rem">Region</label>
-        <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-geo"></i></span>
-          <input id="filter-region" name="region" class="form-control filter-bold" placeholder="e.g., Metro Manila" value="<?php echo htmlspecialchars($region); ?>" style="height:3.1rem;font-size:1.05rem;">
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-city" style="font-size:1rem">City</label>
-        <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-buildings"></i></span>
-          <input id="filter-city" name="city" class="form-control filter-bold" placeholder="e.g., Parañaque City" value="<?php echo htmlspecialchars($city); ?>" style="height:3.1rem;font-size:1.05rem;">
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-pay" style="font-size:1rem">Min monthly pay (PHP)</label>
-        <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-cash-coin"></i></span>
-          <input id="filter-pay" type="number" name="min_pay" min="0" class="form-control filter-bold" value="<?php echo htmlspecialchars($minPay); ?>" style="height:3.1rem;font-size:1.05rem;">
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label d-block" style="font-size:1rem; visibility:hidden">Include</label>
-        <div class="form-check mt-2 ms-1">
-          <input class="form-check-input" type="checkbox" value="1" id="inc-pay-unspec" name="inc_pay_unspec" <?php echo $includeUnspecPay?'checked':''; ?>>
-          <label class="form-check-label small" for="inc-pay-unspec">Include unspecified pay</label>
-        </div>
-      </div>
-      <div class="col-md-3 col-lg-2">
-        <label class="form-label filter-bold-label" for="filter-access" style="font-size:1rem">Accessibility</label>
-        <div class="input-icon-group">
-          <span class="i-icon" aria-hidden="true"><i class="bi bi-universal-access"></i></span>
-          <select id="filter-access" name="tag" class="form-select filter-bold" style="height:3.1rem;font-size:1.05rem;">
-            <option value="">Any</option>
-              <?php foreach ($accessTags as $t): ?>
-                <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>>
-                  <?php echo htmlspecialchars($t); ?>
-                </option>
-              <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-      <div class="col-lg-2 d-grid">
+  <div class="col-6 col-md-3 col-lg-2 col-xl-1 d-grid order-4">
         <button class="btn btn-primary fw-semibold" style="height:3.1rem;font-size:1.05rem;"><i class="bi bi-search me-1" aria-hidden="true"></i><span>Search</span></button>
       </div>
-      <div class="col-auto">
+  <div class="col-6 col-md-2 col-lg-2 col-xl-1 d-grid order-5">
         <a class="btn btn-outline-secondary" href="index.php" style="height:3.1rem;font-size:1.05rem;"><i class="bi bi-x-circle me-1" aria-hidden="true"></i><span>Clear</span></a>
+      </div>
+  <div class="col-12 order-6">
+        <details>
+          <summary class="small text-muted">Advanced filters (legacy)</summary>
+          <div class="row g-3 mt-1">
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label small" for="filter-edu">Education</label>
+              <select id="filter-edu" name="edu" class="form-select form-select-sm">
+                <option value="">Any</option>
+                <?php foreach ($eduLevels as $lvl): ?>
+                  <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+              <label class="form-label small" for="filter-exp">Max exp (yrs)</label>
+              <input id="filter-exp" type="number" name="max_exp" min="0" class="form-control form-control-sm" value="<?php echo htmlspecialchars($maxExp); ?>">
+            </div>
+            <div class="col-sm-6 col-md-2">
+              <label class="form-label small" for="filter-pay">Min monthly pay (PHP)</label>
+              <input id="filter-pay" type="number" name="min_pay" min="0" class="form-control form-control-sm" value="<?php echo htmlspecialchars($minPay); ?>">
+            </div>
+            <div class="col-sm-6 col-md-2 d-flex align-items-end">
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" value="1" id="inc-pay-unspec" name="inc_pay_unspec" <?php echo $includeUnspecPay?'checked':''; ?>>
+                <label class="form-check-label small" for="inc-pay-unspec">Include unspecified</label>
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label small" for="filter-access">Accessibility tag</label>
+              <select id="filter-access" name="tag" class="form-select form-select-sm">
+                <option value="">Any</option>
+                <?php foreach ($accessTags as $t): ?>
+                  <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>><?php echo htmlspecialchars($t); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label small" for="filter-region">Region (legacy)</label>
+              <input id="filter-region" name="region" class="form-control form-control-sm" value="<?php echo htmlspecialchars($region); ?>">
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label small" for="filter-city">City (legacy)</label>
+              <input id="filter-city" name="city" class="form-control form-control-sm" value="<?php echo htmlspecialchars($city); ?>">
+            </div>
+          </div>
+        </details>
       </div>
     </form>
     <div id="filters-results-line" class="filters-result-line" aria-live="polite">
@@ -431,7 +539,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 (function(){
-  const input = document.getElementById('filter-keyword');
+  // Updated to support simplified 'What' field (id=filter-what)
+  const input = document.getElementById('filter-what');
   const wrap = document.getElementById('kw-suggest');
   const sugHeader = document.getElementById('kw-suggest-header');
   const sugList = document.getElementById('kw-suggest-list');
@@ -547,9 +656,9 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="small text-muted"><i class="bi bi-list-ul me-1"></i> Results</div>
     <div class="badge bg-light text-dark"><?php echo (int)$total; ?> job<?php echo ((int)$total===1?'':'s'); ?></div>
   </div>
-  <div class="row g-3" id="two-pane">
+  <div class="row g-3 two-pane-flex" id="two-pane">
     <?php if ($jobs): ?>
-      <div class="col-xl-7">
+  <div class="col-xl-7 col-results flex-results">
         <div id="leftPane" class="pane-scroll">
         <div class="list-group" id="job-list" role="listbox" aria-label="Job results list">
           <?php
@@ -617,9 +726,10 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
         </div>
       </div>
-      <div class="col-xl-5">
-        <div id="rightPane" class="pane-scroll">
-          <div id="job-detail-panel" class="card shadow-sm h-100">
+      <div class="col-xl-5 col-detail flex-detail">
+        <div class="pane-divider d-none d-xl-block" aria-hidden="true"></div>
+        <div id="rightPane" class="pane-scroll detail-scroll">
+          <div id="job-detail-panel" class="card shadow-sm h-100 detail-card">
             <div class="card-body">
               <div class="text-muted">Select a job to view details here.</div>
             </div>
@@ -1269,6 +1379,7 @@ document.addEventListener('DOMContentLoaded', function(){
   window.addEventListener('orientationchange', updateHeights);
 })();
 </script>
+<script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('search-active');});</script>
 <?php endif; ?>
 
 <!-- FEATURES SECTION -->

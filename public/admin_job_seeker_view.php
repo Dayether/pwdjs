@@ -19,6 +19,7 @@ if (!$userId) { Helpers::redirect('admin_job_seekers.php'); }
 // Handle status changes via POST for CSRF-like basic check
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
   $action = $_POST['action'];
+  $reason = trim((string)($_POST['reason'] ?? ''));
   $pdoC = Database::getConnection();
   try {
     $rowC = $pdoC->prepare("SELECT name,email,pwd_id_status,job_seeker_status FROM users WHERE user_id=? AND role='job_seeker' LIMIT 1");
@@ -66,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         }
         elseif ($pwdFinal==='Rejected') $body.='<p>Your PWD ID verification was <strong>rejected</strong>.</p>';
         else $body.='<p>Your PWD ID status is now <strong>'.htmlspecialchars($pwdFinal).'</strong>.</p>';
+        if ($reason !== '') {
+          $body .= '<p><strong>Reason:</strong><br>'.nl2br(htmlspecialchars($reason)).'</p>';
+        }
         $body.='<p>Regards,<br>The Admin Team</p>';
         if (Mail::isEnabled()) {
           $sr = Mail::send($before['email'],$before['name'],$subject,$body);
@@ -80,6 +84,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
       } else {
         $emailInfo = ' (Email not sent: SMTP disabled.)';
       }
+      // Persist reason + log
+      User::persistStatusReason($userId, $reason, false);
+      User::logStatusChange($_SESSION['user_id'], $userId, 'job_seeker', 'pwd_id_status', $pwdFinal, $reason);
     } elseif ($ok && $pwdFinal === $prevPwd) {
       $msg = 'PWD ID status already '.$prevPwd.'.';
     }
@@ -93,12 +100,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $body = '<p>Hello '.htmlspecialchars($before['name']).',</p>';
         if ($acctFinal==='Suspended') $body.='<p>Your account has been <strong>suspended</strong>. You cannot use the portal until it is re-activated.</p>';
         else $body.='<p>Your account has been <strong>re-activated</strong>. You may now log in and use the portal.</p>';
+        if ($reason !== '') { $body.='<p><strong>Reason:</strong><br>'.nl2br(htmlspecialchars($reason)).'</p>'; }
         $body.='<p>Regards,<br>The Admin Team</p>';
         $sr2 = Mail::send($before['email'],$before['name'],$subject,$body);
         $emailInfo = $sr2['success'] ? ' Email sent.' : (($sr2['error']==='SMTP disabled') ? ' (Email not sent: SMTP disabled.)' : ' (Email failed: '.htmlspecialchars($sr2['error']).')');
       } else {
         $emailInfo = ' (Email not sent: SMTP disabled.)';
       }
+      // Persist reason + log (mark suspension specifically)
+      User::persistStatusReason($userId, $reason, $acctFinal==='Suspended');
+      User::logStatusChange($_SESSION['user_id'], $userId, 'job_seeker', 'job_seeker_status', $acctFinal, $reason);
     } elseif ($ok && $acctFinal === $prevAcct) {
       $msg = 'Account is already '.$prevAcct.'.';
     }
@@ -118,12 +129,20 @@ if (!$user) {
 }
 
 $decryptedPwdId = null;
-if (!empty($user['pwd_id_enc'])) {
-    try {
-        $decryptedPwdId = Sensitive::decrypt($user['pwd_id_enc'], $user['pwd_id_iv']);
-    } catch (Exception $e) {
-        $decryptedPwdId = null;
+// New schema uses single encrypted field pwd_id_number (base64) + last4; older code referenced pwd_id_enc + iv.
+if (!empty($user['pwd_id_number'])) {
+  try {
+    $decryptedPwdId = Sensitive::decrypt($user['pwd_id_number']);
+  } catch (Throwable $e) {
+    $decryptedPwdId = null;
+  }
+  // If decrypt failed (null) BUT stored value looks like raw/plain (was never encrypted), allow showing raw.
+  if ($decryptedPwdId === null) {
+    $rawCandidate = $user['pwd_id_number'];
+    if (preg_match('/^[A-Za-z0-9\-]{4,40}$/', (string)$rawCandidate)) {
+      $decryptedPwdId = (string)$rawCandidate; // treat as plaintext
     }
+  }
 }
 
 include '../includes/header.php';
@@ -186,12 +205,33 @@ include '../includes/header.php';
         <dl class="row mb-0">
           <dt class="col-sm-4">Name</dt><dd class="col-sm-8"><?php $v = trim((string)($user['name'] ?? '')); echo $v!=='' ? Helpers::sanitizeOutput($v) : 'Not available'; ?></dd>
           <dt class="col-sm-4">Email</dt><dd class="col-sm-8"><?php $v = trim((string)($user['email'] ?? '')); echo $v!=='' ? Helpers::sanitizeOutput($v) : 'Not available'; ?></dd>
-          <dt class="col-sm-4">PWD ID (full)</dt><dd class="col-sm-8"><?php echo $decryptedPwdId ? Helpers::sanitizeOutput($decryptedPwdId) : 'Not available'; ?></dd>
-          <dt class="col-sm-4">PWD ID Last4</dt><dd class="col-sm-8"><?php $v = trim((string)($user['pwd_id_last4'] ?? '')); echo $v!=='' ? '****'.Helpers::sanitizeOutput($v) : 'Not available'; ?></dd>
+          <dt class="col-sm-4">PWD ID (Full)</dt><dd class="col-sm-8">
+            <?php
+              $last4 = trim((string)($user['pwd_id_last4'] ?? ''));
+              if ($decryptedPwdId !== null) {
+                echo Helpers::sanitizeOutput($decryptedPwdId);
+              } else {
+                echo $last4 !== '' ? 'Partial (****'.Helpers::sanitizeOutput($last4).')' : 'Not available';
+              }
+            ?>
+          </dd>
+          <dt class="col-sm-4">PWD ID (Last 4)</dt><dd class="col-sm-8"><?php echo $last4 !== '' ? Helpers::sanitizeOutput($last4) : 'Not available'; ?></dd>
           <dt class="col-sm-4">Disability Type</dt><dd class="col-sm-8"><?php $v = trim((string)($user['disability_type'] ?? '')); echo $v!=='' ? Helpers::sanitizeOutput($v) : 'Not available'; ?></dd>
           <dt class="col-sm-4">Education</dt><dd class="col-sm-8"><?php $v = trim((string)($user['education_level'] ?? '')); echo $v!=='' ? Helpers::sanitizeOutput($v) : 'Not available'; ?></dd>
           <dt class="col-sm-4">Created</dt><dd class="col-sm-8"><?php $v = trim((string)($user['created_at'] ?? '')); echo $v!=='' ? htmlspecialchars($v) : 'Not available'; ?></dd>
           <dt class="col-sm-4">Updated</dt><dd class="col-sm-8"><?php $v = trim((string)($user['updated_at'] ?? '')); echo $v!=='' ? htmlspecialchars($v) : 'Not available'; ?></dd>
+          <?php
+            // Show reason columns if present
+            $reasonCols = [];
+            try {
+              $cols = Database::getConnection()->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC);
+              foreach ($cols as $c) { $reasonCols[$c['Field']] = true; }
+            } catch (Throwable $e) {}
+            if (!empty($reasonCols['last_status_reason'])): $rs = trim((string)($user['last_status_reason']??'')); ?>
+              <dt class="col-sm-4">Last Status Reason</dt><dd class="col-sm-8"><?php echo $rs!==''? nl2br(Helpers::sanitizeOutput($rs)) : '—'; ?></dd>
+            <?php endif; if (!empty($reasonCols['last_suspension_reason']) && ($user['job_seeker_status']??'')==='Suspended'): $sr = trim((string)($user['last_suspension_reason']??'')); ?>
+              <dt class="col-sm-4">Suspension Reason</dt><dd class="col-sm-8"><?php echo $sr!==''? nl2br(Helpers::sanitizeOutput($sr)) : '—'; ?></dd>
+            <?php endif; ?>
         </dl>
       </div>
     </div>
@@ -222,26 +262,24 @@ include '../includes/header.php';
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold">Verification Actions</div>
       <div class="card-body">
-        <form method="post" class="d-grid gap-2">
-          <input type="hidden" name="csrf" value="<?php echo session_id(); ?>">
-          <button name="action" value="Verified" class="btn btn-success" onclick="return confirm('Mark as Verified?');"><i class="bi bi-check2-circle me-1"></i>Verify</button>
-          <button name="action" value="Pending" class="btn btn-warning" onclick="return confirm('Set back to Pending?');"><i class="bi bi-arrow-counterclockwise me-1"></i>Set Pending</button>
-          <button name="action" value="Rejected" class="btn btn-danger" onclick="return confirm('Reject this PWD ID?');"><i class="bi bi-x-circle me-1"></i>Reject</button>
-        </form>
+        <div class="d-grid gap-2">
+          <button data-reason-action="Verified" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Verify</button>
+          <button data-reason-action="Pending" class="btn btn-warning"><i class="bi bi-arrow-counterclockwise me-1"></i>Set Pending</button>
+          <button data-reason-action="Rejected" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i>Reject</button>
+        </div>
       </div>
     </div>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold">Account Controls</div>
       <div class="card-body">
         <?php $acct = $user['job_seeker_status'] ?? 'Active'; ?>
-        <form method="post" class="d-grid gap-2">
-          <input type="hidden" name="csrf" value="<?php echo session_id(); ?>">
+        <div class="d-grid gap-2">
           <?php if ($acct==='Suspended'): ?>
-            <button name="action" value="Activate" class="btn btn-primary" onclick="return confirm('Re-activate this account?');"><i class="bi bi-person-check me-1"></i>Activate Account</button>
+            <button data-reason-action="Activate" class="btn btn-primary"><i class="bi bi-person-check me-1"></i>Activate Account</button>
           <?php else: ?>
-            <button name="action" value="Suspend" class="btn btn-outline-secondary" onclick="return confirm('Suspend this account?');"><i class="bi bi-person-dash me-1"></i>Suspend Account</button>
+            <button data-reason-action="Suspend" class="btn btn-outline-secondary"><i class="bi bi-person-dash me-1"></i>Suspend Account</button>
           <?php endif; ?>
-        </form>
+        </div>
       </div>
     </div>
     <div class="card border-0 shadow-sm">
@@ -254,5 +292,52 @@ include '../includes/header.php';
   </div>
 </div>
   </div>
+
+<!-- Reason Modal -->
+<div class="modal fade" id="reasonModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="reasonForm">
+        <div class="modal-header py-2">
+          <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i><span id="reasonModalTitle">Provide Reason</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="action" id="reasonAction" value="">
+          <input type="hidden" name="csrf" value="<?php echo session_id(); ?>">
+          <div class="mb-3">
+            <label for="reasonText" class="form-label">Reason (required)</label>
+            <textarea class="form-control" id="reasonText" name="reason" rows="4" required placeholder="Ilahad nang malinaw ang dahilan ng aksyon..."></textarea>
+            <div class="form-text">This reason will be saved and included in the email notification.</div>
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modalEl = document.getElementById('reasonModal');
+  const form = document.getElementById('reasonForm');
+  const actionInput = document.getElementById('reasonAction');
+  const titleSpan = document.getElementById('reasonModalTitle');
+  const txt = document.getElementById('reasonText');
+  function openReason(action){
+    actionInput.value = action;
+    titleSpan.textContent = 'Provide Reason for ' + action;
+    txt.value='';
+    if (window.bootstrap){ window.bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
+    else { modalEl.style.display='block'; }
+  }
+  document.querySelectorAll('[data-reason-action]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.preventDefault(); openReason(btn.getAttribute('data-reason-action')); });
+  });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>

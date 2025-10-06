@@ -38,6 +38,7 @@ if ($user_id !== '') {
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
   $action = $_POST['action'];
+  $reason = trim((string)($_POST['reason'] ?? ''));
   $map = [
     'approve'  => 'Approved',
     'suspend'  => 'Suspended',
@@ -46,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
   ];
   if (isset($map[$action])) {
     $newStatus = $map[$action];
-    $updated = User::updateEmployerStatus($user_id, $newStatus);
+  $updated = User::updateEmployerStatus($user_id, $newStatus);
     if ($updated) {
       // If status didn't actually change, avoid creating a misleading "updated" flash
       if ($__currentStatusBeforeAction === $newStatus) {
@@ -96,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
           } else {
             $body .= '<p>Your application is pending review. We will notify you once a decision is made.</p>';
           }
+          if ($reason !== '') { $body .= '<p><strong>Reason:</strong><br>'.nl2br(htmlspecialchars($reason)).'</p>'; }
           $body .= '<p>Regards,<br>The Admin Team</p>';
           if (Mail::isEnabled()) {
             $sendRes = Mail::send($toEmail, $toName, $subject, $body);
@@ -117,7 +119,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
           }
         }
       }
-      Helpers::flash('msg', $baseMsg.$emailInfo);
+  // Persist reason + log
+  User::persistStatusReason($user_id, $reason, $newStatus==='Suspended');
+  User::logStatusChange($_SESSION['user_id'], $user_id, 'employer', 'employer_status', $newStatus, $reason);
+  Helpers::flash('msg', $baseMsg.$emailInfo);
       $_SESSION['__status_update_msg'] = $baseMsg.$emailInfo; /* recovery mirror */
     } else {
       Helpers::flash('msg', 'Failed to update employer status.');
@@ -339,6 +344,14 @@ if ($__finalFlashList) {
           <dt class="col-sm-4">Owner Email</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['email']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Created</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['created_at']??'')); echo $v!==''?htmlspecialchars($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Jobs Posted</dt><dd class="col-sm-8"><?php $v=(string)($emp['job_count'] ?? '0'); echo $v!==''?htmlspecialchars($v):'0'; ?></dd>
+          <?php
+            $reasonCols = [];
+            try { $cols = Database::getConnection()->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC); foreach ($cols as $c) $reasonCols[$c['Field']]=true; } catch (Throwable $e) {}
+            if (!empty($reasonCols['last_status_reason'])): $rs = trim((string)($emp['last_status_reason']??'')); ?>
+              <dt class="col-sm-4">Last Status Reason</dt><dd class="col-sm-8"><?php echo $rs!==''? nl2br(Helpers::sanitizeOutput($rs)) : '—'; ?></dd>
+            <?php endif; if (!empty($reasonCols['last_suspension_reason']) && ($emp['employer_status']??'')==='Suspended'): $sr = trim((string)($emp['last_suspension_reason']??'')); ?>
+              <dt class="col-sm-4">Suspension Reason</dt><dd class="col-sm-8"><?php echo $sr!==''? nl2br(Helpers::sanitizeOutput($sr)) : '—'; ?></dd>
+            <?php endif; ?>
         </dl>
       </div>
     </div>
@@ -368,13 +381,12 @@ if ($__finalFlashList) {
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold">Verification Actions</div>
       <div class="card-body">
-        <form method="post" class="d-grid gap-2">
-          <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($emp['user_id']); ?>">
-          <button name="action" value="approve" class="btn btn-success" onclick="return confirm('Approve this employer?');"><i class="bi bi-check2-circle me-1"></i>Approve</button>
-          <button name="action" value="pending" class="btn btn-warning" onclick="return confirm('Set employer back to Pending?');"><i class="bi bi-arrow-counterclockwise me-1"></i>Set Pending</button>
-          <button name="action" value="suspend" class="btn btn-danger" onclick="return confirm('Suspend this employer?');"><i class="bi bi-x-circle me-1"></i>Suspend</button>
-          <button name="action" value="reject" class="btn btn-secondary" onclick="return confirm('Reject this employer?');"><i class="bi bi-slash-circle me-1"></i>Reject</button>
-        </form>
+        <div class="d-grid gap-2">
+          <button data-reason-action="approve" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Approve</button>
+          <button data-reason-action="pending" class="btn btn-warning"><i class="bi bi-arrow-counterclockwise me-1"></i>Set Pending</button>
+          <button data-reason-action="suspend" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i>Suspend</button>
+          <button data-reason-action="reject" class="btn btn-secondary"><i class="bi bi-slash-circle me-1"></i>Reject</button>
+        </div>
       </div>
     </div>
 
@@ -390,13 +402,16 @@ if ($__finalFlashList) {
             File: <span class="fw-semibold"><?php echo Helpers::sanitizeOutput(basename($doc)); ?></span>
           </div>
           <?php if (in_array($ext, ['jpg','jpeg','png','gif','webp'], true)): ?>
-            <img src="<?php echo Helpers::sanitizeOutput($doc); ?>" alt="Document" class="img-fluid rounded border">
+            <a href="../<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank" class="d-inline-block" style="max-width:100%" title="Open full image in new tab">
+              <img src="../<?php echo Helpers::sanitizeOutput($doc); ?>" alt="Verification Document" class="img-fluid rounded border" style="cursor:zoom-in;">
+            </a>
+            <div class="small mt-2"><a href="../<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Open Image in New Tab</a></div>
           <?php elseif ($ext === 'pdf'): ?>
-            <a href="<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+            <a href="../<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank" class="btn btn-sm btn-outline-primary">
               <i class="bi bi-filetype-pdf me-1"></i>Open PDF
             </a>
           <?php else: ?>
-            <a href="<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
+            <a href="../<?php echo Helpers::sanitizeOutput($doc); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">
               <i class="bi bi-box-arrow-up-right me-1"></i>Open Document
             </a>
           <?php endif; ?>
@@ -408,5 +423,52 @@ if ($__finalFlashList) {
   </div>
 </div>
   </div>
+
+<!-- Reason Modal -->
+<div class="modal fade" id="reasonModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="reasonForm">
+        <div class="modal-header py-2">
+          <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i><span id="reasonModalTitle">Provide Reason</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($emp['user_id']); ?>">
+          <input type="hidden" name="action" id="reasonAction" value="">
+          <input type="hidden" name="csrf" value="<?php echo session_id(); ?>">
+          <div class="mb-3">
+            <label for="reasonText" class="form-label">Reason (required)</label>
+            <textarea class="form-control" id="reasonText" name="reason" rows="4" required placeholder="Explain clearly the reason for this action..."></textarea>
+            <div class="form-text">Will be stored & included in the email sent to the employer.</div>
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modalEl = document.getElementById('reasonModal');
+  const actionInput = document.getElementById('reasonAction');
+  const titleSpan = document.getElementById('reasonModalTitle');
+  const txt = document.getElementById('reasonText');
+  function openReason(action){
+    actionInput.value = action;
+    titleSpan.textContent = 'Provide Reason for ' + action.charAt(0).toUpperCase() + action.slice(1);
+    txt.value='';
+    if (window.bootstrap){ window.bootstrap.Modal.getOrCreateInstance(modalEl).show(); }
+    else { modalEl.style.display='block'; }
+  }
+  document.querySelectorAll('[data-reason-action]').forEach(btn=>{
+    btn.addEventListener('click', e=>{ e.preventDefault(); openReason(btn.getAttribute('data-reason-action')); });
+  });
+})();
+</script>
 
 <?php include '../includes/footer.php'; ?>

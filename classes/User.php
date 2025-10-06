@@ -42,6 +42,8 @@ class User {
     public ?string $pwd_id_last4 = null;
     public ?string $pwd_id_status = null;
     public ?string $job_seeker_status = null; // Active | Suspended
+    public ?string $last_status_reason = null; // generic reason for last status change
+    public ?string $last_suspension_reason = null; // reason specifically when suspended
 
     public ?int $experience = null;
     public ?int $profile_completeness = null;
@@ -62,6 +64,58 @@ class User {
 
     public function __construct(array $row) {
         foreach ($row as $k=>$v) $this->$k = $v;
+    }
+
+    /**
+     * Internal: ensure reason columns exist (so code does not break if migration not yet run).
+     */
+    private static function ensureReasonColumnsCached(): array {
+        static $cache = null;
+        if ($cache !== null) return $cache;
+        $cache = ['last_status_reason'=>false,'last_suspension_reason'=>false];
+        try {
+            $pdo = Database::getConnection();
+            $cols = $pdo->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($cols as $c) {
+                $f = $c['Field'] ?? '';
+                if (isset($cache[$f])) $cache[$f] = true;
+            }
+        } catch (Throwable $e) {}
+        return $cache;
+    }
+
+    /** Store last status reason (and optionally suspension reason). */
+    public static function persistStatusReason(string $userId, ?string $reason, bool $isSuspension=false): void {
+        $reason = trim((string)$reason);
+        if ($reason === '') return; // don't store empty
+        $cols = self::ensureReasonColumnsCached();
+        if (!$cols['last_status_reason'] && !$cols['last_suspension_reason']) return; // nothing to do
+        $pdo = Database::getConnection();
+        $set = [];$vals=[];
+        if ($cols['last_status_reason']) { $set[]='last_status_reason=?'; $vals[]=$reason; }
+        if ($isSuspension && $cols['last_suspension_reason']) { $set[]='last_suspension_reason=?'; $vals[]=$reason; }
+        if (!$set) return;
+        $vals[]=$userId;
+        try {
+            $st = $pdo->prepare('UPDATE users SET '.implode(',', $set).' WHERE user_id=? LIMIT 1');
+            $st->execute($vals);
+        } catch (Throwable $e) {}
+    }
+
+    /** Insert audit log row for status change */
+    public static function logStatusChange(string $actorUserId, string $targetUserId, string $targetRole, string $field, string $newValue, ?string $reason): void {
+        try {
+            $pdo = Database::getConnection();
+            $details = [
+                'target_user_id' => $targetUserId,
+                'target_role'    => $targetRole,
+                'changed_field'  => $field,
+                'new_value'      => $newValue,
+                'reason'         => $reason,
+            ];
+            $st = $pdo->prepare("INSERT INTO admin_tasks_log (task, actor_user_id, mode, users_scanned, users_updated, jobs_scanned, jobs_updated, details) VALUES ('status_change', ?, 'single', 0, 0, 0, 0, ?)");
+            $st->execute([$actorUserId, json_encode($details, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);
+        } catch (Throwable $e) { /* ignore logging failure */ }
     }
 
     public static function findById(string $id): ?self {
