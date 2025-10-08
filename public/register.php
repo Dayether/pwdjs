@@ -32,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $company_website = trim($_POST['company_website'] ?? '');
     $company_phone   = trim($_POST['company_phone'] ?? '');
     $business_permit_number = trim($_POST['business_permit_number'] ?? '');
+  $company_owner_name = trim($_POST['company_owner_name'] ?? '');
+  $contact_person_position = trim($_POST['contact_person_position'] ?? '');
+  $contact_person_phone = trim($_POST['contact_person_phone'] ?? '');
 
     // PWD ID (REQUIRED FOR JOB SEEKER)
     $pwd_id_number = trim($_POST['pwd_id_number'] ?? '');
@@ -73,12 +76,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // Employer validations
   if ($role === 'employer') {
     if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
+    if ($company_owner_name === '') $errors[] = 'Owner / Proprietor name is required for Employer accounts.';
     if ($business_permit_number === '') {
       $errors[] = 'Business Permit Number is required for Employer accounts.';
     } else {
       if (!preg_match('/^[A-Za-z0-9\-\/]{4,40}$/', $business_permit_number)) {
         $errors[] = 'Business Permit Number format invalid (letters, numbers, dash, slash; 4-40 chars).';
       }
+    }
+    if ($contact_person_phone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $contact_person_phone)) {
+      $errors[] = 'Contact person phone format invalid.';
+    }
+    if ($company_phone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $company_phone)) {
+      $errors[] = 'Company phone format invalid.';
     }
     if ($business_email !== '' && !filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
       $errors[] = 'Invalid company email.';
@@ -123,6 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       'company_website' => $role === 'employer' ? $company_website : '',
       'company_phone' => $role === 'employer' ? $company_phone : '',
       'business_permit_number' => $role === 'employer' ? $business_permit_number : '',
+      'company_owner_name' => $role === 'employer' ? $company_owner_name : '',
+      'contact_person_position' => $role === 'employer' ? $contact_person_position : '',
+      'contact_person_phone' => $role === 'employer' ? $contact_person_phone : '',
       'pwd_id_number' => $role === 'job_seeker' ? $pwd_id_number : ''
     ]);
 
@@ -213,6 +226,10 @@ include '../includes/nav.php';
                 <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
+                <label>Owner / Proprietor Name</label>
+                <input type="text" name="company_owner_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_owner_name'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6 input-floating-label">
                 <label>Business Email (optional)</label>
                 <input type="email" name="business_email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
               </div>
@@ -223,6 +240,14 @@ include '../includes/nav.php';
               <div class="col-md-6 input-floating-label">
                 <label>Company Phone (optional)</label>
                 <input type="text" name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6 input-floating-label">
+                <label>Contact Person Position (optional)</label>
+                <input type="text" name="contact_person_position" class="form-control" value="<?php echo htmlspecialchars($_POST['contact_person_position'] ?? ''); ?>">
+              </div>
+              <div class="col-md-6 input-floating-label">
+                <label>Contact Person Phone (optional)</label>
+                <input type="text" name="contact_person_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['contact_person_phone'] ?? ''); ?>" placeholder="e.g. +63 912 345 6789">
               </div>
               <div class="col-md-6 input-floating-label">
                 <label>Business Permit # <span class="text-danger">*</span></label>

@@ -47,6 +47,20 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
   ];
   if (isset($map[$action])) {
     $newStatus = $map[$action];
+  // DUPLICATE EMAIL GUARD: generate fingerprint BEFORE update (status+reason) to detect repeat submissions
+  if (!isset($_SESSION['__status_change_fps'])) $_SESSION['__status_change_fps'] = [];
+  // Prune old (older than 2 hours) to keep session small
+  foreach ($_SESSION['__status_change_fps'] as $fpKey=>$ts) { if ($ts < time()-7200) unset($_SESSION['__status_change_fps'][$fpKey]); }
+  $fingerprint = hash('sha256', $user_id.'|'.$newStatus.'|'.mb_strtolower($reason));
+
+  // Optimistic current status re-check right before performing update
+  try {
+    $pdoDup = Database::getConnection();
+    $stmtDup = $pdoDup->prepare('SELECT employer_status FROM users WHERE user_id=? LIMIT 1');
+    $stmtDup->execute([$user_id]);
+    $currentForGuard = $stmtDup->fetchColumn() ?: 'Pending';
+  } catch (Throwable $e) { $currentForGuard = null; }
+
   $updated = User::updateEmployerStatus($user_id, $newStatus);
     if ($updated) {
       // If status didn't actually change, avoid creating a misleading "updated" flash
@@ -60,6 +74,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
       $emailInfo = '';
       // Only send if status actually changed
       if ($__currentStatusBeforeAction !== $newStatus) {
+        // Duplicate guard: skip email/password issuance if fingerprint already processed OR current status changed earlier
+        $alreadyProcessed = isset($_SESSION['__status_change_fps'][$fingerprint]);
+        if ($alreadyProcessed || ($currentForGuard !== null && $currentForGuard === $newStatus && $__currentStatusBeforeAction !== $newStatus)) {
+          $emailInfo = ' (Duplicate action detected: notification suppressed)';
+        } else {
         // Fetch user email + name for notification
         try {
           $pdoE = Database::getConnection();
@@ -117,6 +136,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
               $emailInfo = ' (Email not sent: SMTP disabled.)';
             }
           }
+          // Mark fingerprint as processed only after attempt (avoid resend)
+          $_SESSION['__status_change_fps'][$fingerprint] = time();
+        }
         }
       }
   // Persist reason + log
@@ -340,8 +362,11 @@ if ($__finalFlashList) {
           <dt class="col-sm-4">Company</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['company_name']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Business Email</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['business_email']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Permit / Reg. No.</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['business_permit_number']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Owner / Proprietor</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['company_owner_name']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Account Owner</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['name']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Owner Email</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['email']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'Not available'; ?></dd>
+          <dt class="col-sm-4">Contact Position</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['contact_person_position']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'—'; ?></dd>
+          <dt class="col-sm-4">Contact Phone</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['contact_person_phone']??'')); echo $v!==''?Helpers::sanitizeOutput($v):'—'; ?></dd>
           <dt class="col-sm-4">Created</dt><dd class="col-sm-8"><?php $v=trim((string)($emp['created_at']??'')); echo $v!==''?htmlspecialchars($v):'Not available'; ?></dd>
           <dt class="col-sm-4">Jobs Posted</dt><dd class="col-sm-8"><?php $v=(string)($emp['job_count'] ?? '0'); echo $v!==''?htmlspecialchars($v):'0'; ?></dd>
           <?php

@@ -175,6 +175,18 @@ if (!empty($employer->created_at)) {
             <dt>Phone</dt>
             <dd><?php echo htmlspecialchars($employer->company_phone); ?></dd>
           <?php endif; ?>
+          <?php if ($employer->company_owner_name): ?>
+            <dt>Owner / Proprietor</dt>
+            <dd><?php echo htmlspecialchars($employer->company_owner_name); ?></dd>
+          <?php endif; ?>
+          <?php if ($employer->contact_person_position): ?>
+            <dt>Contact Position</dt>
+            <dd><?php echo htmlspecialchars($employer->contact_person_position); ?></dd>
+          <?php endif; ?>
+          <?php if ($employer->contact_person_phone && $canSeePrivate): ?>
+            <dt>Contact Phone</dt>
+            <dd><?php echo htmlspecialchars($employer->contact_person_phone); ?></dd>
+          <?php endif; ?>
           <?php if ($canSeePrivate && $employer->business_email): ?>
             <dt>Business Email</dt>
             <dd><?php echo htmlspecialchars($employer->business_email); ?></dd>

@@ -296,11 +296,45 @@ function fmt_salary($cur, $min, $max, $period) {
   #filters-title{font-size:1.05rem;}
   .filters-sub{display:none;}
   .filters-heading{margin-bottom:.35rem;}
-    .filters-floating-meta{position:absolute;top:.5rem;right:.75rem;}
+  .filters-floating-meta{position:absolute;top:1.1rem;right:.75rem;}
     .job-filters-inner{position:relative;}
     @media (max-width:991.98px){.filters-floating-meta{display:none !important;}}
   /* Related search chips smaller */
   [aria-label="Related searches"] .btn{font-size:.7rem;padding:.25rem .6rem;}
+  .action-bar-compressed .btn{white-space:nowrap;}
+  /* Option A uniform compact controls */
+  .action-bar-compressed .btn,
+  .action-bar-compressed .badge,
+  .action-bar-compressed .sort-chips .btn{height:34px;padding:.35rem .7rem;font-size:.73rem;line-height:1.05;display:inline-flex;align-items:center;border-radius:999px;}
+  .action-bar-compressed .sort-chips .btn{font-size:.68rem;padding:.35rem .65rem;}
+  .action-bar-compressed .btn i{font-size:.85em;margin-right:.35rem;}
+  .action-bar-compressed .badge{display:inline-flex;align-items:center;font-size:.65rem;padding:.35rem .55rem;line-height:1;}
+  .action-bar-compressed .text-primary.small{font-size:.7rem !important;}
+  .action-bar-compressed .btn-outline-primary.active{color:#fff;background:#0d6efd;border-color:#0d6efd;}
+  /* Remove height override from earlier */
+  .action-bar-compressed .btn.btn-primary,
+  .action-bar-compressed .btn.btn-outline-secondary{height:34px !important;}
+  @media (max-width:1199.98px){
+    .action-bar-compressed .btn span{display:none!important;}
+    .action-bar-compressed .btn i{margin-right:0;}
+  }
+  /* New floating meta cluster to remove left gap */
+  /* Inline sorts merged with related searches */
+  [aria-label="Related searches"] .sort-chip{font-size:.68rem;padding:.3rem .75rem;line-height:1;display:inline-flex;align-items:center;border-radius:2rem;}
+  [aria-label="Related searches"] .sort-chip i{margin-right:.35rem;font-size:.85em;}
+  [aria-label="Related searches"] .sort-chip.active{background:#0d6efd;border-color:#0d6efd;color:#fff;}
+  [aria-label="Related searches"] .sort-meta-pill{font-size:.68rem;padding:.3rem .75rem;line-height:1;border-radius:2rem;display:inline-flex;align-items:center;border:1px solid #0d6efd;color:#0d6efd;background:#fff;font-weight:600;}
+  [aria-label="Related searches"] .sort-count-badge{background:#fff;border:1px solid #0d6efd;color:#0d6efd;font-weight:600;padding:.3rem .6rem;font-size:.65rem;display:inline-flex;align-items:center;border-radius:2rem;}
+  @media (max-width:991.98px){
+    .filters-sort-row{justify-content:flex-start;}
+  }
+  @media (min-width:992px){
+    .action-bar-compressed{margin-top:-.25rem;}
+  }
+  @media (max-width:1199.98px){
+    .action-bar-compressed .btn i{margin-right:0;}
+    .action-bar-compressed .btn span{display:none !important;}
+  }
 </style>
 <div class="job-filters-card mb-3" style="margin-top:.5rem;">
   <div class="job-filters-inner p-2 p-md-3 compact-filters">
@@ -335,25 +369,8 @@ function fmt_salary($cur, $min, $max, $period) {
       </div>
       <?php endif; ?>
     </div>
-    <!-- Floating (desktop) meta block -->
-    <div class="filters-floating-meta d-none d-lg-block" aria-hidden="false">
-      <div class="d-flex flex-column align-items-end gap-1">
-        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-          <div class="text-primary small fw-semibold d-flex align-items-center gap-1"><i class="bi bi-funnel"></i> <span>WFH Jobs</span></div>
-          <?php if ($hasFilters): ?><span class="badge rounded-pill text-bg-light" title="Total results"><?php echo (int)$total; ?> job<?php echo ((int)$total===1?'':'s'); ?></span><?php endif; ?>
-        </div>
-        <?php if ($hasFilters): ?>
-        <div class="sort-chips d-flex flex-wrap justify-content-end gap-1" aria-label="Sort options (desktop)">
-          <?php foreach ($sorts as $key=>$conf): $qsSort = $_GET; $qsSort['sort']=$key; $qsSort['p']=1; $url='index.php?'.http_build_query($qsSort); $active=($sort===$key); ?>
-            <a href="<?php echo htmlspecialchars($url); ?>" class="btn btn-xs btn-sm <?php echo $active ? 'btn-primary' : 'btn-outline-primary'; ?> rounded-pill" style="font-size:.62rem;padding:.2rem .55rem;">
-              <i class="bi <?php echo $conf['icon']; ?> me-1"></i><?php echo htmlspecialchars($conf['label']); ?>
-            </a>
-          <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-      </div>
-    </div>
-  <form class="row g-2 align-items-end filters-condensed" method="get" role="search" aria-labelledby="filters-title" aria-describedby="filters-desc filters-results-line">
+    <!-- Floating meta removed; integrated into form row for alignment -->
+  <form class="row g-2 align-items-end filters-condensed" method="get" role="search" aria-labelledby="filters-title" aria-describedby="filters-desc">
   <div class="col-12 col-lg-4 col-xl-5 order-1">
         <label class="form-label filter-bold-label" for="filter-what" style="font-size:1rem">What</label>
         <div class="input-icon-group position-relative">
@@ -389,68 +406,18 @@ function fmt_salary($cur, $min, $max, $period) {
           </select>
         </div>
       </div>
-  <div class="col-6 col-md-3 col-lg-2 col-xl-1 d-grid order-4">
-        <button class="btn btn-primary fw-semibold" style="height:3.1rem;font-size:1.05rem;"><i class="bi bi-search me-1" aria-hidden="true"></i><span>Search</span></button>
+  <div class="col-12 col-md-4 col-lg-3 col-xl-3 order-4 d-flex align-items-end gap-2 action-bar-compressed">
+        <button class="btn btn-primary fw-semibold flex-grow-1 flex-lg-grow-0" style="height:3.1rem;font-size:1rem;display:flex;align-items:center;justify-content:center;">
+          <i class="bi bi-search me-1" aria-hidden="true"></i><span>Search</span>
+        </button>
+        <a class="btn btn-outline-secondary flex-grow-1 flex-lg-grow-0" href="index.php" style="height:3.1rem;font-size:1rem;display:flex;align-items:center;justify-content:center;">
+          <i class="bi bi-x-circle me-1" aria-hidden="true"></i><span>Clear</span>
+        </a>
       </div>
-  <div class="col-6 col-md-2 col-lg-2 col-xl-1 d-grid order-5">
-        <a class="btn btn-outline-secondary" href="index.php" style="height:3.1rem;font-size:1.05rem;"><i class="bi bi-x-circle me-1" aria-hidden="true"></i><span>Clear</span></a>
-      </div>
-  <div class="col-12 order-6">
-        <details>
-          <summary class="small text-muted">Advanced filters (legacy)</summary>
-          <div class="row g-3 mt-1">
-            <div class="col-sm-6 col-md-3">
-              <label class="form-label small" for="filter-edu">Education</label>
-              <select id="filter-edu" name="edu" class="form-select form-select-sm">
-                <option value="">Any</option>
-                <?php foreach ($eduLevels as $lvl): ?>
-                  <option value="<?php echo htmlspecialchars($lvl); ?>" <?php if ($edu === $lvl) echo 'selected'; ?>><?php echo htmlspecialchars($lvl); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="col-sm-6 col-md-2">
-              <label class="form-label small" for="filter-exp">Max exp (yrs)</label>
-              <input id="filter-exp" type="number" name="max_exp" min="0" class="form-control form-control-sm" value="<?php echo htmlspecialchars($maxExp); ?>">
-            </div>
-            <div class="col-sm-6 col-md-2">
-              <label class="form-label small" for="filter-pay">Min monthly pay (PHP)</label>
-              <input id="filter-pay" type="number" name="min_pay" min="0" class="form-control form-control-sm" value="<?php echo htmlspecialchars($minPay); ?>">
-            </div>
-            <div class="col-sm-6 col-md-2 d-flex align-items-end">
-              <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" value="1" id="inc-pay-unspec" name="inc_pay_unspec" <?php echo $includeUnspecPay?'checked':''; ?>>
-                <label class="form-check-label small" for="inc-pay-unspec">Include unspecified</label>
-              </div>
-            </div>
-            <div class="col-sm-6 col-md-3">
-              <label class="form-label small" for="filter-access">Accessibility tag</label>
-              <select id="filter-access" name="tag" class="form-select form-select-sm">
-                <option value="">Any</option>
-                <?php foreach ($accessTags as $t): ?>
-                  <option value="<?php echo htmlspecialchars($t); ?>" <?php if ($tag === $t) echo 'selected'; ?>><?php echo htmlspecialchars($t); ?></option>
-                <?php endforeach; ?>
-              </select>
-            </div>
-            <div class="col-sm-6 col-md-3">
-              <label class="form-label small" for="filter-region">Region (legacy)</label>
-              <input id="filter-region" name="region" class="form-control form-control-sm" value="<?php echo htmlspecialchars($region); ?>">
-            </div>
-            <div class="col-sm-6 col-md-3">
-              <label class="form-label small" for="filter-city">City (legacy)</label>
-              <input id="filter-city" name="city" class="form-control form-control-sm" value="<?php echo htmlspecialchars($city); ?>">
-            </div>
-          </div>
-        </details>
-      </div>
+  <!-- Sort row removed: merged into Related searches area -->
+  <!-- Advanced filters (legacy) removed as requested -->
     </form>
-    <div id="filters-results-line" class="filters-result-line" aria-live="polite">
-      <span class="dot" aria-hidden="true"></span>
-      <?php if ($hasFilters): ?>
-        Work From Home only · Showing <?php echo count($jobs); ?> of <?php echo $total; ?> result<?php echo $total===1?'':'s'; ?><?php if ($pages > 1) echo ' · Page ' . $page . ' of ' . $pages; ?>
-      <?php else: ?>
-        Approved WFH employers · Showing <?php echo count($companies); ?> of <?php echo $companiesTotal; ?> compan<?php echo $companiesTotal===1?'y':'ies'; ?><?php if ($pages > 1) echo ' · Page ' . $page . ' of ' . $pages; ?>
-      <?php endif; ?>
-    </div>
+    <!-- Status line removed as requested -->
     <?php if ($hasFilters && ($minPay !== '' || $includeUnspecPay)): ?>
       <div class="mt-2 d-flex flex-wrap gap-2" aria-label="Active pay filters">
         <?php if ($minPay !== ''): ?>
@@ -478,24 +445,33 @@ function fmt_salary($cur, $min, $max, $period) {
         <div id="highMinPayInfo" class="d-none"></div>
       <?php endif; ?>
     <?php endif; ?>
-    <?php if (!empty($relatedSuggestions)): ?>
     <div class="mt-2" aria-label="Related searches">
-      <div class="small text-muted mb-1">Related searches:</div>
-      <div class="d-flex flex-wrap gap-2">
-        <?php foreach ($relatedSuggestions as $s):
-          $text = is_array($s) ? ($s['text'] ?? '') : (string)$s;
-          if ($text === '' || strcasecmp($text, $q) === 0) continue;
-          $qs2 = $_GET; $qs2['q'] = $text; $url = 'index.php?' . http_build_query($qs2);
-          $cnt = is_array($s) && isset($s['count']) ? (int)$s['count'] : 0;
-        ?>
-          <a class="btn btn-sm btn-outline-primary rounded-pill" href="<?php echo htmlspecialchars($url); ?>">
-            <?php echo htmlspecialchars($text); ?>
-            <?php if ($cnt > 0): ?><span class="badge text-bg-light ms-1"><?php echo $cnt; ?></span><?php endif; ?>
-          </a>
-        <?php endforeach; ?>
+      <?php if (!empty($relatedSuggestions)): ?><div class="small text-muted mb-1">Related searches:</div><?php endif; ?>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <?php if (!empty($relatedSuggestions)): ?>
+          <?php foreach ($relatedSuggestions as $s):
+            $text = is_array($s) ? ($s['text'] ?? '') : (string)$s;
+            if ($text === '' || strcasecmp($text, $q) === 0) continue;
+            $qs2 = $_GET; $qs2['q'] = $text; $url = 'index.php?' . http_build_query($qs2);
+            $cnt = is_array($s) && isset($s['count']) ? (int)$s['count'] : 0;
+          ?>
+            <a class="btn btn-sm btn-outline-primary rounded-pill" href="<?php echo htmlspecialchars($url); ?>">
+              <?php echo htmlspecialchars($text); ?>
+              <?php if ($cnt > 0): ?><span class="badge text-bg-light ms-1"><?php echo $cnt; ?></span><?php endif; ?>
+            </a>
+          <?php endforeach; ?>
+        <?php endif; ?>
+        <?php if ($hasFilters): ?>
+          <div class="sort-meta-pill"><i class="bi bi-funnel"></i><span>WFH Jobs</span></div>
+          <span class="sort-count-badge" title="Total results"><?php echo (int)$total; ?></span>
+          <?php foreach ($sorts as $key=>$conf): $qsSort = $_GET; $qsSort['sort']=$key; $qsSort['p']=1; $url='index.php?'.http_build_query($qsSort); $active=($sort===$key); ?>
+            <a href="<?php echo htmlspecialchars($url); ?>" class="btn btn-sm btn-outline-primary rounded-pill sort-chip <?php echo $active?'active':''; ?>" <?php if($active) echo 'aria-current="true"'; ?>>
+              <i class="bi <?php echo $conf['icon']; ?>"></i><span><?php echo htmlspecialchars($conf['label']); ?></span>
+            </a>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </div>
     </div>
-    <?php endif; ?>
   </div>
 </div>
 
@@ -553,7 +529,32 @@ document.addEventListener('DOMContentLoaded', function(){
   let itemsOrder = [];
   let focusIndex = -1;
 
-  function show(){ wrap.style.display = 'block'; input.setAttribute('aria-expanded','true'); }
+  // --- Portalize dropdown so it never gets clipped by parent overflow ---
+  // Move the existing wrapper (#kw-suggest) out to <body> once.
+  if (wrap && wrap.parentNode !== document.body) {
+    wrap.parentNode.removeChild(wrap);
+    document.body.appendChild(wrap);
+    wrap.style.position = 'fixed'; // anchor to viewport
+    wrap.style.left = '0px';
+    wrap.style.top = '0px';
+    wrap.style.width = '0px';
+    wrap.style.maxHeight = '400px'; // will be resized dynamically
+    wrap.style.overflowY = 'auto';
+    wrap.style.zIndex = 2000; // above other UI
+  }
+
+  function positionDropdown(){
+    if (!wrap || wrap.style.display === 'none') return;
+    const r = input.getBoundingClientRect();
+    const availableBelow = window.innerHeight - r.bottom - 16;
+    const maxH = Math.max(150, Math.min(420, availableBelow));
+    wrap.style.top = (r.bottom) + 'px';
+    wrap.style.left = (r.left) + 'px';
+    wrap.style.width = r.width + 'px';
+    wrap.style.maxHeight = maxH + 'px';
+  }
+
+  function show(){ wrap.style.display = 'block'; input.setAttribute('aria-expanded','true'); positionDropdown(); }
   function hide(){ wrap.style.display = 'none'; input.setAttribute('aria-expanded','false'); }
   function clearLists(){ sugList.innerHTML=''; hisList.innerHTML=''; sugHeader.style.display='none'; hisHeader.style.display='none'; hisBar.style.display='none'; itemsOrder = []; focusIndex = -1; }
 
@@ -610,17 +611,21 @@ document.addEventListener('DOMContentLoaded', function(){
       if (suggestions.length) { sugHeader.style.display='block'; renderListWithCounts(sugList, suggestions); }
       await loadHistory();
       if (suggestions.length || hisList.children.length) show(); else hide();
+      positionDropdown();
     }, 200);
   });
 
   input.addEventListener('focus', async ()=>{
     await loadHistory(); if (hisList.children.length) { show(); }
+    positionDropdown();
   });
 
   input.addEventListener('blur', ()=>{
     hideTimer = setTimeout(hide, 150);
   });
   wrap.addEventListener('mousedown', ()=>{ if (hideTimer) { clearTimeout(hideTimer); hideTimer=null; } });
+  window.addEventListener('resize', ()=>{ positionDropdown(); });
+  window.addEventListener('scroll', ()=>{ positionDropdown(); }, true);
 
   async function loadHistory(){
   const data = await fetchJSON('api_search?action=history');

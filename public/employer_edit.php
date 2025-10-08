@@ -35,13 +35,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
 
     $update = [];
+    $original = [
+      'company_name' => $user->company_name,
+      'business_email' => $user->business_email,
+      'company_website' => $user->company_website,
+      'company_phone' => $user->company_phone,
+      'business_permit_number' => $user->business_permit_number,
+      'company_owner_name' => $user->company_owner_name,
+      'contact_person_position' => $user->contact_person_position,
+      'contact_person_phone' => $user->contact_person_phone,
+      'employer_doc' => $user->employer_doc,
+      'profile_picture' => $user->profile_picture
+    ];
 
     // Collect + sanitize inputs
-    $companyName  = trim($_POST['company_name'] ?? $user->company_name);
-    $bizEmail     = trim($_POST['business_email'] ?? $user->business_email);
-    $website      = trim($_POST['company_website'] ?? $user->company_website);
-    $companyPhone = trim($_POST['company_phone'] ?? $user->company_phone);
-    $permit       = trim(preg_replace('/\s+/', '', $_POST['business_permit_number'] ?? $user->business_permit_number));
+  $companyName  = trim($_POST['company_name'] ?? $user->company_name);
+  $bizEmail     = trim($_POST['business_email'] ?? $user->business_email);
+  $website      = trim($_POST['company_website'] ?? $user->company_website);
+  $companyPhone = trim($_POST['company_phone'] ?? $user->company_phone);
+  $permit       = trim(preg_replace('/\s+/', '', $_POST['business_permit_number'] ?? $user->business_permit_number));
+  $companyOwner = trim($_POST['company_owner_name'] ?? $user->company_owner_name);
+  $contactPos   = trim($_POST['contact_person_position'] ?? $user->contact_person_position);
+  $contactPhone = trim($_POST['contact_person_phone'] ?? $user->contact_person_phone);
 
     // Basic validations
     if ($bizEmail !== '' && !filter_var($bizEmail, FILTER_VALIDATE_EMAIL)) {
@@ -57,13 +72,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Prepare update array only if changed
-    $fieldsMap = [
-        'company_name'            => $companyName,
-        'business_email'          => $bizEmail,
-        'company_website'         => $website,
-        'company_phone'           => $companyPhone,
-        'business_permit_number'  => $permit
-    ];
+  // Validate new phone (optional) & owner (required if empty in DB)
+  if ($companyOwner === '') {
+    $errors[] = 'Company owner / proprietor name is required.';
+  }
+  if ($contactPhone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $contactPhone)) {
+    $errors[] = 'Contact person phone format invalid.';
+  }
+  if ($companyPhone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $companyPhone)) {
+    $errors[] = 'Company phone format invalid.';
+  }
+
+  $fieldsMap = [
+    'company_name'            => $companyName,
+    'business_email'          => $bizEmail,
+    'company_website'         => $website,
+    'company_phone'           => $companyPhone,
+    'business_permit_number'  => $permit,
+    'company_owner_name'      => $companyOwner,
+    'contact_person_position' => $contactPos,
+    'contact_person_phone'    => $contactPhone
+  ];
     foreach ($fieldsMap as $k => $v) {
         if ((string)$user->$k !== (string)$v) {
             $update[$k] = $v;
@@ -116,10 +145,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         if ($update) {
             try {
-                if (User::updateProfileExtended($user->user_id, $update)) {
-                    foreach ($update as $k=>$v) $user->$k = $v; // refresh local object
-                    Helpers::flash('msg','Employer profile updated.');
-                    Helpers::redirect('employer_profile.php');
+        if (User::updateProfileExtended($user->user_id, $update)) {
+          // Build diff for audit log (only fields that changed)
+          $diff = [];
+          foreach ($update as $k=>$v) {
+             $oldVal = $original[$k] ?? null;
+             if ((string)$oldVal !== (string)$v) {
+              $diff[$k] = ['old'=>$oldVal,'new'=>$v];
+              $user->$k = $v; // refresh local object
+             }
+          }
+          if ($diff) {
+             User::logProfileUpdate($user->user_id, $user->user_id, 'employer', $diff);
+          }
+          Helpers::flash('msg','Employer profile updated.');
+          Helpers::redirect('employer_profile.php');
                 } else {
                     $errors[] = 'Update failed or no writable fields.';
                 }
@@ -222,9 +262,17 @@ include '../includes/nav.php';
           <label><i class="bi bi-building"></i>Company Name</label>
           <input type="text" name="company_name" value="<?php echo htmlspecialchars($user->company_name); ?>" required>
         </div>
+        <div class="input-block">
+          <label><i class="bi bi-person-vcard"></i>Owner / Proprietor Name</label>
+          <input type="text" name="company_owner_name" value="<?php echo htmlspecialchars($user->company_owner_name); ?>" required>
+        </div>
         <div class="input-block disabled">
           <label><i class="bi bi-person-badge"></i>Display Name (Account)</label>
           <input type="text" value="<?php echo htmlspecialchars($user->name); ?>" disabled>
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-person-badge-fill"></i>Contact Person Position</label>
+          <input type="text" name="contact_person_position" value="<?php echo htmlspecialchars($user->contact_person_position); ?>">
         </div>
         <div class="input-block">
           <label><i class="bi bi-envelope"></i>Business Email</label>
@@ -237,6 +285,10 @@ include '../includes/nav.php';
         <div class="input-block">
           <label><i class="bi bi-telephone"></i>Company Phone</label>
           <input type="text" name="company_phone" value="<?php echo htmlspecialchars($user->company_phone); ?>">
+        </div>
+        <div class="input-block">
+          <label><i class="bi bi-telephone-inbound"></i>Contact Person Phone</label>
+          <input type="text" name="contact_person_phone" value="<?php echo htmlspecialchars($user->contact_person_phone); ?>" placeholder="e.g. +63 912 345 6789">
         </div>
         <div class="input-block">
           <label><i class="bi bi-hash"></i>Business Permit #</label>

@@ -125,8 +125,28 @@ include '../includes/header.php';
 <div class="admin-layout">
   <?php include '../includes/admin_sidebar.php'; ?>
   <div class="admin-main">
+    <div class="admin-page-header mb-3">
+      <div class="page-title-block">
+        <h1 class="page-title"><i class="bi bi-buildings"></i><span>Employers</span></h1>
+        <p class="page-sub">Manage, approve and monitor employer organizations.</p>
+      </div>
+      <div class="page-actions">
+        <a href="admin_employer_create.php" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-building-add me-1"></i>Create Employer</a>
+      </div>
+    </div>
 <style>
   /* Employers admin enhancements */
+  .admin-page-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1.25rem;padding:0 .25rem .2rem;border-bottom:1px solid rgba(255,255,255,.07);}
+  .admin-page-header .page-title{margin:0;font-size:1.35rem;font-weight:600;display:flex;align-items:center;gap:.65rem;color:#f0f6ff;letter-spacing:.5px;}
+  .admin-page-header .page-title i{font-size:1.55rem;line-height:1;color:#6cb2ff;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));}
+  .admin-page-header .page-sub{margin:.15rem 0 0;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#6e829b;}
+  .admin-page-header .page-actions{display:flex;align-items:center;gap:.6rem;margin-left:auto;}
+  .admin-page-header .btn.btn-primary{background:linear-gradient(135deg,#2d6bff,#5146ff);border:1px solid #2d6bff;padding:.5rem .9rem;font-weight:600;font-size:.72rem;letter-spacing:.4px;}
+  .admin-page-header .btn.btn-primary i{margin-right:.35rem;}
+  @media (max-width:640px){
+    .admin-page-header{align-items:flex-start;}
+    .admin-page-header .page-actions{width:100%;justify-content:flex-start;}
+  }
   .employer-topbar{display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.1rem}
   .chips{display:flex;flex-wrap:wrap;gap:.5rem}
   .chip{--bg:#162335;--bd:rgba(255,255,255,.08);position:relative;display:inline-flex;align-items:center;gap:.4rem;font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:.55rem .7rem;border:1px solid var(--bd);background:var(--bg);color:#c2d2e6;border-radius:8px;line-height:1;cursor:default;}

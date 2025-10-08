@@ -58,6 +58,9 @@ class User {
     public ?string $employer_status = null;
     public ?string $employer_doc = null;
     public ?string $profile_picture = null; // new profile image path
+    public ?string $company_owner_name = null; // new employer validation field
+    public ?string $contact_person_position = null; // optional
+    public ?string $contact_person_phone = null; // optional
 
     public ?string $created_at = null;
     public ?string $password = null;
@@ -118,6 +121,44 @@ class User {
         } catch (Throwable $e) { /* ignore logging failure */ }
     }
 
+    /**
+     * Audit log for profile updates.
+     * Writes a row to admin_tasks_log with task='profile_update' capturing changed fields only.
+     * diff format: { field: {"old": <oldValue>, "new": <newValue>}, ... }
+     */
+    public static function logProfileUpdate(string $actorUserId, string $targetUserId, string $targetRole, array $diff): void {
+        if (!$diff) return; // nothing changed
+        try {
+            $pdo = Database::getConnection();
+            // Sanitize diff: ensure scalar / simple values only
+            $clean = [];
+            foreach ($diff as $field=>$pair) {
+                if (!is_array($pair) || !array_key_exists('old',$pair) || !array_key_exists('new',$pair)) continue;
+                $o = $pair['old']; $n = $pair['new'];
+                if (is_array($o) || is_object($o) || is_array($n) || is_object($n)) continue; // skip complex structures
+                // Truncate extremely long values
+                $toScalar = function($v) {
+                    if ($v === null) return null;
+                    $s = (string)$v;
+                    if (mb_strlen($s) > 500) $s = mb_substr($s,0,500).'…';
+                    return $s;
+                };
+                $clean[$field] = [
+                    'old' => $toScalar($o),
+                    'new' => $toScalar($n)
+                ];
+            }
+            if (!$clean) return;
+            $details = [
+                'target_user_id' => $targetUserId,
+                'target_role'    => $targetRole,
+                'diff'           => $clean
+            ];
+            $st = $pdo->prepare("INSERT INTO admin_tasks_log (task, actor_user_id, mode, users_scanned, users_updated, jobs_scanned, jobs_updated, details) VALUES ('profile_update', ?, 'single', 0, 1, 0, 0, ?)");
+            $st->execute([$actorUserId, json_encode($details, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)]);
+        } catch (Throwable $e) { /* ignore logging failure */ }
+    }
+
     public static function findById(string $id): ?self {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("SELECT * FROM users WHERE user_id=? LIMIT 1");
@@ -151,7 +192,8 @@ class User {
             // profile_picture will be conditionally allowed after schema check
             // employer-specific
             'company_name','business_email','company_website','company_phone',
-            'business_permit_number','employer_doc'
+            'business_permit_number','employer_doc',
+            'company_owner_name','contact_person_position','contact_person_phone'
         ];
 
         // Detect existing columns on `users` table once and cache
@@ -272,8 +314,9 @@ class User {
             INSERT INTO users
             (user_id, name, email, password, role, experience, education, disability,
              company_name, business_email, business_permit_number, employer_status, employer_doc,
-             pwd_id_number, pwd_id_last4, pwd_id_status, phone)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             pwd_id_number, pwd_id_last4, pwd_id_status, phone,
+             company_owner_name, contact_person_position, contact_person_phone)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
 
             try {
@@ -294,7 +337,10 @@ class User {
             $pwdIdEncrypted,
             $pwdIdLast4,
             $pwdStatus,
-            $phone
+            $phone,
+            trim($input['company_owner_name'] ?? ''),
+            trim($input['contact_person_position'] ?? ''),
+            trim($input['contact_person_phone'] ?? '')
         ]);
             } catch (PDOException $e) {
                 // Duplicate business permit unique key
