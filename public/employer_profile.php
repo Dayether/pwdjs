@@ -38,24 +38,36 @@ $canSeePrivate = $isSelf || ($viewerRole === 'admin');
 $jobs = [];
 try {
     $pdo = Database::getConnection();
-  if ($canSeePrivate) {
-    $stmt = $pdo->prepare("
-      SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency, moderation_status
-      FROM jobs
-      WHERE employer_id=?
-      ORDER BY created_at DESC
-      LIMIT 200
-    ");
-    $stmt->execute([$employer->user_id]);
-  } else {
-    $stmt = $pdo->prepare("
-      SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency
-      FROM jobs
-      WHERE employer_id=? AND moderation_status='Approved'
-      ORDER BY created_at DESC
-      LIMIT 200
-    ");
-    $stmt->execute([$employer->user_id]);
+    if ($canSeePrivate) {
+      $stmt = $pdo->prepare("
+        SELECT j.job_id, j.title, j.status, j.created_at, j.employment_type, j.salary_min, j.salary_max, j.salary_currency, j.moderation_status,
+               COALESCE(jt.pwd_types, j.applicable_pwd_types) AS pwd_types
+        FROM jobs j
+        LEFT JOIN (
+          SELECT job_id, GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') AS pwd_types
+          FROM job_applicable_pwd_types
+          GROUP BY job_id
+        ) jt ON jt.job_id = j.job_id
+        WHERE j.employer_id=?
+        ORDER BY j.created_at DESC
+        LIMIT 200
+      ");
+      $stmt->execute([$employer->user_id]);
+    } else {
+      $stmt = $pdo->prepare("
+        SELECT j.job_id, j.title, j.status, j.created_at, j.employment_type, j.salary_min, j.salary_max, j.salary_currency,
+               COALESCE(jt.pwd_types, j.applicable_pwd_types) AS pwd_types
+        FROM jobs j
+        LEFT JOIN (
+          SELECT job_id, GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') AS pwd_types
+          FROM job_applicable_pwd_types
+          GROUP BY job_id
+        ) jt ON jt.job_id = j.job_id
+        WHERE j.employer_id=? AND j.moderation_status='Approved'
+        ORDER BY j.created_at DESC
+        LIMIT 200
+      ");
+      $stmt->execute([$employer->user_id]);
   }
     $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
@@ -253,6 +265,18 @@ if (!empty($employer->created_at)) {
                   <?php $rowStatus = strtolower($j['status']); ?>
                   <tr data-status="<?php echo htmlspecialchars($rowStatus); ?>">
                     <td><a href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>"><?php echo htmlspecialchars($j['title']); ?></a></td>
+                      <td>
+                        <a href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>"><?php echo htmlspecialchars($j['title']); ?></a>
+                        <?php if (!empty($j['pwd_types'])):
+                          $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $j['pwd_types'])))));
+                        ?>
+                          <div class="mt-1">
+                            <?php foreach ($parts as $pt): ?>
+                              <span class="badge bg-primary-subtle text-primary-emphasis border me-1 mb-1"><?php echo htmlspecialchars($pt); ?></span>
+                            <?php endforeach; ?>
+                          </div>
+                        <?php endif; ?>
+                      </td>
                     <td>
                       <?php $js=$j['status']; $jbCls=strtolower($js); ?>
                       <span class="ep-job-badge <?php echo htmlspecialchars($jbCls); ?>">

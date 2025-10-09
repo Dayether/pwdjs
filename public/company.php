@@ -18,7 +18,15 @@ $pdo = Database::getConnection();
 // Jobs by employer (recent)
 $jobs = [];
 try {
-  $st = $pdo->prepare("SELECT job_id, title, created_at, employment_type, salary_currency, salary_min, salary_max FROM jobs WHERE employer_id=? AND moderation_status='Approved' ORDER BY created_at DESC LIMIT 200");
+  $st = $pdo->prepare("SELECT j.job_id, j.title, j.created_at, j.employment_type, j.salary_currency, j.salary_min, j.salary_max, COALESCE(jt.pwd_types, j.applicable_pwd_types) AS pwd_types
+                        FROM jobs j
+                        LEFT JOIN (
+                          SELECT job_id, GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') AS pwd_types
+                          FROM job_applicable_pwd_types
+                          GROUP BY job_id
+                        ) jt ON jt.job_id = j.job_id
+                        WHERE j.employer_id=? AND j.moderation_status='Approved'
+                        ORDER BY j.created_at DESC LIMIT 200");
   $st->execute([$employer->user_id]);
   $jobs = $st->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) { $jobs = []; }
@@ -132,6 +140,15 @@ function stars($n){
                     <small class="text-muted"><?php echo htmlspecialchars(date('M j, Y', strtotime($j['created_at']))); ?></small>
                   </div>
                   <div class="small text-muted"><?php echo htmlspecialchars($j['employment_type']); ?> · <?php if ($j['salary_min']||$j['salary_max']) echo htmlspecialchars(($j['salary_currency']?:'PHP').' '.number_format($j['salary_min']?:$j['salary_max'])); else echo 'Salary not specified'; ?></div>
+                  <?php if (!empty($j['pwd_types'])):
+                    $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $j['pwd_types'])))));
+                  ?>
+                    <div class="mt-1">
+                      <?php foreach ($parts as $pt): ?>
+                        <span class="badge bg-primary-subtle text-primary-emphasis border me-1 mb-1"><?php echo htmlspecialchars($pt); ?></span>
+                      <?php endforeach; ?>
+                    </div>
+                  <?php endif; ?>
                 </a>
               <?php endforeach; ?>
             </div>

@@ -130,6 +130,7 @@ include '../includes/nav.php';
   .mini-heading { font-size:.7rem; font-weight:700; letter-spacing:.75px; text-transform:uppercase; color:#5d6c7a; margin:0 0 .65rem; display:flex; align-items:center; gap:.45rem; }
   .mini-heading .icon { width:2rem; height:2rem; border-radius:.6rem; background:linear-gradient(135deg,var(--primary-blue),var(--primary-purple)); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:.9rem; box-shadow:0 4px 12px -4px rgba(13,110,253,.55); }
   .table-sm th { font-size:.65rem; letter-spacing:.65px; text-transform:uppercase; }
+  .pwd-badges .badge{margin-right:.25rem;margin-bottom:.25rem}
   .quick-cta { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-top:1.4rem; }
   .quick-cta a { text-decoration:none; position:relative; background:#fff; border:1px solid #e4edf6; border-radius:.85rem; padding:.8rem .85rem .85rem; font-size:.75rem; font-weight:600; letter-spacing:.4px; color:#233544; box-shadow:0 6px 16px -8px rgba(13,110,253,.22), 0 3px 8px rgba(0,0,0,.05); transition:.3s; display:flex; align-items:center; gap:.5rem; }
   .quick-cta a .qc-icon { width:34px; height:34px; border-radius:.7rem; background:linear-gradient(135deg,var(--primary-blue),var(--primary-purple)); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:1rem; box-shadow:0 4px 12px -4px rgba(13,110,253,.55); }
@@ -266,6 +267,7 @@ include '../includes/nav.php';
           <tr>
             <th scope="col">Job</th>
             <th scope="col">Type</th>
+            <th scope="col">PWD Types</th>
             <th scope="col">Salary</th>
             <th scope="col">Status</th>
             <th scope="col">Posted</th>
@@ -306,6 +308,27 @@ include '../includes/nav.php';
                 </div>
               </td>
               <td class="small"><?php echo htmlspecialchars(($j['remote_option'] ?? 'Work From Home').' · '.($j['employment_type'] ?? 'Full time')); ?></td>
+              <td class="small">
+                <?php
+                  try {
+                    $pdoTmp = Database::getConnection();
+                    $st = $pdoTmp->prepare("SELECT GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') FROM job_applicable_pwd_types WHERE job_id = ?");
+                    $st->execute([$j['job_id']]);
+                    $agg = (string)$st->fetchColumn();
+                    $csv = $agg !== '' ? $agg : (string)($j['applicable_pwd_types'] ?? '');
+                    if ($csv !== '') {
+                      $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $csv)))));
+                      echo '<div class="pwd-badges">';
+                      foreach ($parts as $pt) {
+                        echo '<span class="badge bg-primary-subtle text-primary-emphasis border">'.htmlspecialchars($pt).'</span>';
+                      }
+                      echo '</div>';
+                    } else {
+                      echo '<span class="text-muted">—</span>';
+                    }
+                  } catch (Throwable $e) { echo '<span class="text-muted">—</span>'; }
+                ?>
+              </td>
               <td class="small"><?php echo htmlspecialchars($salary); ?></td>
               <td>
                 <span class="jm-status jm-status-<?php echo strtolower($status); ?>">
@@ -355,7 +378,7 @@ include '../includes/nav.php';
 
       <!-- Mobile Cards -->
       <div class="jm-cards d-md-none" id="jobsCards">
-        <?php if ($jobs): foreach ($jobs as $j):
+  <?php if ($jobs): foreach ($jobs as $j):
           $status = $j['status'] ?? 'Open';
           $mod = $j['moderation_status'] ?? 'Approved';
           $modReason = trim((string)($j['moderation_reason'] ?? ''));
@@ -376,6 +399,23 @@ include '../includes/nav.php';
             <div class="flex-grow-1">
               <a href="job_view.php?job_id=<?php echo urlencode($j['job_id']); ?>" class="jm-title-link"><?php echo htmlspecialchars($j['title']); ?></a>
               <div class="jm-sub small text-muted"><?php echo htmlspecialchars($loc); ?></div>
+              <?php
+                try {
+                  $pdoTmp = Database::getConnection();
+                  $st = $pdoTmp->prepare("SELECT GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') FROM job_applicable_pwd_types WHERE job_id = ?");
+                  $st->execute([$j['job_id']]);
+                  $agg = (string)$st->fetchColumn();
+                  $csv = $agg !== '' ? $agg : (string)($j['applicable_pwd_types'] ?? '');
+                  if ($csv !== '') {
+                    $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $csv)))));
+                    echo '<div class="mt-1">';
+                    foreach ($parts as $pt) {
+                      echo '<span class="badge bg-primary-subtle text-primary-emphasis border me-1 mb-1">'.htmlspecialchars($pt).'</span>';
+                    }
+                    echo '</div>';
+                  }
+                } catch (Throwable $e) {}
+              ?>
             </div>
             <span class="jm-status jm-status-<?php echo strtolower($status); ?> small flex-shrink-0"><i class="bi bi-<?php echo $status==='Open'?'play-fill':($status==='Suspended'?'pause-fill':'stop-fill'); ?> me-1"></i><?php echo htmlspecialchars($status); ?></span>
           </div>

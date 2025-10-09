@@ -29,11 +29,17 @@ if (!$emp || $emp->role !== 'employer' || ($emp->employer_status ?? 'Pending') !
 }
 
 $stmt = $pdo->prepare("
-  SELECT job_id, title, created_at, location_city, location_region, employment_type,
-         salary_currency, salary_min, salary_max, salary_period, job_image
-  FROM jobs
-  WHERE employer_id = ? AND remote_option = 'Work From Home' AND moderation_status='Approved'
-  ORDER BY created_at DESC
+  SELECT j.job_id, j.title, j.created_at, j.location_city, j.location_region, j.employment_type,
+         j.salary_currency, j.salary_min, j.salary_max, j.salary_period, j.job_image,
+         COALESCE(jt.pwd_types, j.applicable_pwd_types) AS pwd_types
+  FROM jobs j
+  LEFT JOIN (
+    SELECT job_id, GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') AS pwd_types
+    FROM job_applicable_pwd_types
+    GROUP BY job_id
+  ) jt ON jt.job_id = j.job_id
+  WHERE j.employer_id = ? AND j.remote_option = 'Work From Home' AND j.moderation_status='Approved'
+  ORDER BY j.created_at DESC
 ");
 $stmt->execute([$employer_id]);
 $jobs = $stmt->fetchAll();
@@ -88,6 +94,12 @@ $backUrl = Helpers::getLastPage('index.php');
           <div class="d-flex flex-wrap gap-1 mb-2">
             <span class="badge text-bg-light border">Work From Home</span>
             <span class="badge text-bg-light border"><?php echo Helpers::sanitizeOutput($job['employment_type']); ?></span>
+            <?php if (!empty($job['pwd_types'])): ?>
+              <?php $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $job['pwd_types']))))); ?>
+              <?php foreach ($parts as $pt): ?>
+                <span class="badge bg-primary-subtle text-primary-emphasis border"><?php echo htmlspecialchars($pt); ?></span>
+              <?php endforeach; ?>
+            <?php endif; ?>
           </div>
           <div class="small">
             <i class="bi bi-cash-coin me-1"></i><?php

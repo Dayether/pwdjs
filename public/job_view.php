@@ -196,6 +196,20 @@ $employmentTypes = Taxonomy::employmentTypes();
 $accessTags      = Taxonomy::accessibilityTags();
 $eduLevels       = Taxonomy::educationLevels();
 
+// Aggregate intended PWD types for this job
+$pwdTypes = [];
+try {
+  $pdoTmp = Database::getConnection();
+  $stT = $pdoTmp->prepare("SELECT GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') FROM job_applicable_pwd_types WHERE job_id = ?");
+  $stT->execute([$job->job_id]);
+  $agg = (string)$stT->fetchColumn();
+  $csv = $agg !== '' ? $agg : (string)($job->applicable_pwd_types ?? '');
+  if ($csv !== '') {
+    $parts = array_filter(array_map('trim', explode(',', $csv)), fn($v)=>$v!=='');
+    $pwdTypes = array_values(array_unique($parts));
+  }
+} catch (Throwable $e) { $pwdTypes = []; }
+
 /* Split skills */
 $jobSkillsRows = Skill::getSkillsForJob($job->job_id);
 $allSkillNames = array_column($jobSkillsRows, 'name');
@@ -416,6 +430,8 @@ include '../includes/nav.php';
   border-radius: .5rem;
   border: 1px solid rgba(0,0,0,.05);
 }
+.pwd-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem}
+.pwd-tag{display:inline-flex;align-items:center;padding:.25rem .55rem;border-radius:999px;font-size:.7rem;font-weight:700;letter-spacing:.03em;color:#0d6efd;background:#e7f1ff;border:1px solid #b6d3ff}
 </style>
 
 <!-- Toasts -->
@@ -482,6 +498,13 @@ include '../includes/nav.php';
               <?php endif; ?>
               · <?php echo htmlspecialchars($job->employment_type); ?>
             </div>
+            <?php if ($pwdTypes): ?>
+              <div class="pwd-tags" aria-label="Intended PWD types">
+                <?php foreach ($pwdTypes as $pt): ?>
+                  <span class="pwd-tag"><?php echo htmlspecialchars($pt); ?></span>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
             <?php if ($matchingLocked): ?>
               <div class="small mt-1 text-info">
                 <i class="bi bi-shield-lock me-1"></i>
