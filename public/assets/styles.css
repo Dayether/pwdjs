@@ -835,6 +835,100 @@ html {
 .bg-gradient-brand { background:linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); }
 .text-gradient-brand { background:linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 
+/* =====================================
+   Promo-auth hero image overlap tuning
+   ===================================== */
+/* Remove default landing-hero gradient for promo-auth variant */
+section.landing-hero.promo-auth-hero { background: transparent !important; }
+section.landing-hero.promo-auth-hero::before,
+section.landing-hero.promo-auth-hero::after { display: none !important; }
+/* Force the background photo to bias to the right and reveal only from about the right half, with a soft fade on the left. */
+section.landing-hero.promo-auth-hero .hero-bg {
+  background-position: right center !important; /* anchor image to the right side */
+  background-size: cover !important;
+}
+/* Add a left-to-right white gradient so the image doesn’t sit flush behind the card; creates the “overlap + forward card” look. */
+section.landing-hero.promo-auth-hero .hero-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Left ~28% solid white, then soften to transparent by ~58% */
+  background: linear-gradient(90deg,
+    #ffffff 0%,
+    #ffffff 26%,
+    rgba(255,255,255,.94) 36%,
+    rgba(255,255,255,.65) 44%,
+    rgba(255,255,255,.0) 58%
+  );
+  z-index: 1;
+}
+/* Ensure the foreground layer (with the card) is above the gradient */
+section.landing-hero.promo-auth-hero .hero-layer { position: relative; z-index: 2; }
+/* Slightly lift the card so it visually sits forward over the image edge */
+section.landing-hero.promo-auth-hero .promo-card { box-shadow: 0 16px 40px -18px rgba(2,6,23,.28), 0 10px 26px -18px rgba(2,6,23,.18); }
+@media (min-width: 992px){
+  /* On large screens, nudge image even more to the right to emphasize the overlap */
+  section.landing-hero.promo-auth-hero .hero-bg { background-position: calc(100% - 40px) center !important; }
+}
+@media (max-width: 575.98px){
+  /* On small screens, extend the fade so text remains readable over the photo */
+  section.landing-hero.promo-auth-hero .hero-bg::after {
+    background: linear-gradient(90deg,
+      #ffffff 0%,
+      #ffffff 34%,
+      rgba(255,255,255,.95) 44%,
+      rgba(255,255,255,.72) 54%,
+      rgba(255,255,255,.0) 70%
+    );
+  }
+}
+
+/* --- Rectangular image on the right with overlap (match "pasted image 2") --- */
+@media (min-width: 768px){
+  /* Let the image be a right-aligned block occupying ~68% of the frame width */
+  section.landing-hero.promo-auth-hero .hero-frame { overflow: visible !important; }
+  /* Remove the hero frame overlay so left side looks clean (no purple wash) */
+  section.landing-hero.promo-auth-hero .hero-frame::before { content: none !important; }
+  section.landing-hero.promo-auth-hero .hero-bg {
+    inset: auto !important;               /* reset shorthand to avoid fighting side assignments */
+    left: auto !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 68% !important;              /* controls how much of the right is image */
+    border-radius: 18px !important;      /* rounded rectangle edges */
+    box-shadow: 0 24px 48px -22px rgba(2,6,23,.28), 0 12px 32px -20px rgba(2,6,23,.16);
+  }
+  /* Remove the soft fade; we want a clean rectangular photo edge */
+  section.landing-hero.promo-auth-hero .hero-bg::after { content: none !important; }
+  /* Nudge the card slightly so it overlaps the photo edge tastefully */
+  section.landing-hero.promo-auth-hero .promo-card-wrap { margin-left: clamp(.25rem, 1.4vw, 1.2rem); }
+  /* Vertically center the card relative to the image block */
+  section.landing-hero.promo-auth-hero .hero-layer { align-items: center !important; }
+}
+@media (min-width: 1200px){
+  /* On very wide screens, let the photo occupy a bit more space */
+  section.landing-hero.promo-auth-hero .hero-bg { width: 72% !important; }
+}
+
+/* Precise left edge: image starts after half of the register card (with slight overlap) */
+section.landing-hero.promo-auth-hero {
+  --hero-pad: 24px;     /* 1.5rem per .hero-layer at >=768px */
+  --card-w: 350px;      /* default at >=768px */
+  --overlap: 12px;      /* how much the card overlaps the image edge */
+}
+@media (min-width: 992px){ section.landing-hero.promo-auth-hero { --card-w: 360px; } }
+@media (min-width: 1200px){ section.landing-hero.promo-auth-hero { --card-w: 380px; } }
+@media (min-width: 768px){
+  /* Compute image left edge relative to frame: padding + 1/2 card width - overlap */
+  section.landing-hero.promo-auth-hero .hero-bg {
+    left: calc(var(--hero-pad) + (var(--card-w) / 2) - var(--overlap)) !important;
+    right: 0 !important;
+    width: auto !important;  /* override fixed % widths above */
+  }
+}
+
 /* Animation delay helpers (paired with .fade-up) */
 .fade-delay-1 { animation-delay:.05s !important; }
 .fade-delay-2 { animation-delay:.10s !important; }
@@ -994,6 +1088,100 @@ select.filter-bold option { font-weight:500; }
   .feature-card, .step-item, .testimonial-card { padding:1rem .95rem 1.05rem; }
   .cta-title { font-size:2.05rem; }
 }
+
+/* =====================================
+   Index Search UI Micro‑polish (safe)
+   ===================================== */
+/* Keyword suggestion dropdown (portalized #kw-suggest) */
+#kw-suggest.dropdown-menu {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: .35rem;
+  box-shadow: 0 18px 38px -16px rgba(2,6,23,.28), 0 8px 20px -16px rgba(2,6,23,.15);
+  background: #fff;
+}
+#kw-suggest .dropdown-item {
+  border-radius: .5rem;
+  padding: .45rem .65rem;
+  font-size: .9rem;
+}
+#kw-suggest .dropdown-item:hover,
+#kw-suggest .dropdown-item:focus,
+#kw-suggest .dropdown-item.active {
+  background: #eef6ff;
+  color: #0b3f7d;
+}
+#kw-suggest-header,
+#kw-history-header {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #5b6a79;
+}
+#kw-history-bar .btn {
+  --bs-btn-padding-y: .25rem;
+  --bs-btn-padding-x: .5rem;
+  --bs-btn-font-size: .72rem;
+  border-radius: .5rem;
+}
+/* Dropdown scrollbars (scoped) */
+#kw-suggest::-webkit-scrollbar { width: 8px; }
+#kw-suggest::-webkit-scrollbar-thumb { background: linear-gradient(var(--nav-grad-start), var(--nav-grad-end)); border-radius: 6px; }
+
+/* Compact filter inputs: hover/focus feedback */
+.filters-condensed .form-control,
+.filters-condensed .form-select {
+  transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.filters-condensed .form-control:hover,
+.filters-condensed .form-select:hover { background-color: #f9fbff; }
+.filters-condensed .form-control:focus,
+.filters-condensed .form-select:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 .2rem rgba(255,200,87,.25);
+}
+
+/* Related search chips and sort chips */
+[aria-label="Related searches"] .btn.btn-outline-primary {
+  border-color: #cfe0f5;
+  background: #fff;
+  transition: transform .12s ease, box-shadow .18s ease, background-color .18s ease;
+}
+[aria-label="Related searches"] .btn.btn-outline-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -10px rgba(13,110,253,.35), 0 4px 10px -8px rgba(0,0,0,.06);
+  background: #eff6ff;
+}
+[aria-label="Related searches"] .sort-chip {
+  border-color: #cfe0f5;
+  background: #fff;
+}
+[aria-label="Related searches"] .sort-chip:hover { background:#eff6ff; }
+[aria-label="Related searches"] .sort-chip.active { background:#0d6efd; border-color:#0d6efd; color:#fff; }
+
+/* Action buttons subtle motion */
+.action-bar-compressed .btn { transition: transform .12s ease, box-shadow .18s ease; }
+.action-bar-compressed .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -10px rgba(13,110,253,.35), 0 4px 10px -8px rgba(0,0,0,.06); }
+
+/* Two‑pane layout small polish (non‑intrusive) */
+#two-pane .detail-card { border:1px solid #e6eef7; box-shadow: 0 1px 2px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.06); }
+#leftPane .list-group-item { transition: border-color .2s ease, box-shadow .2s ease, transform .1s ease; }
+#leftPane .list-group-item:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -14px rgba(13,110,253,.35), 0 6px 16px -12px rgba(0,0,0,.08); }
+#leftPane .list-group-item.active { border-color: #0d6efd !important; background: #f0f6ff; }
+
+/* Better focus for keyboard users */
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.list-group-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 .2rem rgba(255,200,87,.35) !important;
+}
+
+/* Toast container ensure top spacing */
+.toast-container { margin-top: .75rem; }
+
 
 /* =====================================
    Profile Edit Page

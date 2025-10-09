@@ -483,17 +483,115 @@ function fmt_salary($cur, $min, $max, $period) {
 </div>
 
 <?php if (!$hasFilters): ?>
-<!-- Landing Hero Section moved below search -->
-<section class="landing-hero hero-white-text parallax" style="background: linear-gradient(135deg, rgba(13,110,253,.65), rgba(102,16,242,.72)), url('assets/images/hero/bg5.jpg') center top / contain no-repeat, linear-gradient(135deg, #f0f7ff 0%, #ffffff 65%); background-color:#0d6efd;">
-  <div class="container hero-content">
-    <div class="row align-items-center g-4">
-      <div class="col-12">
-        <h1 class="hero-title mt-3 mb-3 fade-up fade-delay-2" style="color:#fff !important; -webkit-text-fill-color:#fff !important;">Find Accessible <span class="text-gradient-brand" style="color:#fff !important; -webkit-text-fill-color:#fff !important; background:none !important;">Work From Home</span> Jobs</h1>
-        <p class="hero-lead mb-4 fade-up fade-delay-3">Browse curated Work From Home roles from verified, accessibility‑conscious employers. Search, filter, and apply to jobs that value your skills and support your success.</p>
+<!-- Promotional hero below search: background image with CTA card -->
+<style>
+  .promo-auth-hero{ position:relative; overflow:visible; margin-top:.25rem; margin-bottom:.75rem; }
+  /* Frame (blue outline target): centered holder that contains the background */
+  .promo-auth-hero .hero-frame{ position:relative; margin:0 auto; border-radius:20px; overflow:hidden; box-shadow:0 26px 56px -28px rgba(2,6,23,.30), 0 16px 36px -24px rgba(2,6,23,.18); }
+  .promo-auth-hero .hero-frame{ min-height: 340px; max-width: 1080px; }
+  @media (min-width: 768px){ .promo-auth-hero .hero-frame{ min-height: 420px; } }
+  @media (min-width: 992px){ .promo-auth-hero .hero-frame{ min-height: 480px; max-width: 1120px; } }
+  @media (min-width: 1200px){ .promo-auth-hero .hero-frame{ min-height: 520px; max-width: 1160px; } }
+  @media (max-width: 575.98px){ .promo-auth-hero .hero-frame{ min-height: 320px; border-radius:14px; } }
+  .promo-auth-hero .hero-bg{ position:absolute; inset:0; background: center/cover no-repeat; filter:none; transform:translateZ(0); }
+  .promo-auth-hero .hero-frame::before{ content:""; position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,.08), rgba(0,0,0,.12)); pointer-events:none; z-index:1; }
+  .promo-auth-hero .hero-layer{ position:absolute; inset:0; z-index:2; display:flex; align-items:flex-start; padding:1rem; }
+  @media (min-width: 768px){ .promo-auth-hero .hero-layer{ padding:1.5rem; } }
+  /* Card (red outline target) */
+  .promo-auth-hero .promo-card-wrap{ width: 320px; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-card-wrap{ width: 350px; } }
+  @media (min-width: 992px){ .promo-auth-hero .promo-card-wrap{ width: 360px; } }
+  @media (min-width: 1200px){ .promo-auth-hero .promo-card-wrap{ width: 380px; } }
+  .promo-auth-hero .promo-card{ position:relative; background:#ffffff; border:1px solid #e5e7eb; border-radius:.95rem; box-shadow:0 12px 28px -18px rgba(2,6,23,.18), 0 8px 22px -16px rgba(2,6,23,.10); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+  .promo-auth-hero .promo-card:hover{ transform: translateY(-2px); box-shadow:0 18px 40px -24px rgba(2,6,23,.22), 0 12px 26px -18px rgba(2,6,23,.14); }
+  .promo-auth-hero .promo-title{ font-weight:800; letter-spacing:.2px; color:#0b132a; font-size:1.35rem; line-height:1.2; }
+  .promo-auth-hero .promo-sub{ color:#475569; margin-bottom:.6rem; }
+  .promo-auth-hero .promo-points{ list-style:none; padding-left:0; margin:0 0 .75rem; }
+  .promo-auth-hero .promo-points li{ display:flex; align-items:flex-start; gap:.5rem; color:#334155; font-size:.9rem; margin-bottom:.2rem; }
+  .promo-auth-hero .promo-points li i{ color:#0d6efd; margin-top:.2rem; font-size:.85rem; }
+  .promo-auth-hero .btn{ height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  .promo-auth-hero .btn:focus{ box-shadow:0 0 0 .2rem rgba(13,110,253,.28); }
+  .promo-auth-hero .btn.btn-primary{ background: linear-gradient(180deg, #2b7bff, #0d6efd); border-color:#0d6efd; }
+  .promo-auth-hero .btn.btn-primary:hover{ filter: brightness(1.03); }
+  .promo-auth-hero .btn.btn-outline-primary{ background:#fff; border-width:2px; }
+  .promo-auth-hero .btn.btn-outline-primary:hover{ background:#eff6ff; }
+  .promo-auth-hero .promo-divider{ position:relative; display:flex; align-items:center; justify-content:center; gap:.5rem; color:#6b7280; margin:.1rem 0 .1rem; }
+  .promo-auth-hero .promo-divider::before,
+  .promo-auth-hero .promo-divider::after{ content:""; flex:1; height:1px; background:#e5e7eb; }
+  .promo-auth-hero .promo-divider span{ font-size:.8rem; padding:0 .25rem; }
+  /* Keep consistent hiding when searching */
+  body.search-active .promo-auth-hero{ display:none !important; }
+  /* === Hero layout overrides (ensure effect even if external CSS is cached) === */
+  /* Clean left side (no gradient wash from frame) */
+  .promo-auth-hero .hero-frame::before{ content:none !important; }
+  /* Soft section background that matches site theme */
+  section.landing-hero.promo-auth-hero{
+    background:
+      radial-gradient(circle at 15% 25%, rgba(13,110,253,.06), transparent 55%),
+      radial-gradient(circle at 85% 20%, rgba(102,16,242,.06), transparent 60%),
+      linear-gradient(135deg, #f8fbff 0%, #ffffff 70%) !important;
+  }
+  /* Variables for precise image start: hero padding + 1/2 of card width - overlap */
+  .promo-auth-hero{ --hero-pad: 16px; --card-w: 320px; --overlap: 10px; --bg-focus-y: 32%; }
+  @media (min-width: 768px){ .promo-auth-hero{ --hero-pad: 24px; --card-w: 350px; --overlap: 12px; --bg-focus-y: 28%; } }
+  @media (min-width: 992px){ .promo-auth-hero{ --card-w: 360px; } }
+  @media (min-width: 1200px){ .promo-auth-hero{ --card-w: 380px; } }
+  /* Make the frame allow the photo to extend beyond its default clip */
+  .promo-auth-hero .hero-frame{ overflow:visible !important; background:transparent !important; box-shadow:none !important; }
+  /* Right-side rounded rectangle photo whose left edge starts after half of the register card */
+  @media (min-width: 768px){
+    .promo-auth-hero .hero-bg{
+      inset:auto !important; /* cancel previous inset:0 */
+      left: calc(var(--hero-pad) + (var(--card-w) / 2) - var(--overlap)) !important;
+      right: 0 !important;
+      top: 50% !important; bottom: auto !important; /* vertically center */
+      transform: translateY(-50%);
+      width: auto !important; height: auto !important;
+      aspect-ratio: 16 / 9; /* keep full image visible without cropping */
+      border-radius: 18px !important;
+      box-shadow: 0 24px 48px -22px rgba(2,6,23,.28), 0 12px 32px -20px rgba(2,6,23,.16);
+      /* Show full photo (no cropping), align right; fill leftover with white */
+  /* Focus slightly higher so the head isn’t cropped */
+  background-position: right var(--bg-focus-y) !important;
+      background-repeat: no-repeat !important;
+      background-size: cover !important;
+      background-color: transparent !important;
+    }
+    /* Center the card vertically and add a tiny nudge for tasteful overlap */
+    .promo-auth-hero .hero-layer{ align-items:center !important; }
+    .promo-auth-hero .promo-card-wrap{ margin-left: clamp(.15rem, 1.2vw, 1rem); }
+  }
+</style>
+<section class="landing-hero promo-auth-hero">
+  <div class="container">
+    <div class="hero-frame">
+  <div class="hero-bg" style="background-image:url('assets/images/hero/pwdbg.jpg');"></div>
+      <div class="hero-layer">
+        <div class="row justify-content-start w-100 g-0">
+          <div class="col-12 col-sm-9 col-md-auto">
+            <div class="promo-card-wrap">
+              <div class="promo-card card">
+                <div class="card-body p-3 p-md-4">
+                  <h2 class="h4 promo-title mb-2">Find the right PWD job for you on PWD Portal</h2>
+                  <p class="promo-sub small">Sign in to see jobs matched to your skills, location, and accessibility needs.</p>
+                  <ul class="promo-points">
+                    <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Verified, WFH-friendly employers</span></li>
+                    <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Jobs tagged by PWD accessibility types</span></li>
+                    <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Apply fast and track your progress</span></li>
+                  </ul>
+                  <div class="d-grid gap-2">
+                    <a href="register.php" class="btn btn-primary fw-semibold"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Register</a>
+                    <div class="promo-divider"><span>or</span></div>
+                    <a href="login.php" class="btn btn-outline-primary fw-semibold"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i> Sign in</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  
 </section>
 <?php endif; ?>
 
