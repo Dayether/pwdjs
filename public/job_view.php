@@ -33,10 +33,20 @@ if (!$job) {
     exit;
 }
 
-$currentUserId = $_SESSION['user_id'] ?? null;
+// Public visibility gate: only Approved moderated jobs are publicly viewable
 $viewerRole    = $_SESSION['role'] ?? '';
+$currentUserId = $_SESSION['user_id'] ?? null;
 $isOwner = $currentUserId && Helpers::isEmployer() && $job->employer_id === $currentUserId;
 $isAdmin = ($viewerRole === 'admin');
+if (!$isAdmin && !$isOwner && ($job->moderation_status ?? 'Approved') !== 'Approved') {
+  include '../includes/header.php';
+  include '../includes/nav.php';
+  echo '<div class="container py-5"><div class="alert alert-warning">This job is not available. It may be pending review or was rejected.</div></div>';
+  include '../includes/footer.php';
+  exit;
+}
+
+// variables already defined above
 
 $employer = User::findById($job->employer_id);
 $employerStatus = $employer ? ($employer->employer_status ?? 'Pending') : 'Unknown';

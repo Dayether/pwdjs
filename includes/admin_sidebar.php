@@ -5,6 +5,7 @@ $adminNavItems = [
   ['file' => 'admin_employers.php', 'icon' => 'buildings', 'label' => 'Employers'],
   ['file' => 'admin_job_seekers.php', 'icon' => 'people', 'label' => 'Job Seekers'],
   ['file' => 'admin_reports.php', 'icon' => 'flag', 'label' => 'Reports'],
+  ['file' => 'admin_jobs_moderation.php', 'icon' => 'clipboard-check', 'label' => 'Jobs Moderation'],
   ['file' => 'admin_support_tickets.php', 'icon' => 'life-preserver', 'label' => 'Support'],
   // Hidden per request: Normalize Disabilities and Tasks Log
 ];

@@ -10,8 +10,8 @@ $pdo = null;
 $totalJobs = $activeWFH = $approvedEmployers = $jobSeekers = null;
 try {
   $pdo = Database::getConnection();
-  $totalJobs = (int)$pdo->query("SELECT COUNT(*) FROM jobs")->fetchColumn();
-  $activeWFH = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE remote_option='Work From Home'")->fetchColumn();
+  $totalJobs = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE moderation_status='Approved'")->fetchColumn();
+  $activeWFH = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE remote_option='Work From Home' AND moderation_status='Approved'")->fetchColumn();
   $approvedEmployers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='employer' AND employer_status='Approved'")->fetchColumn();
   $jobSeekers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='job_seeker'")->fetchColumn();
 } catch(Throwable $e) {

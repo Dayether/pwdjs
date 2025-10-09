@@ -32,7 +32,7 @@ $stmt = $pdo->prepare("
   SELECT job_id, title, created_at, location_city, location_region, employment_type,
          salary_currency, salary_min, salary_max, salary_period, job_image
   FROM jobs
-  WHERE employer_id = ? AND remote_option = 'Work From Home'
+  WHERE employer_id = ? AND remote_option = 'Work From Home' AND moderation_status='Approved'
   ORDER BY created_at DESC
 ");
 $stmt->execute([$employer_id]);

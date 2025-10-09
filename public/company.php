@@ -18,7 +18,7 @@ $pdo = Database::getConnection();
 // Jobs by employer (recent)
 $jobs = [];
 try {
-  $st = $pdo->prepare("SELECT job_id, title, created_at, employment_type, salary_currency, salary_min, salary_max FROM jobs WHERE employer_id=? ORDER BY created_at DESC LIMIT 200");
+  $st = $pdo->prepare("SELECT job_id, title, created_at, employment_type, salary_currency, salary_min, salary_max FROM jobs WHERE employer_id=? AND moderation_status='Approved' ORDER BY created_at DESC LIMIT 200");
   $st->execute([$employer->user_id]);
   $jobs = $st->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) { $jobs = []; }

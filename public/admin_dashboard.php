@@ -11,6 +11,12 @@ $totalEmployers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='emplo
 $totalSeekers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='job_seeker'")->fetchColumn();
 $totalAdmins = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='admin'")->fetchColumn();
 $totalJobs = (int)$pdo->query("SELECT COUNT(*) FROM jobs")->fetchColumn();
+$pendingJobs = 0; $approvedJobs = 0; $rejectedJobs = 0;
+try {
+  $approvedJobs = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE moderation_status='Approved'")->fetchColumn();
+  $pendingJobs  = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE moderation_status='Pending'")->fetchColumn();
+  $rejectedJobs = (int)$pdo->query("SELECT COUNT(*) FROM jobs WHERE moderation_status='Rejected'")->fetchColumn();
+} catch (Throwable $e) {}
 $pendingEmployers = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='employer' AND COALESCE(employer_status,'Pending')='Pending'")->fetchColumn();
 $pendingPwd = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='job_seeker' AND COALESCE(pwd_id_status,'None')='Pending'")->fetchColumn();
 $todayJobs = 0;

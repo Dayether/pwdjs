@@ -38,14 +38,25 @@ $canSeePrivate = $isSelf || ($viewerRole === 'admin');
 $jobs = [];
 try {
     $pdo = Database::getConnection();
+  if ($canSeePrivate) {
     $stmt = $pdo->prepare("
-        SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency
-        FROM jobs
-        WHERE employer_id=?
-        ORDER BY created_at DESC
-        LIMIT 200
+      SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency, moderation_status
+      FROM jobs
+      WHERE employer_id=?
+      ORDER BY created_at DESC
+      LIMIT 200
     ");
     $stmt->execute([$employer->user_id]);
+  } else {
+    $stmt = $pdo->prepare("
+      SELECT job_id, title, status, created_at, employment_type, salary_min, salary_max, salary_currency
+      FROM jobs
+      WHERE employer_id=? AND moderation_status='Approved'
+      ORDER BY created_at DESC
+      LIMIT 200
+    ");
+    $stmt->execute([$employer->user_id]);
+  }
     $jobs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
     $jobs = [];

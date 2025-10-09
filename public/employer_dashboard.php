@@ -278,6 +278,8 @@ include '../includes/nav.php';
         <?php else: ?>
           <?php foreach ($jobs as $j):
             $status = $j['status'] ?? 'Open';
+            $mod = $j['moderation_status'] ?? 'Approved';
+            $modReason = trim((string)($j['moderation_reason'] ?? ''));
             $badge = $status==='Open'?'success':($status==='Closed'?'secondary':($status==='Suspended'?'warning':'dark'));
             $salary = '—';
             if (!empty($j['salary_min']) && !empty($j['salary_max'])) {
@@ -309,6 +311,16 @@ include '../includes/nav.php';
                 <span class="jm-status jm-status-<?php echo strtolower($status); ?>">
                   <i class="bi bi-<?php echo $status==='Open'?'play-fill':($status==='Suspended'?'pause-fill':'stop-fill'); ?> me-1"></i><?php echo htmlspecialchars($status); ?>
                 </span>
+                <?php if ($mod !== 'Approved'): ?>
+                  <div class="small mt-1">
+                    <span class="badge rounded-pill text-bg-<?php echo $mod==='Pending'?'warning':'danger'; ?>">
+                      <?php echo htmlspecialchars($mod); ?>
+                    </span>
+                    <?php if ($mod==='Rejected' && $modReason!==''): ?>
+                      <span class="text-muted ms-1" title="Reason">(<?php echo htmlspecialchars($modReason); ?>)</span>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
               </td>
               <td class="small text-nowrap"><?php echo htmlspecialchars(date('M d, Y', strtotime($j['created_at']))); ?></td>
               <td class="text-center text-nowrap">
@@ -345,6 +357,8 @@ include '../includes/nav.php';
       <div class="jm-cards d-md-none" id="jobsCards">
         <?php if ($jobs): foreach ($jobs as $j):
           $status = $j['status'] ?? 'Open';
+          $mod = $j['moderation_status'] ?? 'Approved';
+          $modReason = trim((string)($j['moderation_reason'] ?? ''));
           $salary = (!empty($j['salary_min']) && !empty($j['salary_max'])) ? 'PHP '.number_format($j['salary_min']).'–'.number_format($j['salary_max']).' / '.ucfirst($j['salary_period'] ?? 'monthly') : '—';
           $locationParts = array_filter([$j['location_city'] ?? '', $j['location_region'] ?? '']);
           $loc = $locationParts ? implode(', ',$locationParts) : '—';
@@ -365,6 +379,14 @@ include '../includes/nav.php';
             </div>
             <span class="jm-status jm-status-<?php echo strtolower($status); ?> small flex-shrink-0"><i class="bi bi-<?php echo $status==='Open'?'play-fill':($status==='Suspended'?'pause-fill':'stop-fill'); ?> me-1"></i><?php echo htmlspecialchars($status); ?></span>
           </div>
+          <?php if ($mod !== 'Approved'): ?>
+            <div class="small mt-1">
+              <span class="badge rounded-pill text-bg-<?php echo $mod==='Pending'?'warning':'danger'; ?>"><?php echo htmlspecialchars($mod); ?></span>
+              <?php if ($mod==='Rejected' && $modReason!==''): ?>
+                <span class="text-muted ms-1" title="Reason">(<?php echo htmlspecialchars($modReason); ?>)</span>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
           <div class="jm-card-body small mt-2">
             <div class="mb-1"><i class="bi bi-cpu me-1"></i><?php echo htmlspecialchars(($j['remote_option'] ?? 'Work From Home').' · '.($j['employment_type'] ?? 'Full time')); ?></div>
             <div class="mb-1"><i class="bi bi-cash-coin me-1"></i><?php echo htmlspecialchars($salary); ?></div>

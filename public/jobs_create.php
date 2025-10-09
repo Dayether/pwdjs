@@ -159,9 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'salary_period' => $salary_period,
             'job_image' => $job_image,
         ];
-        if (Job::create($data, $_SESSION['user_id'])) {
-            Helpers::flash('msg','Job created.');
-            Helpers::redirect('employer_dashboard.php');
+    if (Job::create($data, $_SESSION['user_id'])) {
+      Helpers::flash('msg','Job submitted and is now awaiting admin review. You\'ll receive an email once it\'s approved or if changes are needed.');
+      Helpers::redirect('employer_dashboard.php');
         } else {
             $errors[] = 'Creation failed';
         }

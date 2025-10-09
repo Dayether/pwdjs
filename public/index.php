@@ -75,7 +75,8 @@ if ($hasFilters) {
   $where = [
     "u.role = 'employer'",
     "u.employer_status = 'Approved'",
-    "j.remote_option = 'Work From Home'"
+    "j.remote_option = 'Work From Home'",
+    "j.moderation_status = 'Approved'" // only approved jobs visible in search
   ];
   $params = [];
   $extraJoin = '';
@@ -156,9 +157,15 @@ if ($hasFilters) {
       j.location_city, j.location_region, j.employment_type,
       j.salary_currency, j.salary_min, j.salary_max, j.salary_period,
       j.accessibility_tags, j.job_image,
+      COALESCE(jt.pwd_types, j.applicable_pwd_types) AS pwd_types,
       u.company_name, u.user_id AS employer_id
     FROM jobs j
     JOIN users u ON u.user_id = j.employer_id
+    LEFT JOIN (
+      SELECT job_id, GROUP_CONCAT(DISTINCT pwd_type ORDER BY pwd_type SEPARATOR ',') AS pwd_types
+      FROM job_applicable_pwd_types
+      GROUP BY job_id
+    ) jt ON jt.job_id = j.job_id
     $extraJoin
     WHERE $whereSql
   ORDER BY $orderSql
@@ -214,15 +221,15 @@ try {
   $totalEmployers = (int)$stmtEmp->fetchColumn();
 
   // Total active jobs (all employment types) by approved employers
-  $stmtJobsAll = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved'");
+  $stmtJobsAll = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.moderation_status='Approved'");
   $totalJobsAll = (int)$stmtJobsAll->fetchColumn();
 
   // Total WFH jobs (even if not filtered)
-  $stmtJobsWFH = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home'");
+  $stmtJobsWFH = $pdo->query("SELECT COUNT(*) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home' AND j.moderation_status='Approved'");
   $totalWFHJobs = (int)$stmtJobsWFH->fetchColumn();
 
   // Distinct regions represented by WFH jobs
-  $stmtRegions = $pdo->query("SELECT COUNT(DISTINCT CONCAT(IFNULL(j.location_region,''), '|', IFNULL(j.location_city,''))) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home'");
+  $stmtRegions = $pdo->query("SELECT COUNT(DISTINCT CONCAT(IFNULL(j.location_region,''), '|', IFNULL(j.location_city,''))) FROM jobs j JOIN users u ON u.user_id = j.employer_id WHERE u.role='employer' AND u.employer_status='Approved' AND j.remote_option='Work From Home' AND j.moderation_status='Approved'");
   $totalLocations = (int)$stmtRegions->fetchColumn();
 } catch (Exception $e) {
   $totalEmployers = $totalJobsAll = $totalWFHJobs = $totalLocations = 0; // fail gracefully
@@ -720,6 +727,16 @@ document.addEventListener('DOMContentLoaded', function(){
               <p class="mb-1 text-muted"><?php echo $company; ?> · <?php echo $etype; ?><?php if ($loc) echo ' · ' . $loc; ?></p>
               <div class="small">
                 <span class="me-2"><i class="bi bi-cash-coin" aria-hidden="true"></i> <?php echo htmlspecialchars($salary); ?></span>
+                <?php
+                  $pwdCsv = trim((string)($job['pwd_types'] ?? ''));
+                  if ($pwdCsv !== '') {
+                    $parts = array_filter(array_map('trim', explode(',', $pwdCsv)), fn($v)=>$v!=='');
+                    $parts = array_values(array_unique($parts));
+                    foreach ($parts as $pt) {
+                      echo '<span class="badge bg-primary-subtle text-primary-emphasis border me-1 mb-1">'.htmlspecialchars($pt).'</span>';
+                    }
+                  }
+                ?>
                 <?php if ($tagsText !== ''): ?>
                   <?php foreach (explode(',', $tagsText) as $t): $t=trim($t); if (!$t) continue; ?>
                     <span class="badge bg-light text-dark border me-1 mb-1"><?php echo htmlspecialchars($t); ?></span>
