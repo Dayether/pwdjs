@@ -16,7 +16,8 @@ if ($loggedIn && $role==='employer') {
   $profileLink='job_seeker_profile.php'; // self-view; edit button available inside
 }
 ?>
-<nav class="navbar navbar-expand-lg navbar-themed sticky-top">
+<?php $isIndex = ($currentPage === 'index.php'); ?>
+<nav class="navbar navbar-expand-lg navbar-themed<?php echo $isIndex ? '' : ' sticky-top'; ?>">
   <div class="container-fluid px-3 px-lg-4">
     <?php
       // Reuse favicon (set in header) as nav logo if available on disk
@@ -183,14 +184,18 @@ if ($loggedIn && $role==='employer') {
   /* Dropdown layering */
   .navbar .dropdown-menu { z-index: 2000; backdrop-filter: blur(12px); background:rgba(255,255,255,.95); position:absolute; }
   .navbar .dropdown-menu .dropdown-item:hover { background: linear-gradient(90deg,#eef5ff,#e6f0ff); }
-  /* Smooth hide white gap below nav when at top */
-  body { margin:0; scroll-padding-top: 76px; }
+  /* Smooth hide white gap below nav when at top (only useful when sticky) */
+  body { margin:0; }
+  body.has-sticky-nav{ scroll-padding-top: 76px; }
   .navbar { margin:0 !important; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded',function(){
   const nav = document.querySelector('.navbar-themed');
   if(!nav) return;
+  if (nav.classList.contains('sticky-top')) {
+    document.body.classList.add('has-sticky-nav');
+  }
   function onScroll(){
     if(window.scrollY > 40){
       nav.classList.add('navbar-scrolled');

@@ -290,7 +290,7 @@ function fmt_salary($cur, $min, $max, $period) {
   #rightPane{scrollbar-width:thin;}
   /* Increase list group card visual weight */
   #job-list .list-group-item{background:#fff;}
-  body.search-active .landing-hero, body.search-active .features-section, body.search-active .steps-section, body.search-active .testimonials-section, body.search-active .cta-section{display:none !important;}
+  body.search-active .landing-hero, body.search-active .callouts-duo-section, body.search-active .cta-section{display:none !important;}
   body.search-active{background:#f8fafc;}
   /* Scroll shadow indicators */
   .pane-scroll{position:relative;}
@@ -342,8 +342,31 @@ function fmt_salary($cur, $min, $max, $period) {
     .action-bar-compressed .btn i{margin-right:0;}
     .action-bar-compressed .btn span{display:none !important;}
   }
+  /* === Landing micro-interactions (purely visual) === */
+  :root{ --hover-shadow: 0 14px 32px -18px rgba(13,110,253,.35), 0 8px 18px -16px rgba(2,6,23,.18); }
+  /* Inputs: soft glow on hover/focus */
+  .compact-filters .form-control:hover, .compact-filters .form-select:hover{ border-color:#bcd7ff; box-shadow:0 0 0 .18rem rgba(13,110,253,.12); }
+  .compact-filters .form-control:focus, .compact-filters .form-select:focus{ box-shadow:0 0 0 .22rem rgba(13,110,253,.2); }
+  /* Buttons */
+  .filters-condensed .btn.btn-primary{ transition: box-shadow .18s ease, transform .12s ease; }
+  .filters-condensed .btn.btn-primary:hover{ box-shadow:var(--hover-shadow); transform:translateY(-1px); }
+  .filters-condensed .btn.btn-outline-secondary{ transition: background-color .15s ease, border-color .15s ease, transform .12s ease; }
+  .filters-condensed .btn.btn-outline-secondary:hover{ background:#f2f7ff; border-color:#cfe1ff; transform:translateY(-1px); }
+  /* Related search chips */
+  [aria-label="Related searches"] a.btn{ transition: transform .12s ease, box-shadow .15s ease, background-color .15s ease, border-color .15s ease; }
+  [aria-label="Related searches"] a.btn:hover{ transform:scale(1.03); box-shadow:0 10px 18px -12px rgba(13,110,253,.25); border-color:#bcd7ff; background:#f7fbff; }
+  /* Job list items hover enhancement */
+  #job-list .list-group-item{ transition: box-shadow .18s ease, transform .12s ease, border-color .15s ease, background-color .15s ease; }
+  #job-list .list-group-item:hover{ background:#fafdff; }
+  /* Callouts: slight image zoom on hover */
+  .callout-card{ transition: transform .18s ease, box-shadow .2s ease, background-size .25s ease; }
+  .callout-card:hover{ background-size:48% auto !important; }
+  /* Reveal-on-scroll */
+  @keyframes fadeSlideUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
+  [data-reveal]{ opacity:0; transform:translateY(8px); }
+  .reveal-in{ animation: fadeSlideUp .28s ease-out both; }
 </style>
-<div class="job-filters-card mb-3" style="margin-top:.5rem;">
+<div class="job-filters-card mb-3" style="margin-top:.5rem;" data-reveal>
   <div class="job-filters-inner p-2 p-md-3 compact-filters">
     <a id="job-filters"></a>
     <!-- Original heading kept for mobile only -->
@@ -459,7 +482,8 @@ function fmt_salary($cur, $min, $max, $period) {
           <?php foreach ($relatedSuggestions as $s):
             $text = is_array($s) ? ($s['text'] ?? '') : (string)$s;
             if ($text === '' || strcasecmp($text, $q) === 0) continue;
-            $qs2 = $_GET; $qs2['q'] = $text; $url = 'index.php?' . http_build_query($qs2);
+            // Build URL that sets 'what' directly and clears 'q' conflicts; also reset to page 1
+            $qs2 = $_GET; unset($qs2['q']); $qs2['what'] = $text; $qs2['p'] = 1; $url = 'index.php?' . http_build_query($qs2);
             $cnt = is_array($s) && isset($s['count']) ? (int)$s['count'] : 0;
           ?>
             <a class="btn btn-sm btn-outline-primary rounded-pill" href="<?php echo htmlspecialchars($url); ?>">
@@ -485,31 +509,42 @@ function fmt_salary($cur, $min, $max, $period) {
 <?php if (!$hasFilters): ?>
 <!-- Promotional hero below search: background image with CTA card -->
 <style>
-  .promo-auth-hero{ position:relative; overflow:visible; margin-top:.25rem; margin-bottom:.75rem; }
+  .promo-auth-hero{ position:relative; overflow:visible; margin-top:.25rem; margin-bottom:2.25rem; }
+  @media (min-width: 768px){ .promo-auth-hero{ margin-bottom:3rem; } }
   /* Frame (blue outline target): centered holder that contains the background */
   .promo-auth-hero .hero-frame{ position:relative; margin:0 auto; border-radius:20px; overflow:hidden; box-shadow:0 26px 56px -28px rgba(2,6,23,.30), 0 16px 36px -24px rgba(2,6,23,.18); }
-  .promo-auth-hero .hero-frame{ min-height: 340px; max-width: 1080px; }
-  @media (min-width: 768px){ .promo-auth-hero .hero-frame{ min-height: 420px; } }
-  @media (min-width: 992px){ .promo-auth-hero .hero-frame{ min-height: 480px; max-width: 1120px; } }
-  @media (min-width: 1200px){ .promo-auth-hero .hero-frame{ min-height: 520px; max-width: 1160px; } }
+  .promo-auth-hero .hero-frame{ min-height: 360px; max-width: 1080px; }
+  @media (min-width: 768px){ .promo-auth-hero .hero-frame{ min-height: 460px; } }
+  @media (min-width: 992px){ .promo-auth-hero .hero-frame{ min-height: 520px; max-width: 1120px; } }
+  @media (min-width: 1200px){ .promo-auth-hero .hero-frame{ min-height: 560px; max-width: 1160px; } }
   @media (max-width: 575.98px){ .promo-auth-hero .hero-frame{ min-height: 320px; border-radius:14px; } }
   .promo-auth-hero .hero-bg{ position:absolute; inset:0; background: center/cover no-repeat; filter:none; transform:translateZ(0); }
   .promo-auth-hero .hero-frame::before{ content:""; position:absolute; inset:0; background:linear-gradient(to bottom, rgba(0,0,0,.08), rgba(0,0,0,.12)); pointer-events:none; z-index:1; }
   .promo-auth-hero .hero-layer{ position:absolute; inset:0; z-index:2; display:flex; align-items:flex-start; padding:1rem; }
   @media (min-width: 768px){ .promo-auth-hero .hero-layer{ padding:1.5rem; } }
-  /* Card (red outline target) */
-  .promo-auth-hero .promo-card-wrap{ width: 320px; }
-  @media (min-width: 768px){ .promo-auth-hero .promo-card-wrap{ width: 350px; } }
-  @media (min-width: 992px){ .promo-auth-hero .promo-card-wrap{ width: 360px; } }
-  @media (min-width: 1200px){ .promo-auth-hero .promo-card-wrap{ width: 380px; } }
+  /* Keep default top padding so card doesn't move up when image is raised */
+  /* Card (red outline target) – larger to reduce whitespace */
+  .promo-auth-hero .promo-card-wrap{ width: 380px; max-width: 96vw; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-card-wrap{ width: 420px; } }
+  @media (min-width: 992px){ .promo-auth-hero .promo-card-wrap{ width: 460px; } }
+  @media (min-width: 1200px){ .promo-auth-hero .promo-card-wrap{ width: 500px; } }
   .promo-auth-hero .promo-card{ position:relative; background:#ffffff; border:1px solid #e5e7eb; border-radius:.95rem; box-shadow:0 12px 28px -18px rgba(2,6,23,.18), 0 8px 22px -16px rgba(2,6,23,.10); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+  .promo-auth-hero .promo-card .card-body{ padding:1.25rem !important; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-card .card-body{ padding:1.75rem !important; } }
+  @media (min-width: 992px){ .promo-auth-hero .promo-card .card-body{ padding:2rem !important; } }
   .promo-auth-hero .promo-card:hover{ transform: translateY(-2px); box-shadow:0 18px 40px -24px rgba(2,6,23,.22), 0 12px 26px -18px rgba(2,6,23,.14); }
-  .promo-auth-hero .promo-title{ font-weight:800; letter-spacing:.2px; color:#0b132a; font-size:1.35rem; line-height:1.2; }
-  .promo-auth-hero .promo-sub{ color:#475569; margin-bottom:.6rem; }
+  .promo-auth-hero .promo-title{ font-weight:800; letter-spacing:.2px; color:#0b132a; font-size:1.45rem; line-height:1.22; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-title{ font-size:1.65rem; } }
+  @media (min-width: 992px){ .promo-auth-hero .promo-title{ font-size:1.75rem; } }
+  .promo-auth-hero .promo-sub{ color:#475569; margin-bottom:.75rem; font-size:.95rem; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-sub{ font-size:1rem; } }
   .promo-auth-hero .promo-points{ list-style:none; padding-left:0; margin:0 0 .75rem; }
-  .promo-auth-hero .promo-points li{ display:flex; align-items:flex-start; gap:.5rem; color:#334155; font-size:.9rem; margin-bottom:.2rem; }
+  .promo-auth-hero .promo-points li{ display:flex; align-items:flex-start; gap:.6rem; color:#334155; font-size:.95rem; margin-bottom:.3rem; }
+  @media (min-width: 768px){ .promo-auth-hero .promo-points li{ font-size:1rem; } }
   .promo-auth-hero .promo-points li i{ color:#0d6efd; margin-top:.2rem; font-size:.85rem; }
-  .promo-auth-hero .btn{ height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  .promo-auth-hero .btn{ height:48px; display:inline-flex; align-items:center; justify-content:center; }
+  @media (min-width: 768px){ .promo-auth-hero .btn{ height:52px; } }
+  @media (min-width: 992px){ .promo-auth-hero .btn{ height:54px; } }
   .promo-auth-hero .btn:focus{ box-shadow:0 0 0 .2rem rgba(13,110,253,.28); }
   .promo-auth-hero .btn.btn-primary{ background: linear-gradient(180deg, #2b7bff, #0d6efd); border-color:#0d6efd; }
   .promo-auth-hero .btn.btn-primary:hover{ filter: brightness(1.03); }
@@ -524,45 +559,51 @@ function fmt_salary($cur, $min, $max, $period) {
   /* === Hero layout overrides (ensure effect even if external CSS is cached) === */
   /* Clean left side (no gradient wash from frame) */
   .promo-auth-hero .hero-frame::before{ content:none !important; }
-  /* Soft section background that matches site theme */
+  /* Soft bluish-white background per spec (#F5F8FC → #EEF3FA) */
   section.landing-hero.promo-auth-hero{
-    background:
-      radial-gradient(circle at 15% 25%, rgba(13,110,253,.06), transparent 55%),
-      radial-gradient(circle at 85% 20%, rgba(102,16,242,.06), transparent 60%),
-      linear-gradient(135deg, #f8fbff 0%, #ffffff 70%) !important;
+    background: linear-gradient(135deg, #F5F8FC 0%, #EEF3FA 100%) !important;
   }
-  /* Variables for precise image start: hero padding + 1/2 of card width - overlap */
-  .promo-auth-hero{ --hero-pad: 16px; --card-w: 320px; --overlap: 10px; --bg-focus-y: 32%; }
-  @media (min-width: 768px){ .promo-auth-hero{ --hero-pad: 24px; --card-w: 350px; --overlap: 12px; --bg-focus-y: 28%; } }
-  @media (min-width: 992px){ .promo-auth-hero{ --card-w: 360px; } }
-  @media (min-width: 1200px){ .promo-auth-hero{ --card-w: 380px; } }
-  /* Make the frame allow the photo to extend beyond its default clip */
-  .promo-auth-hero .hero-frame{ overflow:visible !important; background:transparent !important; box-shadow:none !important; }
+  /* Variables for precise positioning */
+  .promo-auth-hero{ --hero-pad: 16px; --card-w: 380px; --overlap: 12px; --bg-focus-y: 22%; --img-offset-y: 0px; --bg-shift-x: 0px; }
+  @media (min-width: 768px){ .promo-auth-hero{ --hero-pad: 24px; --card-w: 420px; --overlap: 14px; --bg-focus-y: 20%; --img-offset-y: 0px; --bg-shift-x: 0px; } }
+  @media (min-width: 992px){ .promo-auth-hero{ --card-w: 460px; } }
+  @media (min-width: 1200px){ .promo-auth-hero{ --card-w: 500px; } }
+  /* Make the frame clip the image so it fills perfectly with rounded corners */
+  .promo-auth-hero .hero-frame{ overflow:hidden !important; background:transparent !important; box-shadow:none !important; }
   /* Right-side rounded rectangle photo whose left edge starts after half of the register card */
   @media (min-width: 768px){
     .promo-auth-hero .hero-bg{
-      inset:auto !important; /* cancel previous inset:0 */
-      left: calc(var(--hero-pad) + (var(--card-w) / 2) - var(--overlap)) !important;
-      right: 0 !important;
-      top: 50% !important; bottom: auto !important; /* vertically center */
-      transform: translateY(-50%);
-      width: auto !important; height: auto !important;
-      aspect-ratio: 16 / 9; /* keep full image visible without cropping */
-      border-radius: 18px !important;
-      box-shadow: 0 24px 48px -22px rgba(2,6,23,.28), 0 12px 32px -20px rgba(2,6,23,.16);
-      /* Show full photo (no cropping), align right; fill leftover with white */
-  /* Focus slightly higher so the head isn’t cropped */
-  background-position: right var(--bg-focus-y) !important;
+      inset: 0 !important; /* fill whole frame */
+      left: 0 !important; right: 0 !important; top: 0 !important; bottom: 0 !important;
+      transform: none !important;
+      width: 100% !important; height: 100% !important; /* remove right white space */
+      border-radius: 0 !important; /* frame handles rounding via overflow */
+      box-shadow: none !important;
+  /* Keep composition focused higher; allow slight horizontal nudge */
+  background-position: calc(100% - var(--bg-shift-x)) var(--bg-focus-y) !important;
       background-repeat: no-repeat !important;
       background-size: cover !important;
       background-color: transparent !important;
+      will-change: transform, filter;
+      transition: transform .6s ease, filter .4s ease;
     }
-    /* Center the card vertically and add a tiny nudge for tasteful overlap */
-    .promo-auth-hero .hero-layer{ align-items:center !important; }
+  /* Center the card vertically so only the image appears raised */
+  .promo-auth-hero .hero-layer{ align-items:center !important; }
     .promo-auth-hero .promo-card-wrap{ margin-left: clamp(.15rem, 1.2vw, 1rem); }
   }
+  /* Hover/focus interaction for hero image */
+  .promo-auth-hero:hover .hero-bg, .promo-auth-hero:focus-within .hero-bg{ transform: scale(1.04); filter: saturate(1.03) contrast(1.02); }
+  @media (max-width: 575.98px){ .promo-auth-hero:hover .hero-bg, .promo-auth-hero:focus-within .hero-bg{ transform: scale(1.02); } }
+  @media (prefers-reduced-motion: reduce){
+    .promo-auth-hero .hero-bg{ transition: filter .2s ease; }
+    .promo-auth-hero:hover .hero-bg, .promo-auth-hero:focus-within .hero-bg{ transform: none; }
+  }
+  /* Move registration card slightly to the left (image unchanged) */
+  @media (min-width: 768px){ .promo-auth-hero .promo-card-wrap{ margin-left: -36px !important; } }
+  @media (min-width: 992px){ .promo-auth-hero .promo-card-wrap{ margin-left: -54px !important; } }
+  @media (min-width: 1200px){ .promo-auth-hero .promo-card-wrap{ margin-left: -72px !important; } }
 </style>
-<section class="landing-hero promo-auth-hero">
+<section class="landing-hero promo-auth-hero" style="--bg-focus-y: 6%; --bg-shift-x: 24px;">
   <div class="container">
     <div class="hero-frame">
   <div class="hero-bg" style="background-image:url('assets/images/hero/pwdbg.jpg');"></div>
@@ -570,7 +611,7 @@ function fmt_salary($cur, $min, $max, $period) {
         <div class="row justify-content-start w-100 g-0">
           <div class="col-12 col-sm-9 col-md-auto">
             <div class="promo-card-wrap">
-              <div class="promo-card card">
+              <div class="promo-card card" data-reveal>
                 <div class="card-body p-3 p-md-4">
                   <h2 class="h4 promo-title mb-2">Find the right PWD job for you on PWD Portal</h2>
                   <p class="promo-sub small">Sign in to see jobs matched to your skills, location, and accessibility needs.</p>
@@ -1352,63 +1393,141 @@ document.addEventListener('DOMContentLoaded', function(){
   </div>
   <?php endif; ?>
 <?php else: ?>
-  <section class="trusted-employers-section">
+  <section class="trusted-employers-section" id="employers">
     <div class="container">
-      <div class="section-head text-center mb-3">
+      <div class="section-head mb-3">
         <div class="section-eyebrow">Our Partners</div>
-        <h2 class="section-heading">Trusted Employers</h2>
-        <p class="section-sub">Here are some of our approved, WFH‑friendly employers. Click a logo to view the company.</p>
+        <h2 class="section-heading">Find your next employer</h2>
+        <p class="section-sub">Explore company profiles to find the right workplace for you. Learn about jobs, reviews, company culture, perks and benefits.</p>
       </div>
-    </div>
-  <div class="employer-strip" role="list" aria-label="Approved WFH employers">
-    <?php foreach ($companies as $co): ?>
-      <?php
-        $name = trim((string)($co['company_name'] ?? 'Company'));
-        $initial = mb_strtoupper(mb_substr($name, 0, 1));
-        $img = trim((string)($co['profile_picture'] ?? ''));
-        $jobsC = (int)($co['jobs_count'] ?? 0);
-        $label = $name . ' (' . $jobsC . ' job' . ($jobsC===1 ? '' : 's') . ')';
-      ?>
-      <a role="listitem"
-         class="emp-item"
-         href="company.php?user_id=<?php echo urlencode($co['user_id']); ?>"
-         title="<?php echo htmlspecialchars($label); ?>"
-         aria-label="View company: <?php echo htmlspecialchars($label); ?>">
-        <span class="emp-circle">
-          <?php if ($img !== ''): ?>
-            <img src="../<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($name); ?> logo">
-          <?php else: ?>
-            <span class="emp-initial" aria-hidden="true"><?php echo htmlspecialchars($initial); ?></span>
+
+      <div class="emp-carousel-wrap position-relative">
+        <button class="emp-nav btn btn-light btn-sm emp-nav-prev" type="button" aria-label="Scroll left"><i class="bi bi-chevron-left"></i></button>
+        <div class="employer-carousel" id="empCarousel" role="list" aria-label="Approved WFH employers">
+          <?php foreach ($companies as $co): ?>
+            <?php
+              $name = trim((string)($co['company_name'] ?? 'Company'));
+              $initial = mb_strtoupper(mb_substr($name, 0, 1));
+              $img = trim((string)($co['profile_picture'] ?? ''));
+              $jobsC = (int)($co['jobs_count'] ?? 0);
+              $label = $name . ' (' . $jobsC . ' job' . ($jobsC===1 ? '' : 's') . ')';
+            ?>
+            <a role="listitem" class="emp-card" href="company.php?user_id=<?php echo urlencode($co['user_id']); ?>" title="<?php echo htmlspecialchars($label); ?>" aria-label="View company: <?php echo htmlspecialchars($label); ?>">
+              <div class="logo-wrap" aria-hidden="true">
+                <?php if ($img !== ''): ?>
+                  <img src="../<?php echo htmlspecialchars($img); ?>" alt="<?php echo htmlspecialchars($name); ?> logo">
+                <?php else: ?>
+                  <span class="emp-initial"><?php echo htmlspecialchars($initial); ?></span>
+                <?php endif; ?>
+              </div>
+              <div class="emp-info">
+                <div class="emp-name" title="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></div>
+                <div class="emp-jobs"><span class="badge bg-light text-dark border"><?php echo $jobsC; ?> Job<?php echo ($jobsC===1?'':'s'); ?></span></div>
+              </div>
+            </a>
+          <?php endforeach; ?>
+        </div>
+        <button class="emp-nav btn btn-light btn-sm emp-nav-next" type="button" aria-label="Scroll right"><i class="bi bi-chevron-right"></i></button>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <?php
+          $hasMoreCompanies = ($companiesTotal > (is_array($companies) ? count($companies) : 0));
+          $nextCompaniesPage = max(1, (int)($page + 1));
+          $seeMoreUrl = 'index.php?p=' . urlencode($nextCompaniesPage) . '#employers';
+        ?>
+        <div>
+          <?php if ($hasMoreCompanies): ?>
+            <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($seeMoreUrl); ?>">See more</a>
           <?php endif; ?>
-        </span>
-        <span class="emp-caption">
-          <span class="emp-name" title="<?php echo htmlspecialchars($name); ?>"><?php echo htmlspecialchars($name); ?></span>
-          <span class="emp-count"><?php echo $jobsC; ?> job<?php echo ($jobsC===1?'':'s'); ?></span>
-        </span>
-      </a>
-    <?php endforeach; ?>
+        </div>
+        <?php if ($companiesTotal > 0): ?>
+          <div class="emp-dots" role="tablist" aria-label="Employer pages">
+            <?php for ($i=1; $i<=$pages; $i++): ?>
+              <a href="<?php echo 'index.php?p=' . $i . '#employers'; ?>" class="dot <?php echo ($i===$page?'active':''); ?>" role="tab" aria-selected="<?php echo ($i===$page?'true':'false'); ?>" aria-label="Go to page <?php echo $i; ?>"></a>
+            <?php endfor; ?>
+          </div>
+        <?php endif; ?>
+      </div>
     </div>
   </section>
   <?php if (!$companies): ?>
     <div class="alert alert-secondary">No approved employers with WFH jobs yet.</div>
   <?php endif; ?>
   <style>
-    .trusted-employers-section{ padding: 10px 0 18px; }
-    .trusted-employers-section .section-eyebrow{ font-size:.78rem; letter-spacing:.6px; font-weight:700; color:#6c7a91; text-transform:uppercase; }
-    .trusted-employers-section .section-heading{ font-size:1.35rem; font-weight:700; margin:0.1rem 0 0.25rem; }
-    .trusted-employers-section .section-sub{ margin:0 auto; max-width:780px; color:#64748b; }
+    .trusted-employers-section{ padding: 22px 0 28px; }
+    /* Header layout: eyebrow + heading at left, description at right */
+  .trusted-employers-section .section-head{ display:grid; grid-template-columns: minmax(260px, 420px) 1fr; align-items:start; gap: 8px 32px; }
+    @media (max-width: 767.98px){ .trusted-employers-section .section-head{ grid-template-columns: 1fr; } }
+  .trusted-employers-section .section-eyebrow{ grid-column:1; display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.6px; font-weight:800; color:#1d4ed8; text-transform:uppercase; background:#eaf2ff; padding:.25rem .55rem; border-radius:999px; width:max-content; }
+  .trusted-employers-section .section-heading{ grid-column:1; font-size:1.55rem; font-weight:800; letter-spacing:.2px; margin:.1rem 0 0; color:#0b132a; line-height:1.2; }
+    @media (min-width: 768px){ .trusted-employers-section .section-heading{ font-size:1.75rem; } }
+    .trusted-employers-section .section-sub{ grid-column:2; margin: .35rem 0 .2rem; max-width: 880px; color:#5b6779; line-height:1.55; }
+    @media (max-width: 767.98px){ .trusted-employers-section .section-sub{ grid-column:1; } }
 
-  .employer-strip{ display:flex; flex-wrap:wrap; gap:22px 22px; justify-content:flex-start; padding:8px 8px 2px; }
-  .emp-item{ width:450px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; text-decoration:none; color:inherit; }
-  .emp-circle{ width:450px; height:450px; border-radius:50%; overflow:hidden; border:2px solid #e6ecf5; background:#f5f7fb; display:flex; align-items:center; justify-content:center; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
-    .emp-circle img{ width:100%; height:100%; object-fit:cover; display:block; }
-    .emp-item:hover .emp-circle{ transform: translateY(-2px); box-shadow: 0 10px 22px -14px rgba(13,110,253,.35), 0 6px 16px -12px rgba(0,0,0,.08); border-color:#c8d7f0; }
-    .emp-initial{ font-weight:700; font-size:1.6rem; color:#334155; }
-    .emp-caption{ line-height:1.15; }
-    .emp-name{ font-weight:600; font-size:.95rem; color:#0b132a; display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .emp-count{ font-size:.78rem; color:#64748b; display:block; }
-    @media (max-width: 576px){ .emp-item{ width:110px; } .emp-circle{ width:110px; height:110px; } }
+    .emp-carousel-wrap{ padding: 10px 36px; }
+    .employer-carousel{ display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding: 0 12px; padding-bottom:6px; }
+    .employer-carousel::-webkit-scrollbar{ height:8px; }
+    .employer-carousel::-webkit-scrollbar-thumb{ background:#d2d8e3; border-radius:8px; }
+    .emp-card{ flex:0 0 auto; width: 248px; background:#fff; border:1px solid #e5e7eb; border-radius:16px; text-decoration:none; color:inherit; box-shadow: 0 6px 18px -12px rgba(2,6,23,.18); scroll-snap-align:start; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+    .emp-card:hover{ transform: translateY(-2px); box-shadow:0 16px 32px -20px rgba(2,6,23,.25), 0 8px 20px -12px rgba(2,6,23,.12); border-color:#d7deea; }
+    .emp-card .logo-wrap{ width:100%; aspect-ratio: 1 / 1; border-top-left-radius:16px; border-top-right-radius:16px; overflow:hidden; background:#f5f7fb; display:flex; align-items:center; justify-content:center; }
+    .emp-card .logo-wrap img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .emp-card .logo-wrap .emp-initial{ font-weight:800; font-size:2.1rem; color:#334155; }
+  .emp-info{ padding:.85rem .9rem; }
+  .emp-name{ font-weight:600; font-size:1rem; letter-spacing:.1px; line-height:1.2; color:#0b132a; display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .emp-jobs{ margin-top:.4rem; }
+    .emp-jobs .badge{ font-size:.72rem; padding:.35rem .5rem; border-radius:999px; background:#f1f5f9; border-color:#e2e8f0; }
+
+    .emp-nav{ position:absolute; top:50%; transform:translateY(-50%); z-index:2; border-radius:999px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 18px -12px rgba(2,6,23,.25); background:#fff; border:1px solid #e5e7eb; color:#334155; }
+    .emp-nav:hover{ background:#f8fafc; }
+    .emp-nav:focus-visible{ outline: 3px solid rgba(13,110,253,.35); outline-offset: 2px; }
+    .emp-nav-prev{ left: 0; }
+    .emp-nav-next{ right: 0; }
+
+    .emp-dots{ display:flex; gap:6px; }
+    .emp-dots .dot{ width:8px; height:8px; border-radius:50%; background:#d2d8e3; display:inline-block; }
+    .emp-dots .dot.active{ background:#0d6efd; }
+
+    @media (min-width: 768px){ .emp-card{ width: 264px; } }
+    @media (max-width: 576px){ .emp-carousel-wrap{ padding: 6px 10px; } }
   </style>
+  <script>
+    (function(){
+      const wrap = document.querySelector('.emp-carousel-wrap');
+      const scroller = document.getElementById('empCarousel');
+      const prev = wrap?.querySelector('.emp-nav-prev');
+      const next = wrap?.querySelector('.emp-nav-next');
+      if (!wrap || !scroller || !prev || !next) return;
+      function getStep(){
+        const card = scroller.querySelector('.emp-card');
+        return card ? (card.getBoundingClientRect().width + 16) : 280;
+      }
+      prev.addEventListener('click', function(){ scroller.scrollBy({ left: -getStep()*1.5, behavior:'smooth' }); });
+      next.addEventListener('click', function(){ scroller.scrollBy({ left: getStep()*1.5, behavior:'smooth' }); });
+    })();
+  </script>
+    <script>
+    // Make related search chips replace the "What" field and submit the form
+    document.addEventListener('DOMContentLoaded', function(){
+      const related = document.querySelector('[aria-label="Related searches"]');
+      const form = document.querySelector('form.filters-condensed');
+      const inputWhat = document.getElementById('filter-what');
+      if (!related || !form || !inputWhat) return;
+      related.addEventListener('click', function(e){
+        const a = e.target.closest('a.btn');
+        if (!a) return;
+        e.preventDefault();
+        const txt = a.textContent.trim().replace(/\s+\d+$/, '').trim(); // strip count badge if present
+        inputWhat.value = txt;
+        // Reset pagination if present
+        if (form.querySelector('[name="p"]')) {
+          form.querySelector('[name="p"]').value = '1';
+        }
+        form.submit();
+      });
+    });
+    </script>
 <?php endif; ?>
 
 <?php if ($pages > 1): ?>
@@ -1448,6 +1567,38 @@ document.addEventListener('DOMContentLoaded', function(){
   #job-list .job-item p { color: #495057; }
   #job-list .job-item .small { color: #495057; }
   #job-list .job-item .text-muted { color: #5c677d !important; }
+    /* Two-card callouts styling */
+  .callouts-duo-section{ padding: 22px 0 80px; margin-bottom: 24px; }
+  @media (min-width: 768px){ .callouts-duo-section{ margin-bottom: 40px; } }
+  /* Add bottom gap so the two cards don't feel stuck to the footer */
+  .callouts-duo-section .callout-card{ margin-bottom: 28px; }
+  @media (min-width: 768px){ .callouts-duo-section .callout-card{ margin-bottom: 32px; } }
+    .callouts-holder{ background:#ffffff; border:1px solid #e7ecf4; border-radius: 24px; padding: 16px; box-shadow: 0 16px 36px -28px rgba(2,6,23,.12); }
+    @media (min-width: 768px){ .callouts-holder{ padding: 20px; } }
+    a.callout-card, .callout-card{
+      position:relative; display:flex; align-items:center; width:100%;
+      min-height: 280px; border-radius: 24px; overflow:hidden;
+      text-decoration:none !important; color:inherit !important;
+      padding: 18px; padding-right: calc(42% + 24px) !important; border:1px solid #e7ecf4;
+      background-repeat:no-repeat; background-position: right 16px center; background-size: 42% auto;
+      box-shadow: 0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .callout-card:hover{ transform: translateY(-2px); box-shadow: 0 26px 56px -28px rgba(2,6,23,.20), 0 16px 40px -26px rgba(2,6,23,.12); }
+    /* Variants */
+  .callout-card.card-left{ background-color:#0d6efd; color:#ffffff; }
+    .callout-card.card-left .callout-title, .callout-card.card-left .callout-sub{ color:#ffffff; }
+  .callout-card.card-right{ background-color:#EEF3FA; color:#0b132a; }
+    .callout-card.card-right .callout-sub{ color:#334155; }
+    /* Body (left content) */
+  .callout-body{ position:relative; z-index:1; max-width: 48%; }
+    .callout-title{ font-weight:800; letter-spacing:.2px; font-size:1.2rem; margin:0 0 .35rem; }
+    .callout-sub{ margin:0 0 .75rem; font-size:.95rem; }
+    .callout-btn{ box-shadow: 0 10px 22px -14px rgba(0,0,0,.35); }
+    @media (min-width: 768px){
+  .callout-card{ min-height: 340px; padding: 22px; padding-right: calc(46% + 28px) !important; background-position: right 24px center; background-size: 46% auto; }
+      .callout-title{ font-size:1.35rem; }
+    }
 
   /* Sticky header in detail panel */
   .sticky-header { position: sticky; top: 0; z-index: 5; background:#fff; padding-top:.25rem; padding-bottom:.25rem; }
@@ -1501,128 +1652,61 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 <script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('search-active');});</script>
 <?php endif; ?>
+<script>
+// Reveal items on scroll for elements tagged with data-reveal (purely visual)
+document.addEventListener('DOMContentLoaded', function(){
+  if (!('IntersectionObserver' in window)) { document.querySelectorAll('[data-reveal]').forEach(el=> el.classList.add('reveal-in')); return; }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if (e.isIntersecting){ e.target.classList.add('reveal-in'); io.unobserve(e.target);} });
+  },{ threshold:.12 });
+  document.querySelectorAll('[data-reveal]').forEach(el=> io.observe(el));
+});
+</script>
 
-<!-- FEATURES SECTION -->
-<section class="features-section">
+<!-- CALLOUTS DUO SECTION (replaces features/steps/testimonials) -->
+<section class="callouts-duo-section" style="margin-bottom: 64px;">
   <div class="container">
-    <div class="section-head">
-      <div class="section-eyebrow">Platform Benefits</div>
-      <h2 class="section-heading text-gradient-brand">Why Choose Our Portal</h2>
-      <p class="section-sub">Purpose-built to help talent and accessibility-focused employers connect through transparent, remote-first opportunities.</p>
-    </div>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-universal-access"></i></div>
-        <h3>Accessibility Focus</h3>
-        <p>Jobs tagged for different accessibility needs help you quickly find supportive roles.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-building-check"></i></div>
-        <h3>Verified Employers</h3>
-        <p>Employers undergo approval so you can trust the legitimacy of postings.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-funnel"></i></div>
-        <h3>Powerful Filters</h3>
-        <p>Search by education, experience, accessibility tags, pay, and location.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-speedometer2"></i></div>
-        <h3>Fast Applications</h3>
-        <p>Apply directly and track your applications without leaving the platform.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-clipboard-data"></i></div>
-        <h3>Transparent Details</h3>
-        <p>Key role data (salary, type, location) surfaced clearly for quick evaluation.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon"><i class="bi bi-shield-check"></i></div>
-        <h3>Secure & Private</h3>
-        <p>Your account & application data handled with privacy best practices.</p>
-      </div>
-    </div>
-  </div>
- </section>
-
-<!-- STEPS SECTION -->
-<section class="steps-section">
-  <div class="container">
-    <div class="text-center">
-      <div class="section-eyebrow">How It Works</div>
-      <h2 class="section-heading">Get Started in 4 Steps</h2>
-      <p class="section-sub">Simple, streamlined, and designed for accessibility. Your next opportunity is a few clicks away.</p>
-    </div>
-    <div class="steps-timeline">
-      <div class="step-item">
-        <div class="step-number">1</div>
-        <h4>Create your account</h4>
-        <p>Sign up as a job seeker or employer and complete your profile.</p>
-      </div>
-      <div class="step-item">
-        <div class="step-number">2</div>
-        <h4>Search & filter roles</h4>
-        <p>Use advanced filters to zero in on roles aligned with your needs.</p>
-      </div>
-      <div class="step-item">
-        <div class="step-number">3</div>
-        <h4>Apply & engage</h4>
-        <p>Submit applications and interact with employers directly.</p>
-      </div>
-      <div class="step-item">
-        <div class="step-number">4</div>
-        <h4>Grow your career</h4>
-        <p>Track progress, expand skills, and pursue new remote opportunities.</p>
-      </div>
-    </div>
-  </div>
- </section>
-
-<!-- TESTIMONIALS (Static Sample) -->
-<section class="testimonials-section">
-  <div class="container">
-    <div class="text-center">
-      <div class="section-eyebrow">Testimonials</div>
-      <h2 class="section-heading text-gradient-brand">Community Voices</h2>
-      <p class="section-sub">Real experiences from users finding meaningful remote work through the platform.</p>
-    </div>
-    <div class="testimonial-row">
-      <div class="testimonial-card">
-        <div class="quote">“The accessibility tags saved me so much time. I quickly found roles that understood my needs.”</div>
-        <div class="user">
-          <div class="testimonial-avatar">MT</div>
-          <div>
-            <div class="fw-semibold small">Mark T.</div>
-            <div class="testimonial-meta">JOB SEEKER</div>
-          </div>
+    <div class="callouts-holder">
+      <div class="row g-3 g-md-4 align-items-stretch">
+        <div class="col-md-6 d-flex">
+          <a class="callout-card card-left flex-fill" href="about.php" style="
+            display:flex; align-items:center; text-decoration:none; color:inherit;
+            min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
+            background-color:#0d6efd; background-image:url('assets/images/hero/pwd_landingpage.jpg');
+            background-repeat:no-repeat; background-position:right 24px center; background-size:46% auto;
+            box-shadow:0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
+          ">
+            <div class="callout-body">
+              <h3 class="callout-title">All about our mission</h3>
+              <p class="callout-sub">Learn what we do and how we support inclusive hiring.</p>
+              <span class="btn btn-light btn-lg fw-semibold callout-btn">Go to About</span>
+            </div>
+          </a>
         </div>
-      </div>
-      <div class="testimonial-card">
-        <div class="quote">“Approval and verification flows give us confidence in the quality of applicants and employers.”</div>
-        <div class="user">
-          <div class="testimonial-avatar">JL</div>
-          <div>
-            <div class="fw-semibold small">Jessa L.</div>
-            <div class="testimonial-meta">OPERATIONS</div>
-          </div>
+        <div class="col-md-6 d-flex">
+          <a class="callout-card card-right flex-fill" href="support_contact.php" style="
+            display:flex; align-items:center; text-decoration:none; color:inherit;
+            min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
+            background-color:#EEF3FA; background-image:url('assets/images/hero/pwd_landingbottom.jpg');
+            background-repeat:no-repeat; background-position:right 24px center; background-size:46% auto;
+            box-shadow:0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
+          ">
+            <div class="callout-body">
+              <h3 class="callout-title">Questions? We can help</h3>
+              <p class="callout-sub">Reach out and we’ll respond as soon as possible.</p>
+              <span class="btn btn-primary btn-lg fw-semibold callout-btn">Contact us</span>
+            </div>
+          </a>
         </div>
       </div>
     </div>
   </div>
  </section>
 
-<!-- CTA SECTION -->
-<section class="cta-section text-white">
-  <div class="container">
-    <div class="cta-inner">
-      <h2 class="cta-title">Ready to Find or Post Inclusive Remote Jobs?</h2>
-      <p class="cta-lead">Join the growing community connecting talent and employers through accessibility-centered opportunities.</p>
-      <div class="d-flex flex-wrap justify-content-center gap-2">
-        <a href="register.php" class="btn btn-light btn-lg px-4 fw-semibold shadow-sm"><i class="bi bi-person-plus me-1"></i> Get Started</a>
-        <a href="#job-filters" class="btn btn-light btn-lg px-4 fw-semibold shadow-sm"><i class="bi bi-search me-1"></i> Browse Jobs</a>
-      </div>
-    </div>
-  </div>
- </section>
+<!-- Steps section removed -->
+
+<!-- Testimonials section removed -->
+
+<!-- CTA SECTION removed per request -->
 
 <?php include '../includes/footer.php'; ?>

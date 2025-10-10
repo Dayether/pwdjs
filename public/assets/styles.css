@@ -423,6 +423,10 @@ a:hover { color: var(--brand-blue-600); }
 .footer-link:hover, .footer-link:focus { color:#fff; text-decoration:underline; }
 .footer .small { color:rgba(255,255,255,.85); }
 
+/* Ensure sections above footer have breathing room (prevents margin-collapse issues) */
+.callouts-duo-section { margin-bottom: 64px; }
+@media (min-width: 768px){ .callouts-duo-section { margin-bottom: 80px; } }
+
 /* No special margins/radius on mobile for full-width bar */
 
 /* Forms */
