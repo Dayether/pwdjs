@@ -96,7 +96,9 @@ include 'includes/header.php';
         <h1 class="page-title"><i class="bi bi-clipboard-check"></i><span>Jobs Moderation</span></h1>
         <p class="page-sub">Review, approve or reject job postings before they go live.</p>
       </div>
-      <div class="page-actions"></div>
+      <div class="page-actions">
+        <a href="admin_jobs_create.php" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Create Job</a>
+      </div>
     </div>
 
 <style>

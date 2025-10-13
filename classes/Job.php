@@ -129,6 +129,52 @@ class Job {
         return $ok;
     }
 
+    /**
+     * Admin-friendly create that returns the new job_id on success.
+     * Same behavior as create(), but exposes identifier for follow-up moderation.
+     */
+    public static function createReturnId(array $data, string $employer_id): array {
+        $pdo = Database::getConnection();
+        $job_id = Helpers::generateSmartId('JOB');
+        $reqEdu = Taxonomy::canonicalizeEducation($data['required_education'] ?? '');
+        if ($reqEdu === null) $reqEdu = '';
+        $remote = 'Work From Home';
+        $status = 'Open';
+
+        $stmt = $pdo->prepare("INSERT INTO jobs (job_id, employer_id, title, description, required_experience, required_education, required_skills_input, accessibility_tags, applicable_pwd_types, location_city, location_region, remote_option, employment_type, salary_currency, salary_min, salary_max, salary_period, job_image, status, moderation_status) VALUES (:job_id,:employer_id,:title,:description,:required_experience,:required_education,:required_skills_input,:accessibility_tags,:applicable_pwd_types,:location_city,:location_region,:remote_option,:employment_type,:salary_currency,:salary_min,:salary_max,:salary_period,:job_image,:status,:moderation_status)");
+
+        $ok = $stmt->execute([
+            ':job_id' => $job_id,
+            ':employer_id'=>$employer_id,
+            ':title'=>$data['title'],
+            ':description'=>$data['description'],
+            ':required_experience'=>(int)($data['required_experience']??0),
+            ':required_education'=>$reqEdu,
+            ':required_skills_input'=>$data['required_skills_input'] ?? '',
+            ':accessibility_tags'=>$data['accessibility_tags'] ?? '',
+            ':applicable_pwd_types'=>$data['applicable_pwd_types'] ?? null,
+            ':location_city'=>$data['location_city'] ?? '',
+            ':location_region'=>$data['location_region'] ?? '',
+            ':remote_option'=>$remote,
+            ':employment_type'=>$data['employment_type'] ?? 'Full time',
+            ':salary_currency'=>$data['salary_currency'] ?? 'PHP',
+            ':salary_min'=>($data['salary_min'] ?? null) !== '' ? $data['salary_min'] : null,
+            ':salary_max'=>($data['salary_max'] ?? null) !== '' ? $data['salary_max'] : null,
+            ':salary_period'=>$data['salary_period'] ?? 'monthly',
+            ':job_image'=>$data['job_image'] ?? null,
+            ':status'=>$status,
+            ':moderation_status'=>'Pending',
+        ]);
+
+        if ($ok) {
+            $skillsRaw = Helpers::parseSkillInput($data['required_skills_input'] ?? '');
+            Skill::assignSkillsToJob($job_id, $skillsRaw);
+            self::syncApplicablePwdTypes($job_id, $data['applicable_pwd_types'] ?? null);
+            return ['ok'=>true,'job_id'=>$job_id];
+        }
+        return ['ok'=>false,'job_id'=>null];
+    }
+
     /* Moderation */
     public static function listPendingModeration(int $limit = 100): array {
         $pdo = Database::getConnection();
