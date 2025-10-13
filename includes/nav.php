@@ -34,7 +34,7 @@ if ($loggedIn && $role==='employer') {
         if (is_file($disk)) { $foundLogo = $cand; break; }
       }
     ?>
-    <a class="navbar-brand fw-semibold d-flex align-items-center gap-2 <?php echo nav_active('about.php',$currentPage); ?>" href="about.php" aria-label="PWD Portal Home">
+    <a class="navbar-brand fw-semibold d-flex align-items-center gap-2 <?php echo nav_active('about.php',$currentPage); ?>" href="<?php echo rtrim(BASE_URL,'/'); ?>/about" aria-label="PWD Portal Home">
       <img src="<?php echo htmlspecialchars($foundLogo); ?>" alt="PWD Portal Logo" class="brand-logo" onerror="this.src='<?php echo htmlspecialchars($logoFallback); ?>';" />
       <span class="text-ink">PWD Portal</span>
     </a>

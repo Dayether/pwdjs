@@ -1669,7 +1669,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <div class="callouts-holder">
       <div class="row g-3 g-md-4 align-items-stretch">
         <div class="col-md-6 d-flex">
-          <a class="callout-card card-left flex-fill" href="about.php" style="
+          <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL,'/'); ?>/about" style="
             display:flex; align-items:center; text-decoration:none; color:inherit;
             min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
             background-color:#0d6efd; background-image:url('assets/images/hero/pwd_landingpage.jpg');
