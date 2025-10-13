@@ -19,7 +19,6 @@ if (Helpers::isLoggedIn()) {
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name_raw     = $_POST['name'] ?? '';
     $email_raw    = $_POST['email'] ?? '';
   // No password at registration; admin will issue upon approval/verification
 
@@ -32,7 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $company_website = trim($_POST['company_website'] ?? '');
     $company_phone   = trim($_POST['company_phone'] ?? '');
     $business_permit_number = trim($_POST['business_permit_number'] ?? '');
-  $company_owner_name = trim($_POST['company_owner_name'] ?? '');
+  // New: split owner name fields for employer
+  $owner_first = trim($_POST['owner_first_name'] ?? '');
+  $owner_middle = trim($_POST['owner_middle_name'] ?? '');
+  $owner_last = trim($_POST['owner_last_name'] ?? '');
   $contact_person_position = trim($_POST['contact_person_position'] ?? '');
   $contact_person_phone = trim($_POST['contact_person_phone'] ?? '');
 
@@ -42,23 +44,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // Phone (optional at registration)
   $phone = trim($_POST['phone'] ?? '');
 
-    // Normalize Name
-    $displayName = Name::normalizeDisplayName($name_raw);
-    if ($displayName === '') {
-        $errors[] = 'Please enter your name properly (e.g. "Juan D. Dela Cruz").';
-    }
-
     // Email
     $email = mb_strtolower(trim($email_raw));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $errors[] = 'Please enter a valid email address.';
     }
 
-  // No password validation here
-
-    // Role
+  // Role
     $allowedRoles = ['job_seeker','employer'];
     $role = in_array($role_raw, $allowedRoles, true) ? $role_raw : 'job_seeker';
+
+    // Name handling per role
+    $displayName = '';
+    if ($role === 'employer') {
+        // Require owner first and last name; middle is optional
+        if ($owner_first === '' || $owner_last === '') {
+            $errors[] = 'Company owner first and last name are required.';
+        }
+        $owner_full_raw = trim($owner_first . ' ' . ($owner_middle !== '' ? $owner_middle . ' ' : '') . $owner_last);
+        $displayName = Name::normalizeDisplayName($owner_full_raw);
+        if ($displayName === '') {
+            $errors[] = 'Please enter a valid company owner name.';
+        }
+    } else {
+        $name_raw = $_POST['name'] ?? '';
+        $displayName = Name::normalizeDisplayName($name_raw);
+        if ($displayName === '') {
+            $errors[] = 'Please enter your name properly (e.g. "Juan D. Dela Cruz").';
+        }
+    }
 
   // Disability handling (general PWD categories)
   $disability = '';
@@ -76,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // Employer validations
   if ($role === 'employer') {
     if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
-    if ($company_owner_name === '') $errors[] = 'Owner / Proprietor name is required for Employer accounts.';
     if ($business_permit_number === '') {
       $errors[] = 'Business Permit Number is required for Employer accounts.';
     } else {
@@ -121,6 +134,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   if (!$errors) {
+    // For employers, set company_owner_name from split fields; for others, empty
+    $company_owner_name = ($role === 'employer') ? $displayName : '';
     $ok = User::register([
       'name' => $displayName,
       'email' => $email,
@@ -133,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       'company_website' => $role === 'employer' ? $company_website : '',
       'company_phone' => $role === 'employer' ? $company_phone : '',
       'business_permit_number' => $role === 'employer' ? $business_permit_number : '',
-      'company_owner_name' => $role === 'employer' ? $company_owner_name : '',
+      'company_owner_name' => $company_owner_name,
       'contact_person_position' => $role === 'employer' ? $contact_person_position : '',
       'contact_person_phone' => $role === 'employer' ? $contact_person_phone : '',
       'pwd_id_number' => $role === 'job_seeker' ? $pwd_id_number : ''
@@ -179,9 +194,27 @@ include 'includes/nav.php';
         <?php endforeach; endif; ?>
 
         <form method="post" class="row g-3 needs-validation mt-1" novalidate>
-          <div class="col-md-6 input-floating-label">
+          <!-- Job Seeker name -->
+          <div class="col-md-6 input-floating-label" id="jsNameWrapper" style="display: <?php echo (($_POST['role'] ?? 'job_seeker')==='job_seeker')?'block':'none'; ?>;">
             <label>Name</label>
-            <input name="name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+            <input name="name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+          </div>
+          <!-- Employer owner name split -->
+          <div class="col-12" id="ownerNameWrapper" style="display: <?php echo (($_POST['role'] ?? '')==='employer')?'block':'none'; ?>;">
+            <div class="row g-3">
+              <div class="col-md-4 input-floating-label">
+                <label>Company Owner First Name</label>
+                <input name="owner_first_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_first_name'] ?? ''); ?>">
+              </div>
+              <div class="col-md-4 input-floating-label">
+                <label>Company Owner Middle Name (optional)</label>
+                <input name="owner_middle_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_middle_name'] ?? ''); ?>">
+              </div>
+              <div class="col-md-4 input-floating-label">
+                <label>Company Owner Last Name</label>
+                <input name="owner_last_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_last_name'] ?? ''); ?>">
+              </div>
+            </div>
           </div>
           <div class="col-md-6 input-floating-label">
             <label>Email</label>
@@ -224,10 +257,6 @@ include 'includes/nav.php';
               <div class="col-md-6 input-floating-label">
                 <label>Company Name</label>
                 <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
-              </div>
-              <div class="col-md-6 input-floating-label">
-                <label>Owner / Proprietor Name</label>
-                <input type="text" name="company_owner_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_owner_name'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
                 <label>Business Email (optional)</label>
@@ -298,6 +327,12 @@ const disabilityWrapper = document.getElementById('disabilityWrapper');
 const disabilityReqStar = document.getElementById('disabilityReqStar');
 const businessPermitInput = document.getElementById('businessPermitInput');
 const formEl = document.querySelector('form');
+const jsNameWrapper = document.getElementById('jsNameWrapper');
+const ownerNameWrapper = document.getElementById('ownerNameWrapper');
+const jsNameInput = jsNameWrapper ? jsNameWrapper.querySelector('input[name="name"]') : null;
+const ownerFirstInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_first_name"]') : null;
+const ownerMiddleInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_middle_name"]') : null;
+const ownerLastInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_last_name"]') : null;
 
 function updateRoleSections(){
   if (roleSelect.value === 'employer') {
@@ -307,6 +342,14 @@ function updateRoleSections(){
     disabilityReqStar.style.display = 'none';
     disabilitySelect.removeAttribute('required');
     if (disabilityWrapper) disabilityWrapper.style.display = 'none';
+
+    if (jsNameWrapper) jsNameWrapper.style.display = 'none';
+    if (ownerNameWrapper) ownerNameWrapper.style.display = 'block';
+    // Required flags
+    if (jsNameInput) jsNameInput.removeAttribute('required');
+    if (ownerFirstInput) ownerFirstInput.setAttribute('required','required');
+    if (ownerLastInput) ownerLastInput.setAttribute('required','required');
+    if (ownerMiddleInput) ownerMiddleInput.removeAttribute('required');
   } else {
     employerSection.style.display = 'none';
     pwdIdContainer.style.display = 'block';
@@ -315,6 +358,14 @@ function updateRoleSections(){
     disabilitySelect.setAttribute('required','required');
     // no free-text option in general categories
     if (disabilityWrapper) disabilityWrapper.style.display = 'block';
+
+    if (jsNameWrapper) jsNameWrapper.style.display = 'block';
+    if (ownerNameWrapper) ownerNameWrapper.style.display = 'none';
+    // Required flags
+    if (jsNameInput) jsNameInput.setAttribute('required','required');
+    if (ownerFirstInput) ownerFirstInput.removeAttribute('required');
+    if (ownerLastInput) ownerLastInput.removeAttribute('required');
+    if (ownerMiddleInput) ownerMiddleInput.removeAttribute('required');
   }
 }
 
