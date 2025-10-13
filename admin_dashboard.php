@@ -47,11 +47,8 @@ try {
   }
 } catch (Throwable $e) { /* ignore breakdown errors */ }
 
-// Build Top-N list (default N=5; use 'all' to show all)
-$topNParam = isset($_GET['topN']) ? strtolower(trim($_GET['topN'])) : '5';
+// Build Top-N list (fixed to Top 5)
 $topN = 5;
-if ($topNParam === 'all') { $topN = PHP_INT_MAX; }
-elseif (ctype_digit($topNParam)) { $topN = max(1, min(20, (int)$topNParam)); }
 
 // Prepare full list for legend (always show all categories in legend)
 $pairs = [];
@@ -204,11 +201,6 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
 
 <div class="section-card fade-in-up">
   <div class="section-title">PWD Users by Disability</div>
-  <div class="d-flex gap-2 mb-2 small">
-    <a class="btn btn-sm btn-outline-light <?php echo ($topN===5?'active':''); ?>" href="?topN=5">Top 5</a>
-    <a class="btn btn-sm btn-outline-light <?php echo ($topN===10?'active':''); ?>" href="?topN=10">Top 10</a>
-    <a class="btn btn-sm btn-outline-light <?php echo ($topN===PHP_INT_MAX?'active':''); ?>" href="?topN=all">All</a>
-  </div>
   <?php if ($totalSeekers > 0): ?>
     <?php foreach ($topList as $row): if ($row['count']<=0) continue; $pct = round(($row['count']/$totalSeekers)*100,1); ?>
       <div class="dist-row"><span><?php echo htmlspecialchars($row['label']); ?></span><span><?php echo number_format($row['count']); ?> (<?php echo $pct; ?>%)</span></div>
