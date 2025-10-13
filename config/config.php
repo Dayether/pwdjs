@@ -1,9 +1,9 @@
 <?php
-define('DB_HOST', 'localhost');   // Host where MySQL runs (default is localhost)
-define('DB_NAME', 'pwd_portal'); // The name of your database in phpMyAdmin
-define('DB_USER', 'root');        // Default user in XAMPP is 'root'
-define('DB_PASS', '');            // Default password is empty in XAMPP
-define('BASE_URL', 'http://localhost/pwdjs/'); // Your project URL
+define('DB_HOST', 'mysql.hostinger.com');   // Host where MySQL runs (default is localhost)
+define('DB_NAME', 'u635425032_pwdportal'); // The name of your database in phpMyAdmin
+define('DB_USER', 'u635425032_pwdportal');        // Default user in XAMPP is 'root'
+define('DB_PASS', '@PwdPortal1234');            // Default password is empty in XAMPP
+define('BASE_URL', 'https://job4pwd.site'); // Your project URL
 
 session_start();
 
