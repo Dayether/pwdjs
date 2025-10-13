@@ -4,6 +4,7 @@ require_once __DIR__ . '/Helpers.php';
 require_once __DIR__ . '/Taxonomy.php';
 require_once __DIR__ . '/Skill.php';
 
+
 class Job {
     public string $job_id = '';
     public string $employer_id = '';
