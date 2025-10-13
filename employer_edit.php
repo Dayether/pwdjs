@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $update = [];
     $original = [
+      'name' => $user->name,
       'company_name' => $user->company_name,
       'business_email' => $user->business_email,
       'company_website' => $user->company_website,
@@ -84,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   $fieldsMap = [
+    'name'                   => $companyOwner, // keep display name in sync with owner name
     'company_name'            => $companyName,
     'business_email'          => $bizEmail,
     'company_website'         => $website,
@@ -268,7 +270,7 @@ include 'includes/nav.php';
         </div>
         <div class="input-block disabled">
           <label><i class="bi bi-person-badge"></i>Display Name (Account)</label>
-          <input type="text" value="<?php echo htmlspecialchars($user->name); ?>" disabled>
+          <input type="text" id="displayNameMirror" value="<?php echo htmlspecialchars($user->name); ?>" disabled>
         </div>
         <div class="input-block">
           <label><i class="bi bi-person-badge-fill"></i>Contact Person Position</label>
@@ -328,3 +330,14 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <?php include 'includes/footer.php'; ?>
+<script>
+// Live mirror owner name to Display Name (disabled field)
+document.addEventListener('DOMContentLoaded', function(){
+  const ownerInput = document.querySelector('input[name="company_owner_name"]');
+  const displayMirror = document.getElementById('displayNameMirror');
+  if (ownerInput && displayMirror) {
+    const sync = ()=> { displayMirror.value = ownerInput.value; };
+    ownerInput.addEventListener('input', sync);
+  }
+});
+</script>

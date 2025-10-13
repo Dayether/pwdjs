@@ -27,8 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $issue_password = true; // always generate initial password
     $auto_approve = isset($_POST['auto_approve']);
 
-    $displayName = Name::normalizeDisplayName($name_raw);
-    if ($displayName === '') $errors[] = 'Please enter a valid contact person name.';
+  $displayName = Name::normalizeDisplayName($name_raw);
+  if ($displayName === '') $errors[] = 'Please enter a valid contact person name.';
+  $ownerDisplay = Name::normalizeDisplayName($company_owner_name);
 
     $email = mb_strtolower(trim($email_raw));
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email.';
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   if (!$errors) {
     $ok = User::register([
-            'name' => $displayName,
+      'name' => $ownerDisplay ?: $displayName,
             'email' => $email,
             'role' => 'employer',
             'disability' => null,
@@ -196,6 +197,10 @@ include 'includes/header.php';
             <input type="text" name="company_owner_name" class="form-control" required value="<?php echo htmlspecialchars($_POST['company_owner_name'] ?? ''); ?>">
           </div>
           <div class="col-md-6">
+            <label class="form-label">Display Name (Account)</label>
+            <input type="text" id="adminDisplayNameMirror" class="form-control" value="<?php echo htmlspecialchars($_POST['company_owner_name'] ?? ''); ?>" disabled>
+          </div>
+          <div class="col-md-6">
             <label class="form-label">Business Email (optional)</label>
             <input type="email" name="business_email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
           </div>
@@ -241,3 +246,12 @@ include 'includes/header.php';
   </div>
 </div>
 <?php include 'includes/footer.php'; ?>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const ownerInput = document.querySelector('input[name="company_owner_name"]');
+  const dn = document.getElementById('adminDisplayNameMirror');
+  if (ownerInput && dn) {
+    ownerInput.addEventListener('input', ()=> { dn.value = ownerInput.value; });
+  }
+});
+</script>
