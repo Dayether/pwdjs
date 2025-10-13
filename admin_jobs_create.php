@@ -192,6 +192,12 @@ include 'includes/header.php';
     <?php endif; ?>
 
     <form method="post" enctype="multipart/form-data" class="job-create-form" id="adminJobCreateForm">
+      <style>
+        /* Make chips/tags clearly interactive */
+        .skill-chip, .acc-tag { cursor: pointer; user-select: none; }
+        .skill-chip input[type=checkbox], .acc-tag input[type=checkbox] { margin-right: .5rem; }
+        .acc-tag.selected { background: rgba(37, 99, 235, .10); border-color: rgba(37,99,235,.45); }
+      </style>
       <?php if ($duplicatePending): ?><input type="hidden" name="confirm_duplicate" value="1"><?php endif; ?>
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
@@ -357,6 +363,16 @@ include 'includes/header.php';
   // Required-group validation helper (skills, pwdcats, accesstags)
   const form = document.getElementById('adminJobCreateForm');
   if (!form) return;
+  // Toggle visual state for skill chips
+  form.querySelectorAll('.skill-chip input[type=checkbox]').forEach(function(cb){
+    function sync(){ const lab = cb.closest('.skill-chip'); if(!lab) return; lab.classList.toggle('is-checked', cb.checked); }
+    cb.addEventListener('change', sync); sync();
+  });
+  // Toggle visual state for accessibility/pwd tags
+  form.querySelectorAll('.acc-tag input[type=checkbox]').forEach(function(cb){
+    function sync(){ const lab = cb.closest('.acc-tag'); if(!lab) return; lab.classList.toggle('selected', cb.checked); }
+    cb.addEventListener('change', sync); sync();
+  });
   function groupSatisfied(attr){
     const wrap = form.querySelector('[data-required-group="'+attr+'"]');
     if(!wrap) return true;
