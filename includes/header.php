@@ -15,6 +15,7 @@ if (session_status() === PHP_SESSION_NONE) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php $BASE = rtrim(BASE_URL, '/'); ?>
+<base href="<?php echo htmlspecialchars($BASE); ?>/">
 <link href="<?php echo $BASE; ?>/assets/styles.css?v=20250926b" rel="stylesheet">
 <?php
   // Dynamic favicon detection (prefers root favicon files; falls back to existing logo)
