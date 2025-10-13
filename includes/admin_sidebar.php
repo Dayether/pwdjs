@@ -8,6 +8,8 @@ $adminNavItems = [
   ['file' => 'admin_jobs_moderation.php', 'icon' => 'clipboard-check', 'label' => 'Jobs Moderation'],
   ['file' => 'admin_jobs_create.php', 'icon' => 'plus-circle', 'label' => 'Create Job'],
   ['file' => 'admin_support_tickets.php', 'icon' => 'life-preserver', 'label' => 'Support'],
+  // Logout placed right below Support for quicker access
+  ['file' => 'logout.php', 'icon' => 'box-arrow-right', 'label' => 'Logout', 'class' => 'logout', 'confirm' => true],
   // Hidden per request: Normalize Disabilities and Tasks Log
 ];
 ?>
@@ -22,9 +24,11 @@ $adminNavItems = [
       <ul class="list-unstyled m-0 p-0">
         <?php foreach ($adminNavItems as $item):
           $active = ($currentPage === $item['file']);
+          $extraClass = isset($item['class']) ? ' '.$item['class'] : '';
         ?>
           <li>
-            <a href="<?php echo $item['file']; ?>" class="admin-nav-link <?php echo $active?'active':''; ?>" aria-current="<?php echo $active?'page':'false'; ?>">
+            <a href="<?php echo $item['file']; ?>" class="admin-nav-link <?php echo $active?'active':''; ?><?php echo $extraClass; ?>" aria-current="<?php echo $active?'page':'false'; ?>"
+               <?php if (!empty($item['confirm'])): ?> data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Yes, log out" data-confirm-no="Cancel"<?php endif; ?>>
               <i class="bi bi-<?php echo $item['icon']; ?> me-2"></i>
               <span><?php echo htmlspecialchars($item['label']); ?></span>
             </a>
@@ -32,9 +36,6 @@ $adminNavItems = [
         <?php endforeach; ?>
       </ul>
     </nav>
-    <div class="mt-4 small text-center text-muted">
-      <a href="logout.php" class="btn btn-sm btn-outline-light w-100" data-confirm-title="Log out" data-confirm="Are you sure you want to log out?" data-confirm-yes="Yes, log out" data-confirm-no="Cancel">Logout</a>
-    </div>
   </div>
 </aside>
 
@@ -62,6 +63,14 @@ $adminNavItems = [
 .admin-nav-link:hover {background:var(--admin-sidebar-bg-alt); color:var(--admin-sidebar-link-hover);} 
 .admin-nav-link.active {background:var(--admin-sidebar-link-active-bg); color:var(--admin-sidebar-link-active); box-shadow:0 6px 16px -6px rgba(0,0,0,.45);} 
 .admin-nav-link.active::before {content:""; position:absolute; left:-10px; top:50%; translate:0 -50%; width:5px; height:65%; background:#60a5fa; border-radius:5px; box-shadow:0 0 0 1px rgba(255,255,255,.25);} 
+
+/* Distinct Logout styling */
+.admin-nav-link.logout {background:linear-gradient(135deg,#b91c1c,#7f1d1d); color:#fff; border:1px solid rgba(239,68,68,.6);} 
+.admin-nav-link.logout:hover {background:linear-gradient(135deg,#dc2626,#991b1b); color:#fff; box-shadow:0 6px 16px -8px rgba(185,28,28,.65);} 
+@media (prefers-color-scheme: light){
+  .admin-nav-link.logout {background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border-color:#ef4444;}
+  .admin-nav-link.logout:hover {background:linear-gradient(135deg,#f87171,#ef4444);} 
+}
 
 /* Slight separator under brand */
 .admin-brand {padding-bottom:.75rem; margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,.08);} 
