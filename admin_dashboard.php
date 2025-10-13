@@ -53,15 +53,41 @@ $topN = 5;
 if ($topNParam === 'all') { $topN = PHP_INT_MAX; }
 elseif (ctype_digit($topNParam)) { $topN = max(1, min(20, (int)$topNParam)); }
 
+// Prepare full list for legend (always show all categories in legend)
 $pairs = [];
 foreach ($disMap as $k=>$v) { $pairs[] = ['key'=>$k,'label'=>ucwords($k), 'count'=>$v]; }
 usort($pairs, function($a,$b){ return $b['count'] <=> $a['count']; });
-
+// Top list for textual rows (keeps Top N filter)
 $topList = array_slice($pairs, 0, $topN);
 $shownTotal = array_sum(array_column($topList,'count'));
 $remaining = max(0, ($totalSeekers - $shownTotal));
-// Add Other and Unspecified into remaining appropriately
-$otherBundle = max(0, $disOther + $disUnspec + ($totalSeekers - ($disOther + $disUnspec + array_sum(array_column($pairs,'count'))))); // safety
+// Others (for pie legend last slot)
+$othersCount = $disOther + $disUnspec + max(0, $remaining - $disOther - $disUnspec);
+
+// Build arrays for pie chart: always include all categories + Others/Unspecified
+$pieLabels = $disCategories; // canonical order
+$pieCounts = [];
+foreach ($pieLabels as $lbl) { $pieCounts[] = (int)($disMap[strtolower($lbl)] ?? 0); }
+// Append Others/Unspecified
+$pieLabels[] = 'Others/Unspecified';
+$pieCounts[] = max(0, (int)$othersCount);
+
+// Top jobs bar (applications) - Top 5
+$topJobLabels = [];
+$topJobCounts = [];
+try {
+  $stTop = $pdo->query("SELECT COALESCE(NULLIF(TRIM(j.title),''),'(Untitled)') AS title, COUNT(*) AS c
+                        FROM applications a
+                        LEFT JOIN jobs j ON j.job_id = a.job_id
+                        GROUP BY a.job_id, title
+                        ORDER BY c DESC
+                        LIMIT 5");
+  $tj = $stTop->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  foreach ($tj as $row) {
+    $topJobLabels[] = $row['title'];
+    $topJobCounts[] = (int)$row['c'];
+  }
+} catch (Throwable $e) { /* no bar data */ }
 
 
 include 'includes/header.php';
@@ -189,7 +215,6 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
       <div class="progress-slim"><span style="width:<?php echo $pct; ?>%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></span></div>
     <?php endforeach; ?>
     <?php
-      $othersCount = $disOther + $disUnspec + max(0, $remaining - $disOther - $disUnspec);
       if ($othersCount > 0):
         $pct = round(($othersCount/$totalSeekers)*100,1);
     ?>
@@ -200,7 +225,15 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
   <div class="small text-secondary">No PWD user disability data yet.</div>
   <?php endif; ?>
 
-  <canvas id="disPie" height="160" style="margin-top:12px"></canvas>
+  <div class="charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-top:12px">
+    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;min-height:280px">
+      <canvas id="disPie" height="260" style="display:block;max-width:100%;"></canvas>
+    </div>
+    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;min-height:280px">
+      <div class="small text-secondary mb-2" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase">Top 5 Jobs Applied</div>
+      <canvas id="topJobsBar" height="260" style="display:block;max-width:100%;"></canvas>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -233,36 +266,63 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
   }
 })();
 
-// Pie chart for disability distribution (Top-N + Others)
+// Pie + Bar charts (full disability legend + top applied jobs)
 (()=>{
   const ctx = document.getElementById('disPie');
+  const ctxBar = document.getElementById('topJobsBar');
   if (!ctx) return;
-  // Prepare data from PHP
+  // Prepare data from PHP (full list + others)
   const labels = [
-    <?php foreach ($topList as $r): if ($r['count']>0): ?>'<?php echo addslashes($r['label']); ?>',<?php endif; endforeach; ?>
-    <?php $othersCount = $disOther + $disUnspec + max(0, $remaining - $disOther - $disUnspec); if ($othersCount>0): ?>'Others/Unspecified'<?php endif; ?>
-  ].filter(Boolean);
+    <?php foreach ($pieLabels as $lbl): ?>'<?php echo addslashes($lbl); ?>',<?php endforeach; ?>
+  ];
   const data = [
-    <?php foreach ($topList as $r): if ($r['count']>0): echo (int)$r['count'].','; endif; endforeach; ?>
-    <?php echo ($othersCount>0) ? (int)$othersCount : ''; ?>
-  ].filter(v=>v!=='' && v!==undefined);
-  if (!labels.length || !data.length) return;
+    <?php foreach ($pieCounts as $c): echo (int)$c.','; endforeach; ?>
+  ];
   const colors = ['#60a5fa','#34d399','#f472b6','#f59e0b','#a78bfa','#22d3ee','#f87171','#10b981','#c084fc','#fb7185','#94a3b8'];
   const bg = labels.map((_,i)=>colors[i % colors.length]);
-  // Load Chart.js via CDN if not present
-  function make(){
+
+  const makeCharts = ()=>{
     // eslint-disable-next-line no-undef
     new Chart(ctx, {
       type: 'pie',
       data: { labels, datasets: [{ data, backgroundColor: bg }] },
-      options: { plugins: { legend: { position: 'bottom' } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } }
+      }
     });
-  }
-  if (window.Chart) { make(); }
+
+    if (ctxBar) {
+      // eslint-disable-next-line no-undef
+      new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: [<?php foreach ($topJobLabels as $t): ?>'<?php echo addslashes($t); ?>',<?php endforeach; ?>],
+          datasets: [{
+            label: 'Applications',
+            data: [<?php foreach ($topJobCounts as $c): echo (int)$c.','; endforeach; ?>],
+            backgroundColor: '#60a5fa',
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { ticks: { color: '#cbd5e1', font: { size: 11 } } },
+            y: { ticks: { color: '#cbd5e1', precision: 0 }, beginAtZero: true }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+  };
+  if (window.Chart) { makeCharts(); }
   else {
     const s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/chart.js';
-    s.onload=make;
+    s.onload=makeCharts;
     document.head.appendChild(s);
   }
 })();
