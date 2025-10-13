@@ -337,6 +337,12 @@ if ($__finalFlashList) {
   <div class="bar">
     <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-btn" onclick="if(document.referrer){history.back();return false;}"><i class="bi bi-arrow-left"></i><span>Back</span></a>
     <h2><i class="bi bi-building-check"></i> Employer Verification</h2>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <form method="post" action="admin_employer_edit" class="d-inline">
+        <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($emp['user_id']); ?>">
+        <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil-square me-1"></i>Edit</button>
+      </form>
+    </div>
   </div>
 </div>
 

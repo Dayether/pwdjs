@@ -278,6 +278,10 @@ include 'includes/header.php';
             <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
             <button type="submit" class="view-btn"><i class="bi bi-eye"></i>View</button>
           </form>
+          <form method="post" action="admin_employer_edit" class="d-inline ms-1">
+            <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($r['user_id']); ?>">
+            <button type="submit" class="view-btn"><i class="bi bi-pencil"></i>Edit</button>
+          </form>
         </td>
       </tr>
     <?php endforeach; ?>
