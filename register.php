@@ -90,6 +90,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // Employer validations
   if ($role === 'employer') {
     if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
+    if ($owner_first === '' || $owner_last === '') {
+      $errors[] = 'Company owner first and last name are required.';
+    }
+    if ($business_email === '') {
+      $errors[] = 'Business email is required for Employer accounts.';
+    }
+    if ($company_website === '') {
+      $errors[] = 'Company website is required for Employer accounts.';
+    }
+    if ($company_phone === '') {
+      $errors[] = 'Company phone is required for Employer accounts.';
+    }
+    if ($contact_person_position === '') {
+      $errors[] = 'Contact person position is required for Employer accounts.';
+    }
+    if ($contact_person_phone === '') {
+      $errors[] = 'Contact person phone is required for Employer accounts.';
+    }
     if ($business_permit_number === '') {
       $errors[] = 'Business Permit Number is required for Employer accounts.';
     } else {
@@ -97,16 +115,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Business Permit Number format invalid (letters, numbers, dash, slash; 4-40 chars).';
       }
     }
-    if ($contact_person_phone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $contact_person_phone)) {
+    if (!preg_match('/^[0-9 +().-]{6,30}$/', $contact_person_phone)) {
       $errors[] = 'Contact person phone format invalid.';
     }
-    if ($company_phone !== '' && !preg_match('/^[0-9 +().-]{6,30}$/', $company_phone)) {
+    if (!preg_match('/^[0-9 +().-]{6,30}$/', $company_phone)) {
       $errors[] = 'Company phone format invalid.';
     }
-    if ($business_email !== '' && !filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
+    if (!filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
       $errors[] = 'Invalid company email.';
     }
-    if ($company_website !== '' && !filter_var($company_website, FILTER_VALIDATE_URL)) {
+    if (!preg_match('~^https?://~i', $company_website)) {
+      $company_website = 'https://' . $company_website;
+    }
+    if (!filter_var($company_website, FILTER_VALIDATE_URL)) {
       $errors[] = 'Invalid company website (include http:// or https://).';
     }
     // Check uniqueness of Business Permit Number
@@ -155,6 +176,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]);
 
     if ($ok) {
+      // Persist website/phone immediately if columns exist
+      if ($role === 'employer' && ($company_website !== '' || $company_phone !== '')) {
+        try {
+          $pdoU = Database::getConnection();
+          $cols = $pdoU->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_ASSOC);
+          $hasWebsite = false; $hasPhone = false;
+          foreach ($cols as $c) { if (($c['Field']??'')==='company_website') $hasWebsite=true; if (($c['Field']??'')==='company_phone') $hasPhone=true; }
+          if ($hasWebsite || $hasPhone) {
+            $st = $pdoU->prepare('UPDATE users SET '.
+              ($hasWebsite?'company_website = ?':'').
+              ($hasWebsite&&$hasPhone?', ':'').
+              ($hasPhone?'company_phone = ?':'').
+              ' WHERE email = ? LIMIT 1');
+            $params = [];
+            if ($hasWebsite) $params[] = $company_website;
+            if ($hasPhone) $params[] = $company_phone;
+            $params[] = $email;
+            $st->execute($params);
+          }
+        } catch (Throwable $e) { /* ignore */ }
+      }
       if ($role === 'job_seeker') {
         Helpers::flash('msg','Registration successful. Your PWD ID is pending admin verification. You will receive your initial password via email once approved.');
       } else {
@@ -171,6 +213,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 include 'includes/header.php';
 include 'includes/nav.php';
 ?>
+<style>
+/* Local fix: prevent floating labels from overflowing wide text */
+.auth-page .input-floating-label label {
+  white-space: normal;           /* allow wrapping */
+  overflow-wrap: anywhere;       /* break long words */
+  word-break: break-word;        /* ensure wrap in narrow columns */
+  line-height: 1.15;             /* tighter line height to fit above inputs */
+  max-width: 100%;
+}
+</style>
 <div class="auth-page fade-up">
   <div class="auth-shell panels-touch">
     <div class="auth-card">
@@ -204,15 +256,15 @@ include 'includes/nav.php';
             <div class="row g-3">
               <div class="col-md-4 input-floating-label">
                 <label>Company Owner First Name</label>
-                <input name="owner_first_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_first_name'] ?? ''); ?>">
+                <input name="owner_first_name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['owner_first_name'] ?? ''); ?>">
               </div>
               <div class="col-md-4 input-floating-label">
-                <label>Company Owner Middle Name (optional)</label>
-                <input name="owner_middle_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_middle_name'] ?? ''); ?>">
+                <label>Company Owner Middle Name</label>
+                <input name="owner_middle_name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['owner_middle_name'] ?? ''); ?>">
               </div>
               <div class="col-md-4 input-floating-label">
                 <label>Company Owner Last Name</label>
-                <input name="owner_last_name" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['owner_last_name'] ?? ''); ?>">
+                <input name="owner_last_name" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['owner_last_name'] ?? ''); ?>">
               </div>
             </div>
           </div>
@@ -259,24 +311,24 @@ include 'includes/nav.php';
                 <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
-                <label>Business Email (optional)</label>
-                <input type="email" name="business_email" class="form-control" value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
+                <label>Business Email</label>
+                <input type="email" name="business_email" class="form-control" required value="<?php echo htmlspecialchars($_POST['business_email'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
-                <label>Company Website (optional)</label>
-                <input type="text" name="company_website" class="form-control" placeholder="https://..." value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>">
+                <label>Company Website</label>
+                <input type="text" name="company_website" class="form-control" required placeholder="https://..." value="<?php echo htmlspecialchars($_POST['company_website'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
-                <label>Company Phone (optional)</label>
-                <input type="text" name="company_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
+                <label>Company Phone</label>
+                <input type="text" name="company_phone" class="form-control" required value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
-                <label>Contact Person Position (optional)</label>
-                <input type="text" name="contact_person_position" class="form-control" value="<?php echo htmlspecialchars($_POST['contact_person_position'] ?? ''); ?>">
+                <label>Contact Person Position</label>
+                <input type="text" name="contact_person_position" class="form-control" required value="<?php echo htmlspecialchars($_POST['contact_person_position'] ?? ''); ?>">
               </div>
               <div class="col-md-6 input-floating-label">
-                <label>Contact Person Phone (optional)</label>
-                <input type="text" name="contact_person_phone" class="form-control" value="<?php echo htmlspecialchars($_POST['contact_person_phone'] ?? ''); ?>" placeholder="e.g. +63 912 345 6789">
+                <label>Contact Person Phone</label>
+                <input type="text" name="contact_person_phone" class="form-control" required value="<?php echo htmlspecialchars($_POST['contact_person_phone'] ?? ''); ?>" placeholder="e.g. +63 912 345 6789">
               </div>
               <div class="col-md-6 input-floating-label">
                 <label>Business Permit # <span class="text-danger">*</span></label>
@@ -333,6 +385,11 @@ const jsNameInput = jsNameWrapper ? jsNameWrapper.querySelector('input[name="nam
 const ownerFirstInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_first_name"]') : null;
 const ownerMiddleInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_middle_name"]') : null;
 const ownerLastInput = ownerNameWrapper ? ownerNameWrapper.querySelector('input[name="owner_last_name"]') : null;
+const businessEmailInput = document.querySelector('input[name="business_email"]');
+const companyWebsiteInput = document.querySelector('input[name="company_website"]');
+const companyPhoneInput = document.querySelector('input[name="company_phone"]');
+const contactPositionInput = document.querySelector('input[name="contact_person_position"]');
+const contactPhoneInput = document.querySelector('input[name="contact_person_phone"]');
 
 function updateRoleSections(){
   if (roleSelect.value === 'employer') {
@@ -349,7 +406,12 @@ function updateRoleSections(){
     if (jsNameInput) jsNameInput.removeAttribute('required');
     if (ownerFirstInput) ownerFirstInput.setAttribute('required','required');
     if (ownerLastInput) ownerLastInput.setAttribute('required','required');
-    if (ownerMiddleInput) ownerMiddleInput.removeAttribute('required');
+    if (ownerMiddleInput) ownerMiddleInput.setAttribute('required','required');
+    if (businessEmailInput) businessEmailInput.setAttribute('required','required');
+    if (companyWebsiteInput) companyWebsiteInput.setAttribute('required','required');
+    if (companyPhoneInput) companyPhoneInput.setAttribute('required','required');
+    if (contactPositionInput) contactPositionInput.setAttribute('required','required');
+    if (contactPhoneInput) contactPhoneInput.setAttribute('required','required');
   } else {
     employerSection.style.display = 'none';
     pwdIdContainer.style.display = 'block';
@@ -366,6 +428,11 @@ function updateRoleSections(){
     if (ownerFirstInput) ownerFirstInput.removeAttribute('required');
     if (ownerLastInput) ownerLastInput.removeAttribute('required');
     if (ownerMiddleInput) ownerMiddleInput.removeAttribute('required');
+    if (businessEmailInput) businessEmailInput.removeAttribute('required');
+    if (companyWebsiteInput) companyWebsiteInput.removeAttribute('required');
+    if (companyPhoneInput) companyPhoneInput.removeAttribute('required');
+    if (contactPositionInput) contactPositionInput.removeAttribute('required');
+    if (contactPhoneInput) contactPhoneInput.removeAttribute('required');
   }
 }
 
