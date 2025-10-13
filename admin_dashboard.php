@@ -226,12 +226,12 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
   <?php endif; ?>
 
   <div class="charts-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;margin-top:12px">
-    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;min-height:280px">
-      <canvas id="disPie" height="260" style="display:block;max-width:100%;"></canvas>
+    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;height:320px;overflow:hidden">
+      <canvas id="disPie" style="display:block;width:100%;height:100%"></canvas>
     </div>
-    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;min-height:280px">
+    <div class="chart-box" style="background:#0c1524;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px;height:320px;overflow:hidden">
       <div class="small text-secondary mb-2" style="font-weight:700;letter-spacing:.05em;text-transform:uppercase">Top 5 Jobs Applied</div>
-      <canvas id="topJobsBar" height="260" style="display:block;max-width:100%;"></canvas>
+      <canvas id="topJobsBar" style="display:block;width:100%;height:calc(100% - 22px)"></canvas>
     </div>
   </div>
 </div>
@@ -302,18 +302,19 @@ $pendingPwdPct      = $totalSeekers ? round(($pendingPwd / $totalSeekers) * 100,
           datasets: [{
             label: 'Applications',
             data: [<?php foreach ($topJobCounts as $c): echo (int)$c.','; endforeach; ?>],
-            backgroundColor: '#60a5fa',
+            backgroundColor: '#1f6feb',
             borderRadius: 6,
           }]
         },
         options: {
+          indexAxis: 'y', // horizontal bars
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            x: { ticks: { color: '#cbd5e1', font: { size: 11 } } },
-            y: { ticks: { color: '#cbd5e1', precision: 0 }, beginAtZero: true }
+            x: { ticks: { color: '#cbd5e1', precision: 0 }, beginAtZero: true, grid: { color: 'rgba(148,163,184,.18)' } },
+            y: { ticks: { color: '#cbd5e1', font: { size: 12 } }, grid: { display: false } }
           },
-          plugins: { legend: { display: false } }
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx)=> ` ${ctx.parsed.x} applications` } } }
         }
       });
     }
