@@ -81,7 +81,23 @@ if ($hasFilters) {
   $params = [];
   $extraJoin = '';
 
-  if ($q !== '') { $where[] = "(j.title LIKE :q OR j.description LIKE :q OR u.company_name LIKE :q)"; $params[':q'] = '%' . $q . '%'; }
+  if ($q !== '') {
+    // Title-only search: split into tokens and require each token to appear in the title
+    $tokens = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY);
+    if (!$tokens) {
+      $where[] = "j.title LIKE :q1"; $params[':q1'] = '%' . $q . '%';
+    } else {
+      $cl = [];
+      $i = 0;
+      foreach ($tokens as $tok) {
+        $i++;
+        $ph = ":q$i";
+        $cl[] = "j.title LIKE $ph";
+        $params[$ph] = '%' . $tok . '%';
+      }
+      $where[] = '(' . implode(' AND ', $cl) . ')';
+    }
+  }
   if ($whereUnified !== '') { $where[] = "(j.location_region LIKE :where OR j.location_city LIKE :where)"; $params[':where'] = '%' . $whereUnified . '%'; }
   // Hierarchical education filter: selecting a higher level includes all lower (user assumed qualified above requirement)
   if ($edu !== '') {
@@ -405,7 +421,7 @@ function fmt_salary($cur, $min, $max, $period) {
         <label class="form-label filter-bold-label" for="filter-what" style="font-size:1rem">What</label>
         <div class="input-icon-group position-relative">
           <span class="i-icon" aria-hidden="true"><i class="bi bi-search"></i></span>
-          <input id="filter-what" type="text" name="what" class="form-control filter-bold" placeholder="Job title or company" value="<?php echo htmlspecialchars($q); ?>" style="height:3.1rem;font-size:1.05rem;" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="kw-suggest-list">
+          <input id="filter-what" type="text" name="what" class="form-control filter-bold" placeholder="Job title" value="<?php echo htmlspecialchars($q); ?>" style="height:3.1rem;font-size:1.05rem;" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-owns="kw-suggest-list">
           <div id="kw-suggest" class="dropdown-menu shadow" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1050; max-height:300px; overflow:auto;">
             <div class="small text-muted px-3 pt-2" id="kw-suggest-header" style="display:none;">Suggestions</div>
             <ul id="kw-suggest-list" class="list-unstyled mb-0"></ul>
