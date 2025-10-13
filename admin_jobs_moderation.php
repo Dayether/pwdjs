@@ -158,6 +158,14 @@ table.jobs-table tbody tr:last-child td{border-bottom:none}
       <a class="btn btn-sm btn-outline-light" href="admin_jobs_moderation.php">Reset</a>
     </form>
 
+    <?php $___fl = Helpers::getFlashes(); foreach($___fl as $k=>$msg): $type = ($k==='error'||$k==='danger')?'danger':((in_array($k,['success','msg'],true))?'success':'info'); ?>
+      <div class="alert alert-<?php echo $type; ?> alert-dismissible fade show py-2 small" role="alert">
+        <?php if($type==='success'): ?><i class="bi bi-check-circle me-1"></i><?php elseif($type==='danger'): ?><i class="bi bi-exclamation-triangle me-1"></i><?php else: ?><i class="bi bi-info-circle me-1"></i><?php endif; ?>
+        <?php echo htmlspecialchars($msg); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    <?php endforeach; ?>
+
     <?php foreach ($messages as $m): ?>
       <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i><?php echo $m; ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
     <?php endforeach; ?>

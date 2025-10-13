@@ -188,7 +188,7 @@ class Helpers {
     public static function mapFlashType(string $key): string {
         return match($key) {
             'error','danger' => 'danger',
-            'success'        => 'success',
+            'success','msg'  => 'success',
             'auth','warning' => 'warning',
             default          => 'info'
         };
