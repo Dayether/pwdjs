@@ -157,6 +157,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 include 'includes/header.php';
 ?>
+<style>
+/* Create Job header visibility boost */
+.admin-main .admin-page-header{
+  background:
+    radial-gradient(1200px 150px at 30% -20%, rgba(96,165,250,.18), transparent),
+    linear-gradient(180deg, rgba(15,23,42,.95), rgba(15,23,42,.65));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:.9rem 1rem .85rem;
+}
+.admin-main .admin-page-header .page-title{color:#f5faff;font-size:1.5rem;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.admin-main .admin-page-header .page-title i{color:#60a5fa;filter:drop-shadow(0 1px 6px rgba(96,165,250,.35))}
+.admin-main .admin-page-header .page-sub{color:#c7d7ef;opacity:.95;font-size:.85rem;margin:0}
+.admin-main .admin-page-header .btn-outline-light{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.35);color:#eaf2ff}
+@media (prefers-color-scheme: light){
+  .admin-main .admin-page-header{background:linear-gradient(180deg,#e8eef9,#dae6fb);border-color:#cbd5e1}
+  .admin-main .admin-page-header .page-title{color:#0f172a;text-shadow:none}
+  .admin-main .admin-page-header .page-sub{color:#334155}
+}
+</style>
 <div class="admin-layout">
   <?php include 'includes/admin_sidebar.php'; ?>
   <div class="admin-main">
