@@ -15,14 +15,14 @@ if (session_status() === PHP_SESSION_NONE) {
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <?php $BASE = rtrim(BASE_URL, '/'); ?>
-<link href="<?php echo $BASE; ?>/public/assets/styles.css?v=20250926b" rel="stylesheet">
+<link href="<?php echo $BASE; ?>/assets/styles.css?v=20250926b" rel="stylesheet">
 <?php
   // Dynamic favicon detection (prefers root favicon files; falls back to existing logo)
   $__favCandidates = [
-    $BASE.'/favicon.ico' => __DIR__.'/../public/favicon.ico',
-    $BASE.'/favicon.png' => __DIR__.'/../public/favicon.png',
-    $BASE.'/public/assets/favicon.png' => __DIR__.'/../public/assets/favicon.png',
-    $BASE.'/public/assets/images/hero/logo.png' => __DIR__.'/../public/assets/images/hero/logo.png', // fallback to logo
+    $BASE.'/favicon.ico' => __DIR__.'/../favicon.ico',
+    $BASE.'/favicon.png' => __DIR__.'/../favicon.png',
+    $BASE.'/assets/favicon.png' => __DIR__.'/../assets/favicon.png',
+    $BASE.'/assets/images/hero/logo.png' => __DIR__.'/../assets/images/hero/logo.png', // fallback to logo
   ];
   $__favHref = null;
   foreach ($__favCandidates as $href=>$disk) {

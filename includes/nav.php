@@ -25,7 +25,7 @@ if ($loggedIn && $role==='employer') {
       $logoCandidates = [
         'favicon.png',
         'favicon.ico',
-        'public/assets/favicon.png',
+        'assets/favicon.png',
         $logoFallback
       ];
       $foundLogo = $logoFallback;
@@ -46,7 +46,7 @@ if ($loggedIn && $role==='employer') {
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <?php if (!($loggedIn && $role==='employer')): ?>
           <li class="nav-item">
-            <a class="nav-link <?php echo nav_active('index.php',$currentPage); ?>" href="index.php">
+            <a class="nav-link <?php echo nav_active('index.php',$currentPage); ?>" href="<?php echo rtrim(BASE_URL,'/'); ?>/">
               <i class="bi bi-search me-1"></i>Find Jobs
             </a>
           </li>
@@ -128,7 +128,7 @@ if ($loggedIn && $role==='employer') {
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
                 <?php if ($avatarPath): ?>
-                  <img src="../<?php echo htmlspecialchars($avatarPath); ?>" alt="Avatar" class="rounded-circle border" style="width:32px;height:32px;object-fit:cover;">
+                  <img src="<?php echo htmlspecialchars($avatarPath); ?>" alt="Avatar" class="rounded-circle border" style="width:32px;height:32px;object-fit:cover;">
                 <?php else: ?>
                   <span class="rounded-circle bg-light d-inline-flex justify-content-center align-items-center" style="width:32px;height:32px;">
                     <i class="bi bi-person" style="font-size:1rem;"></i>

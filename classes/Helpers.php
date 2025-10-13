@@ -147,11 +147,21 @@ class Helpers {
 
         $relative = ltrim($path,'/');
 
-        // Optional stripping of deployment prefix (adjust if needed)
-        $marker = 'public/';
-        $pos = strpos($relative, $marker);
-        if ($pos !== false) {
-            $relative = substr($relative, $pos + strlen($marker));
+    // Normalize away any absolute BASE_URL or legacy prefixes like 'pwdjs/public/' or 'public/'
+        $base = rtrim((string)(defined('BASE_URL') ? BASE_URL : ''), '/');
+        if ($base !== '') {
+            // If relative accidentally contains full base path, strip it
+            $basePath = parse_url($base, PHP_URL_PATH) ?: '';
+            $basePath = ltrim($basePath, '/');
+            if ($basePath !== '' && stripos($relative, $basePath.'/') === 0) {
+                $relative = substr($relative, strlen($basePath)+1);
+            }
+        }
+    foreach (['pwdjsbackup/public/','pwdjs/public/','public/','pwdjsbackup/','pwdjs/'] as $legacy) {
+            if (stripos($relative, $legacy) === 0) {
+                $relative = substr($relative, strlen($legacy));
+                break;
+            }
         }
 
         if (!empty($parsed['query'])) {

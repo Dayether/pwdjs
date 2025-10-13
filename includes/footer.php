@@ -51,7 +51,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <?php $BASE = rtrim(BASE_URL, '/'); ?>
-<script src="<?php echo $BASE; ?>/public/assets/theme.js?v=20250926a"></script>
+<script src="<?php echo $BASE; ?>/assets/theme.js?v=20250926a"></script>
 <script>
 /* Auto-dismiss flash alerts */
 document.querySelectorAll('.alert.auto-dismiss').forEach(el=>{
