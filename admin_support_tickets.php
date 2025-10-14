@@ -108,7 +108,6 @@ include 'includes/header.php';
         table.tickets-table thead{display:none}
         table.tickets-table tbody tr{background:#132133;border:1px solid #1f3147;border-radius:12px;margin-bottom:.85rem;padding:.75rem .9rem}
         table.tickets-table tbody td{border:none;padding:.35rem 0;font-size:.7rem}
-        table.tickets-table tbody td.actions{margin-top:.55rem}
       }
       .tickets-wrapper{margin-left:-.5rem;margin-right:-.5rem}
       @media (min-width:1200px){.tickets-wrapper{margin-left:-1rem;margin-right:-1rem}}
@@ -161,7 +160,6 @@ include 'includes/header.php';
             <th data-sort="name">Name / Email</th>
             <th data-sort="status">Status</th>
             <th data-sort="created">Created</th>
-            <th style="text-align:right">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -178,18 +176,9 @@ include 'includes/header.php';
               </td>
               <td><span class="status-pill st-<?= htmlspecialchars($st); ?>"><i class="bi bi-circle-fill" style="font-size:.45rem"></i><?= htmlspecialchars($st); ?></span></td>
               <td style="font-size:.62rem;color:#c2cfdd;white-space:nowrap"><?= htmlspecialchars(date('M d, Y H:i', strtotime($t['created_at']))); ?></td>
-              <td class="actions" style="text-align:right">
-                <div class="ticket-actions" style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end">
-                  <?php if($st!=='Open'): ?><a class="action-btn" href="?action=open&ticket_id=<?= urlencode($t['ticket_id']); ?>">Open</a><?php endif; ?>
-                  <?php if($st!=='Pending'): ?><a class="action-btn" href="?action=pending&ticket_id=<?= urlencode($t['ticket_id']); ?>">Pending</a><?php endif; ?>
-                  <?php if($st!=='Resolved'): ?><a class="action-btn" href="?action=resolved&ticket_id=<?= urlencode($t['ticket_id']); ?>">Resolve</a><?php endif; ?>
-                  <?php if($st!=='Closed'): ?><a class="action-btn" href="?action=closed&ticket_id=<?= urlencode($t['ticket_id']); ?>">Close</a><?php endif; ?>
-                  <a class="action-btn" data-confirm-title="Delete Ticket" data-confirm="Delete this support ticket?" data-confirm-yes="Delete" data-confirm-no="Cancel" href="?action=delete&ticket_id=<?= urlencode($t['ticket_id']); ?>"><i class="bi bi-trash"></i></a>
-                </div>
-              </td>
             </tr>
           <?php endforeach; ?>
-          <?php if(!$tickets): ?><tr><td colspan="6" class="empty-state">No tickets found.</td></tr><?php endif; ?>
+          <?php if(!$tickets): ?><tr><td colspan="5" class="empty-state">No tickets found.</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
