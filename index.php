@@ -381,6 +381,11 @@ function fmt_salary($cur, $min, $max, $period) {
   @keyframes fadeSlideUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
   [data-reveal]{ opacity:0; transform:translateY(8px); }
   .reveal-in{ animation: fadeSlideUp .28s ease-out both; }
+
+  /* Ensure profile dropdown is not covered by the sticky search bar (index only) */
+  .navbar.navbar-themed{ position: relative; z-index: 3000; }
+  .navbar.navbar-themed .dropdown-menu{ z-index: 5000 !important; }
+  .job-filters-card{ z-index: 50; }
 </style>
 <div class="job-filters-card mb-3" style="margin-top:.5rem;" data-reveal>
   <div class="job-filters-inner p-2 p-md-3 compact-filters">
