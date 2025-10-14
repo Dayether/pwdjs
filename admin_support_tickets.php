@@ -43,14 +43,17 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['reply_ticket_id'], $_POS
 
 // Status / delete actions
 if(isset($_GET['action'],$_GET['ticket_id'])){
-  $a=strtolower($_GET['action']); $tid=$_GET['ticket_id'];
+  $a=strtolower($_GET['action']); $tid=trim($_GET['ticket_id']);
+  $returnView = trim($_GET['view'] ?? '');
   if($a==='delete'){
     Helpers::flash('msg', SupportTicket::delete($tid)?'Ticket deleted.':'Delete failed.');
+    Helpers::redirect('admin_support_tickets.php');
   } else {
     $map=['open'=>'Open','pending'=>'Pending','resolved'=>'Resolved','closed'=>'Closed'];
     if(isset($map[$a])){ SupportTicket::updateStatus($tid,$map[$a]); Helpers::flash('msg','Status updated to '.$map[$a].'.'); }
+    $dest = 'admin_support_tickets.php' . ($returnView!=='' ? ('?view='.urlencode($returnView)) : (isset($_GET['ticket_id']) ? ('?view='.urlencode($tid)) : ''));
+    Helpers::redirect($dest);
   }
-  Helpers::redirect('admin_support_tickets.php');
   exit;
 }
 
@@ -202,11 +205,11 @@ include 'includes/header.php';
           </dl>
           <hr>
           <div class="d-flex flex-wrap gap-2 mb-3">
-            <a class="btn btn-sm btn-outline-primary" href="?action=open&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>">Open</a>
-            <a class="btn btn-sm btn-outline-warning" href="?action=pending&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>">Pending</a>
-            <a class="btn btn-sm btn-outline-success" href="?action=resolved&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>">Resolve</a>
-            <a class="btn btn-sm btn-outline-secondary" href="?action=closed&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>">Close</a>
-            <a class="btn btn-sm btn-outline-danger" data-confirm-title="Delete Ticket" data-confirm="Delete this support ticket?" data-confirm-yes="Delete" data-confirm-no="Cancel" href="?action=delete&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>"><i class="bi bi-trash me-1"></i>Delete</a>
+            <a class="btn btn-sm btn-outline-primary" href="admin_support_tickets.php?action=open&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>&view=<?= urlencode($viewTicket['ticket_id']); ?>">Open</a>
+            <a class="btn btn-sm btn-outline-warning" href="admin_support_tickets.php?action=pending&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>&view=<?= urlencode($viewTicket['ticket_id']); ?>">Pending</a>
+            <a class="btn btn-sm btn-outline-success" href="admin_support_tickets.php?action=resolved&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>&view=<?= urlencode($viewTicket['ticket_id']); ?>">Resolve</a>
+            <a class="btn btn-sm btn-outline-secondary" href="admin_support_tickets.php?action=closed&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>&view=<?= urlencode($viewTicket['ticket_id']); ?>">Close</a>
+            <a class="btn btn-sm btn-outline-danger" data-confirm-title="Delete Ticket" data-confirm="Delete this support ticket?" data-confirm-yes="Delete" data-confirm-no="Cancel" href="admin_support_tickets.php?action=delete&ticket_id=<?= urlencode($viewTicket['ticket_id']); ?>"><i class="bi bi-trash me-1"></i>Delete</a>
           </div>
           <h4 class="h6 fw-semibold mb-3"><i class="bi bi-reply me-2"></i>Send Reply</h4>
           <?php if (!Mail::isEnabled()): ?><div class="alert alert-warning py-2 px-3 small"><i class="bi bi-exclamation-triangle me-1"></i>Email sending is OFF (configure SMTP in config.php).</div><?php endif; ?>
