@@ -568,8 +568,8 @@ function fmt_salary($cur, $min, $max, $period)
 
     .action-bar-compressed .btn-outline-primary.active {
         color: #fff;
-        background: #0d6efd;
-        border-color: #0d6efd;
+        background: var(--primary-blue);
+        border-color: var(--primary-blue);
     }
 
     /* Remove height override from earlier */
@@ -605,8 +605,8 @@ function fmt_salary($cur, $min, $max, $period)
     }
 
     [aria-label="Related searches"] .sort-chip.active {
-        background: #0d6efd;
-        border-color: #0d6efd;
+        background: var(--primary-blue);
+        border-color: var(--primary-blue);
         color: #fff;
     }
 
@@ -617,16 +617,16 @@ function fmt_salary($cur, $min, $max, $period)
         border-radius: 2rem;
         display: inline-flex;
         align-items: center;
-        border: 1px solid #0d6efd;
-        color: #0d6efd;
+        border: 1px solid var(--primary-blue);
+        color: var(--primary-blue);
         background: #fff;
         font-weight: 600;
     }
 
     [aria-label="Related searches"] .sort-count-badge {
         background: #fff;
-        border: 1px solid #0d6efd;
-        color: #0d6efd;
+        border: 1px solid var(--primary-blue);
+        color: var(--primary-blue);
         font-weight: 600;
         padding: .3rem .6rem;
         font-size: .65rem;
@@ -659,19 +659,19 @@ function fmt_salary($cur, $min, $max, $period)
 
     /* === Landing micro-interactions (purely visual) === */
     :root {
-        --hover-shadow: 0 14px 32px -18px rgba(13, 110, 253, .35), 0 8px 18px -16px rgba(2, 6, 23, .18);
+        --hover-shadow: 0 14px 32px -18px rgba(var(--primary-blue-rgb), .35), 0 8px 18px -16px rgba(2, 6, 23, .18);
     }
 
     /* Inputs: soft glow on hover/focus */
     .compact-filters .form-control:hover,
     .compact-filters .form-select:hover {
-        border-color: #bcd7ff;
-        box-shadow: 0 0 0 .18rem rgba(13, 110, 253, .12);
+        border-color: rgba(var(--primary-blue-rgb), .3);
+        box-shadow: 0 0 0 .18rem rgba(var(--primary-blue-rgb), .12);
     }
 
     .compact-filters .form-control:focus,
     .compact-filters .form-select:focus {
-        box-shadow: 0 0 0 .22rem rgba(13, 110, 253, .2);
+        box-shadow: 0 0 0 .22rem rgba(var(--accent-yellow-rgb), .28);
     }
 
     /* Buttons */
@@ -701,9 +701,9 @@ function fmt_salary($cur, $min, $max, $period)
 
     [aria-label="Related searches"] a.btn:hover {
         transform: scale(1.03);
-        box-shadow: 0 10px 18px -12px rgba(13, 110, 253, .25);
-        border-color: #bcd7ff;
-        background: #f7fbff;
+        box-shadow: 0 10px 18px -12px rgba(var(--primary-blue-rgb), .25);
+        border-color: rgba(var(--primary-blue-rgb), .3);
+        background: var(--neutral-light);
     }
 
     /* Job list items hover enhancement */
@@ -1109,7 +1109,7 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .promo-points li i {
-            color: #0d6efd;
+            color: var(--primary-blue);
             margin-top: .2rem;
             font-size: .85rem;
         }
@@ -1134,12 +1134,12 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .btn:focus {
-            box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .28);
+            box-shadow: 0 0 0 .2rem rgba(var(--accent-yellow-rgb), .35);
         }
 
         .promo-auth-hero .btn.btn-primary {
-            background: linear-gradient(180deg, #2b7bff, #0d6efd);
-            border-color: #0d6efd;
+            background: linear-gradient(180deg, var(--primary-blue), var(--primary-purple));
+            border-color: var(--primary-blue);
         }
 
         .promo-auth-hero .btn.btn-primary:hover {
@@ -2598,7 +2598,7 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .emp-nav:focus-visible {
-            outline: 3px solid rgba(13, 110, 253, .35);
+            outline: 3px solid rgba(var(--accent-yellow-rgb), .35);
             outline-offset: 2px;
         }
 
@@ -2624,7 +2624,7 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .emp-dots .dot.active {
-            background: #0d6efd;
+            background: var(--primary-blue);
         }
 
         @media (min-width: 768px) {
@@ -2724,7 +2724,7 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         #job-list .job-item:focus {
-            box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .25);
+            box-shadow: 0 0 0 .2rem rgba(var(--accent-yellow-rgb), .35);
         }
 
         /* Add comfortable spacing between job items on the left */
@@ -2737,13 +2737,13 @@ function fmt_salary($cur, $min, $max, $period)
 
         #job-list .list-group-item:hover {
             border-color: rgba(0, 0, 0, .3) !important;
-            box-shadow: 0 6px 18px -12px rgba(13, 110, 253, .35), 0 4px 12px -8px rgba(0, 0, 0, .08);
+            box-shadow: 0 6px 18px -12px rgba(var(--primary-blue-rgb), .35), 0 4px 12px -8px rgba(0, 0, 0, .08);
             transform: translateY(-1px);
         }
 
         #job-list .job-item.active {
-            border-color: #0d6efd !important;
-            background: #f0f6ff;
+            border-color: var(--primary-blue) !important;
+            background: #EEF3FA;
         }
 
         #job-list .list-group-item:last-child {
@@ -2852,7 +2852,7 @@ function fmt_salary($cur, $min, $max, $period)
 
         /* Variants */
         .callout-card.card-left {
-            background-color: #0d6efd;
+            background-color: var(--primary-blue);
             color: #ffffff;
         }
 
@@ -3095,7 +3095,7 @@ function fmt_salary($cur, $min, $max, $period)
                     <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL, '/'); ?>/about" style="
             display:flex; align-items:center; text-decoration:none; color:inherit;
             min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
-            background-color:#0d6efd; background-image:url('assets/images/hero/pwd_landingpage.jpg');
+                        background-color:var(--primary-blue); background-image:url('assets/images/hero/pwd_landingpage.jpg');
             background-repeat:no-repeat; background-position:right 24px center; background-size:46% auto;
             box-shadow:0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
           ">
