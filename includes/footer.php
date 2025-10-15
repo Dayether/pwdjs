@@ -79,6 +79,8 @@
             footer.footer-themed {
                 background: linear-gradient(180deg, rgba(var(--primary-blue-rgb), 1) 0%, rgba(var(--primary-blue-rgb), .96) 100%);
                 color: #fff;
+                padding-bottom: 2.5rem !important;
+                /* override py-5 bottom padding */
             }
 
             footer.footer-themed .footer-link {
@@ -121,7 +123,7 @@
                 height: 1px;
                 background: rgba(255, 255, 255, .14);
                 /* Increased vertical spacing between sections */
-                margin: 10rem 0 2.5rem;
+                margin: 5rem 0 2.5rem;
                 border-radius: 1rem;
             }
 
@@ -133,12 +135,12 @@
             }
         </style>
 
-        <footer class="footer footer-themed py-3 mt-4 mt-md-5">
+        <footer class="footer footer-themed py-5 mt-4 mt-md-5">
             <div class="container">
                 <div class="row g-4">
                     <div class="col-12 col-md-4">
                         <div class="mb-2 footer-title">PWD Employment &amp; Skills Portal</div>
-                        <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. Inclusive opportunities for PWD professionals.</div>
+                        <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong></div>
                     </div>
                     <div class="col-6 col-md-2">
                         <div class="footer-title small mb-2">For Employers</div>
