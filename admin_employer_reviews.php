@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS employer_reviews (
   reviewer_user_id VARCHAR(32) NULL,
   rating TINYINT UNSIGNED NOT NULL,
   comment TEXT NULL,
-  status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Approved',
+  status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_employer_created (employer_id, created_at),
@@ -122,14 +122,17 @@ if ($filter !== 'All') { $where = 'WHERE r.status = ?'; $params[] = $filter; }
 
 // Load rows (catch missing table)
 $rows = [];
+$debugMsg = null;
 if (!$hasTable) {
   $tableError = 'Employer reviews table not found. Please apply migration file config/migrations/20251002_employer_reviews.sql to your database.';
 } else {
   try {
+    // Note: Some hosts create employer_reviews with utf8mb4_uca1400_ai_ci while users.user_id is utf8mb4_general_ci.
+    // Joining across different collations can throw "Illegal mix of collations" errors. We coerce the comparison to a common collation.
     $sql = "SELECT r.*, u.company_name, u.name AS employer_name, ru.name AS reviewer_name, ru.email AS reviewer_email
             FROM employer_reviews r
-            LEFT JOIN users u ON u.user_id = r.employer_id
-            LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id
+            LEFT JOIN users u ON u.user_id = r.employer_id COLLATE utf8mb4_general_ci
+            LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id COLLATE utf8mb4_general_ci
             $where
             ORDER BY r.created_at DESC
             LIMIT 300";
@@ -137,7 +140,48 @@ if (!$hasTable) {
     $st->execute($params);
     $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
   } catch (Throwable $e) {
-    $loadError = 'Failed to load reviews. Please retry or contact support.';
+    if (isset($_GET['debug']) && $_GET['debug'] == '1') {
+      $debugMsg = 'Join query failed: ' . $e->getMessage();
+    }
+    // Fallback without JOINs to at least render the raw rows
+    try {
+      $sql = "SELECT r.* FROM employer_reviews r $where ORDER BY r.created_at DESC LIMIT 300";
+      $st = $pdo->prepare($sql);
+      $st->execute($params);
+      $baseRows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+      // Optionally enrich reviewer and employer names using separate lookups (avoids collation join issues)
+      $rows = $baseRows;
+      if ($rows) {
+        $empIds = [];$revIds = [];
+        foreach ($rows as $r) { $empIds[$r['employer_id']] = true; if (!empty($r['reviewer_user_id'])) { $revIds[$r['reviewer_user_id']] = true; } }
+        $empMap = [];$revMap = [];
+        if ($empIds) {
+          $in = str_repeat('?,', count($empIds)); $in = rtrim($in, ',');
+          $st2 = $pdo->prepare("SELECT user_id, company_name, name FROM users WHERE user_id IN ($in)");
+          $st2->execute(array_keys($empIds));
+          foreach ($st2->fetchAll(PDO::FETCH_ASSOC) as $u) { $empMap[$u['user_id']] = $u; }
+        }
+        if ($revIds) {
+          $in = str_repeat('?,', count($revIds)); $in = rtrim($in, ',');
+          $st3 = $pdo->prepare("SELECT user_id, name, email FROM users WHERE user_id IN ($in)");
+          $st3->execute(array_keys($revIds));
+          foreach ($st3->fetchAll(PDO::FETCH_ASSOC) as $u) { $revMap[$u['user_id']] = $u; }
+        }
+        foreach ($rows as &$r) {
+          $eu = $empMap[$r['employer_id']] ?? null;
+          $ru = !empty($r['reviewer_user_id']) ? ($revMap[$r['reviewer_user_id']] ?? null) : null;
+          $r['company_name'] = $eu['company_name'] ?? null;
+          $r['employer_name'] = $eu['name'] ?? null;
+          $r['reviewer_name'] = $ru['name'] ?? null;
+          $r['reviewer_email'] = $ru['email'] ?? null;
+        }
+        unset($r);
+      }
+      // Surface a soft note for admins if a join issue was detected
+      $loadError = null; // clear the hard error since we have data
+    } catch (Throwable $e2) {
+      $loadError = 'Failed to load reviews. Please retry or contact support.';
+    }
   }
 }
 
@@ -185,6 +229,10 @@ include 'includes/header.php';
 
     <?php if (!$tableError && $loadError): ?>
       <div class="alert alert-danger"><i class="bi bi-exclamation-octagon me-2"></i><?= htmlspecialchars($loadError); ?></div>
+    <?php endif; ?>
+
+    <?php if (!$tableError && $debugMsg): ?>
+      <div class="alert alert-warning small"><i class="bi bi-bug me-2"></i><?= htmlspecialchars($debugMsg); ?></div>
     <?php endif; ?>
 
     <?php if (!$tableError && !$rows): ?>
