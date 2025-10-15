@@ -214,8 +214,10 @@ if ($loggedIn && $role === 'employer') {
         padding: 0.6rem 1.25rem;
         border-radius: 8px;
         transition: all 0.2s ease;
-        display: flex;
+        display: inline-flex;
         align-items: center;
+        height: 40px;
+        line-height: 1;
     }
 
     .navbar-themed .nav-link:hover,
@@ -235,6 +237,15 @@ if ($loggedIn && $role === 'employer') {
         font-size: 1.1rem;
     }
 
+    /* Focus outline for navbar elements - blend with navbar gradient */
+    .navbar-themed a:focus-visible,
+    .navbar-themed button:focus-visible,
+    .navbar-themed .btn:focus-visible,
+    .navbar-themed .nav-link:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 0.25rem rgba(173, 216, 255, 0.5) !important;
+    }
+
     /* Login/Register buttons */
     .navbar-themed .btn-light.btn-sm {
         background: #fff;
@@ -248,6 +259,8 @@ if ($loggedIn && $role === 'employer') {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        height: 40px;
+        line-height: 1;
     }
 
     .navbar-themed .btn-light.btn-sm:hover {
@@ -270,6 +283,8 @@ if ($loggedIn && $role === 'employer') {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        height: 40px;
+        line-height: 1;
     }
 
     .navbar-themed .btn-accent.btn-sm:hover {

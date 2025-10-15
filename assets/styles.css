@@ -3334,7 +3334,7 @@ button:focus-visible,
 .btn:focus-visible,
 .list-group-item:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(255, 200, 87, 0.35) !important;
+    box-shadow: 0 0 0 0.2rem rgba(173, 216, 255, 0.5) !important;
 }
 
 /* Toast container ensure top spacing */
