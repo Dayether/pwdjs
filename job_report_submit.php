@@ -18,7 +18,7 @@ $details = trim($_POST['details'] ?? '');
 
 $job = Job::findById($job_id);
 if (!$job) {
-    Helpers::flash('error','Job not found.');
+    Helpers::flash('error', 'Job not found.');
     Helpers::redirect('index.php');
 }
 
@@ -33,8 +33,8 @@ if ($errors) {
 }
 
 if (Report::create($job_id, $_SESSION['user_id'], $reason, $details)) {
-    Helpers::flash('msg','Thank you. Your report has been submitted.');
+    Helpers::flash('msg', 'Thank you. Your report has been submitted.');
 } else {
-    Helpers::flash('error','Failed to submit report.');
+    Helpers::flash('error', 'Failed to submit report.');
 }
 Helpers::redirect('job_view.php?job_id=' . urlencode($job_id));
