@@ -121,7 +121,7 @@
                 height: 1px;
                 background: rgba(255, 255, 255, .14);
                 /* Increased vertical spacing between sections */
-                margin: 2rem 0 1.5rem;
+                margin: 3rem 0 2.5rem;
                 border-radius: 1rem;
             }
 
