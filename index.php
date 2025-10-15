@@ -1164,12 +1164,12 @@ function fmt_salary($cur, $min, $max, $period)
             display: inline-flex;
             align-items: center;
             padding: 0.5rem 1rem;
-            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+            background: linear-gradient(90deg, #0d6efd, #6610f2);
             color: #ffffff;
             border-radius: 50px;
             font-size: 0.85rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.5);
             animation: badge-pulse 2s ease-in-out infinite;
         }
 
@@ -1182,11 +1182,11 @@ function fmt_salary($cur, $min, $max, $period)
 
             0%,
             100% {
-                box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+                box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.5);
             }
 
             50% {
-                box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.6);
+                box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.7);
             }
         }
 
@@ -1210,23 +1210,25 @@ function fmt_salary($cur, $min, $max, $period)
             align-items: center;
             gap: 0.5rem;
             padding: 0.5rem 0.9rem;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(13, 110, 253, 0.2);
             border-radius: 8px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: #495057;
+            color: #0d6efd;
             transition: all 0.2s ease;
+            backdrop-filter: blur(8px);
         }
 
         .stat-badge:hover {
-            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            background: rgba(255, 255, 255, 1);
+            border-color: rgba(13, 110, 253, 0.4);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.3);
         }
 
         .stat-badge i {
-            color: #0d6efd;
+            color: #6610f2;
             font-size: 1rem;
         }
 
@@ -1319,13 +1321,13 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .btn-hero.btn-primary {
-            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+            background: linear-gradient(90deg, #0d6efd, #6610f2);
             border: none;
             box-shadow: 0 8px 20px -6px rgba(13, 110, 253, 0.5);
         }
 
         .promo-auth-hero .btn-hero.btn-primary:hover {
-            background: linear-gradient(135deg, #0b5ed7 0%, #5a0dd6 100%);
+            background: linear-gradient(90deg, #0b5ed7, #5a0dd6);
             transform: translateY(-2px);
             box-shadow: 0 12px 28px -8px rgba(13, 110, 253, 0.6);
         }
@@ -1440,35 +1442,57 @@ function fmt_salary($cur, $min, $max, $period)
         /* Right-side rounded rectangle photo whose left edge starts after half of the register card */
         @media (min-width: 768px) {
             .promo-auth-hero .hero-bg {
-                inset: 0 !important;
-                /* fill whole frame */
-                left: 0 !important;
+                position: absolute !important;
+                /* Position it to the right side */
+                left: 40% !important;
                 right: 0 !important;
                 top: 0 !important;
                 bottom: 0 !important;
-                transform: none !important;
-                width: 100% !important;
+                width: 60% !important;
                 height: 100% !important;
-                /* remove right white space */
                 border-radius: 0 !important;
-                /* frame handles rounding via overflow */
                 box-shadow: none !important;
-                /* Keep composition focused higher; allow slight horizontal nudge */
-                background-position: calc(100% - var(--bg-shift-x)) var(--bg-focus-y) !important;
+                /* Position image more to the right and center vertically */
+                background-position: 75% 50% !important;
                 background-repeat: no-repeat !important;
                 background-size: cover !important;
                 background-color: transparent !important;
                 will-change: transform, filter;
                 transition: transform .6s ease, filter .4s ease;
+                opacity: 0.95;
+                z-index: 1;
             }
 
-            /* Center the card vertically so only the image appears raised */
+            /* Center the card vertically and ensure it's above the image */
             .promo-auth-hero .hero-layer {
                 align-items: center !important;
+                position: relative;
+                z-index: 2;
             }
 
             .promo-auth-hero .promo-card-wrap {
                 margin-left: clamp(.15rem, 1.2vw, 1rem);
+            }
+
+            .promo-auth-hero .promo-card {
+                position: relative;
+                z-index: 3;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .promo-auth-hero .hero-bg {
+                left: 45% !important;
+                width: 55% !important;
+                background-position: 70% 50% !important;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .promo-auth-hero .hero-bg {
+                left: 48% !important;
+                width: 52% !important;
+                background-position: 65% 50% !important;
             }
         }
 
