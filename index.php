@@ -299,8 +299,18 @@ function fmt_salary($cur, $min, $max, $period)
         background: #ffffff;
         border: none;
         border-bottom: 1px solid #e2e8f0;
-        border-radius: 0;
+        border-radius: 0 !important;
         box-shadow: none;
+    }
+
+    .compact-filters * {
+        border-radius: 0 !important;
+    }
+
+    .compact-filters .form-control,
+    .compact-filters .form-select,
+    .compact-filters .input-icon-group {
+        border-radius: 0 !important;
     }
 
     .filters-condensed label.filter-bold-label {
@@ -335,6 +345,11 @@ function fmt_salary($cur, $min, $max, $period)
         z-index: 50;
         background: #ffffff;
         backdrop-filter: none;
+        border-radius: 0 !important;
+    }
+
+    .job-filters-inner {
+        border-radius: 0 !important;
     }
 
     /* Give more space to results by reducing margin below filters */
