@@ -140,7 +140,7 @@
                 <div class="row g-4">
                     <div class="col-12 col-md-4">
                         <div class="mb-2 footer-title">PWD Employment &amp; Skills Portal</div>
-                        <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong></div>
+                        <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong><br>Connecting skilled individuals with inclusive employers to build a workforce that values diversity, accessibility, and equal opportunity.</div>
                     </div>
                     <div class="col-6 col-md-2">
                         <div class="footer-title small mb-2">For Employers</div>
