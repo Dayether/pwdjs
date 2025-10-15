@@ -3285,16 +3285,16 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .callouts-holder {
-            background: #ffffff;
-            border: 1px solid #e7ecf4;
-            border-radius: 24px;
-            padding: 16px;
-            box-shadow: 0 16px 36px -28px rgba(2, 6, 23, .12);
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
         }
 
         @media (min-width: 768px) {
             .callouts-holder {
-                padding: 20px;
+                padding: 0;
             }
         }
 
@@ -3304,30 +3304,37 @@ function fmt_salary($cur, $min, $max, $period)
             display: flex;
             align-items: center;
             width: 100%;
-            min-height: 280px;
-            border-radius: 24px;
+            min-height: 320px;
+            border-radius: 20px;
             overflow: hidden;
             text-decoration: none !important;
             color: inherit !important;
-            padding: 18px;
-            padding-right: calc(42% + 24px) !important;
-            border: 1px solid #e7ecf4;
+            padding: 2rem;
+            padding-right: calc(48% + 2rem) !important;
+            border: 1px solid rgba(30, 58, 138, 0.12);
             background-repeat: no-repeat;
-            background-position: right 16px center;
-            background-size: 42% auto;
-            box-shadow: 0 20px 44px -28px rgba(2, 6, 23, .16), 0 12px 30px -26px rgba(2, 6, 23, .10);
-            transition: transform .15s ease, box-shadow .15s ease;
+            background-position: right 1.5rem center;
+            background-size: 48% auto;
+            box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.15), 0 4px 12px -8px rgba(20, 184, 166, 0.08);
+            transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .callout-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 26px 56px -28px rgba(2, 6, 23, .20), 0 16px 40px -26px rgba(2, 6, 23, .12);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -16px rgba(30, 58, 138, 0.25), 0 8px 24px -12px rgba(20, 184, 166, 0.15);
+            border-color: rgba(20, 184, 166, 0.3);
         }
 
         /* Variants */
         .callout-card.card-left {
-            background-color: var(--primary-blue);
+            background: linear-gradient(135deg, #1E3A8A 0%, #14B8A6 100%);
             color: #ffffff;
+            border-color: rgba(20, 184, 166, 0.2);
+        }
+
+        .callout-card.card-left:hover {
+            background: linear-gradient(135deg, #1E3A8A 0%, #0D9488 100%);
+            border-color: rgba(20, 184, 166, 0.4);
         }
 
         .callout-card.card-left .callout-title,
@@ -3336,48 +3343,156 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .callout-card.card-right {
-            background-color: #EEF3FA;
-            color: #0b132a;
+            background: linear-gradient(135deg, #F9FAFB 0%, #ffffff 100%);
+            color: #111827;
+            border-color: rgba(30, 58, 138, 0.12);
+        }
+
+        .callout-card.card-right:hover {
+            background: linear-gradient(135deg, #F9FAFB 0%, #F0F9FF 100%);
+            border-color: rgba(30, 58, 138, 0.2);
+        }
+
+        .callout-card.card-right .callout-title {
+            color: #111827;
         }
 
         .callout-card.card-right .callout-sub {
-            color: #334155;
+            color: #111827;
+            opacity: 0.75;
         }
 
         /* Body (left content) */
         .callout-body {
             position: relative;
-            z-index: 1;
-            max-width: 48%;
+            z-index: 2;
+            max-width: 52%;
         }
 
         .callout-title {
             font-weight: 800;
-            letter-spacing: .2px;
-            font-size: 1.2rem;
-            margin: 0 0 .35rem;
+            letter-spacing: -.01em;
+            font-size: 1.4rem;
+            margin: 0 0 0.75rem;
+            line-height: 1.25;
         }
 
         .callout-sub {
-            margin: 0 0 .75rem;
-            font-size: .95rem;
+            margin: 0 0 1.25rem;
+            font-size: 1rem;
+            line-height: 1.6;
         }
 
         .callout-btn {
-            box-shadow: 0 10px 22px -14px rgba(0, 0, 0, .35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.75rem;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+            transition: all 0.25s ease;
+            border: none;
+        }
+
+        .callout-card.card-left .callout-btn {
+            background: #ffffff;
+            color: #1E3A8A;
+        }
+
+        .callout-card.card-left .callout-btn:hover {
+            background: #F9FAFB;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+        }
+
+        .callout-card.card-right .callout-btn {
+            background: linear-gradient(135deg, #1E3A8A, #14B8A6);
+            color: #ffffff;
+        }
+
+        .callout-card.card-right .callout-btn:hover {
+            background: linear-gradient(135deg, #1E3A8A, #0D9488);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px rgba(30, 58, 138, 0.5);
+        }
+
+        /* Add icon animation */
+        .callout-btn i {
+            transition: transform 0.25s ease;
+            margin-left: 0.5rem;
+        }
+
+        .callout-card:hover .callout-btn i {
+            transform: translateX(4px);
         }
 
         @media (min-width: 768px) {
             .callout-card {
-                min-height: 340px;
-                padding: 22px;
-                padding-right: calc(46% + 28px) !important;
-                background-position: right 24px center;
-                background-size: 46% auto;
+                min-height: 360px;
+                padding: 2.5rem;
+                padding-right: calc(48% + 2.5rem) !important;
+                background-position: right 2rem center;
+                background-size: 48% auto;
             }
 
             .callout-title {
-                font-size: 1.35rem;
+                font-size: 1.75rem;
+                margin-bottom: 1rem;
+            }
+
+            .callout-sub {
+                font-size: 1.05rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .callout-btn {
+                padding: 0.85rem 2rem;
+                font-size: 1.05rem;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .callout-card {
+                min-height: 400px;
+                padding: 3rem;
+                padding-right: calc(50% + 3rem) !important;
+                background-size: 50% auto;
+            }
+
+            .callout-title {
+                font-size: 2rem;
+            }
+
+            .callout-sub {
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .callout-card {
+                min-height: 280px;
+                padding: 1.5rem;
+                padding-right: calc(45% + 1.5rem) !important;
+                background-size: 45% auto;
+            }
+
+            .callout-body {
+                max-width: 55%;
+            }
+
+            .callout-title {
+                font-size: 1.2rem;
+            }
+
+            .callout-sub {
+                font-size: 0.9rem;
+            }
+
+            .callout-btn {
+                padding: 0.65rem 1.25rem;
+                font-size: 0.95rem;
             }
         }
 
@@ -3576,7 +3691,7 @@ function fmt_salary($cur, $min, $max, $period)
                         <div class="callout-body">
                             <h3 class="callout-title">All about our mission</h3>
                             <p class="callout-sub">Learn what we do and how we support inclusive hiring.</p>
-                            <span class="btn btn-light btn-lg fw-semibold callout-btn">Go to About</span>
+                            <span class="btn btn-light btn-lg fw-semibold callout-btn">Go to About <i class="bi bi-arrow-right"></i></span>
                         </div>
                     </a>
                 </div>
@@ -3591,7 +3706,7 @@ function fmt_salary($cur, $min, $max, $period)
                         <div class="callout-body">
                             <h3 class="callout-title">Questions? We can help</h3>
                             <p class="callout-sub">Reach out and we’ll respond as soon as possible.</p>
-                            <span class="btn btn-primary btn-lg fw-semibold callout-btn">Contact us</span>
+                            <span class="btn btn-primary btn-lg fw-semibold callout-btn">Contact us <i class="bi bi-arrow-right"></i></span>
                         </div>
                     </a>
                 </div>
