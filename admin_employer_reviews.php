@@ -19,6 +19,22 @@ function _safe_truncate(string $s, int $width = 120, string $end = '…'): strin
 }
 
 function _table_exists(PDO $pdo, string $table): bool {
+  // Fast path that doesn't require information_schema privileges
+  try {
+    $stmt = $pdo->prepare('SHOW TABLES LIKE ?');
+    $stmt->execute([$table]);
+    if ($stmt->fetchColumn()) return true;
+  } catch (Throwable $e) {
+    // ignore and try fallback
+  }
+  // Fallback #1: simple probe
+  try {
+    $pdo->query("SELECT 1 FROM `".$table."` LIMIT 1");
+    return true;
+  } catch (Throwable $e) {
+    // ignore and try fallback #2
+  }
+  // Fallback #2: information_schema (may be restricted on shared hosts)
   try {
     $stmt = $pdo->prepare('SELECT 1 FROM information_schema.tables WHERE table_schema = ? AND table_name = ?');
     $stmt->execute([DB_NAME, $table]);
@@ -31,6 +47,40 @@ function _table_exists(PDO $pdo, string $table): bool {
 $pdo = Database::getConnection();
 $tableError = null;
 $hasTable = _table_exists($pdo, 'employer_reviews');
+
+// Handle create table (self-heal) action
+if (!$hasTable && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_table') {
+  // Optional CSRF; only admin can be here
+  if (!Helpers::verifyCsrf($_POST['csrf'] ?? '')) {
+    Helpers::flash('msg', 'Invalid session token. Please refresh and try again.');
+    Helpers::redirect('admin_employer_reviews.php');
+    exit;
+  }
+  try {
+    $sqlCreate = "
+CREATE TABLE IF NOT EXISTS employer_reviews (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  employer_id VARCHAR(32) NOT NULL,
+  reviewer_user_id VARCHAR(32) NULL,
+  rating TINYINT UNSIGNED NOT NULL,
+  comment TEXT NULL,
+  status ENUM('Pending','Approved','Rejected') NOT NULL DEFAULT 'Approved',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_employer_created (employer_id, created_at),
+  KEY idx_employer_status (employer_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+";
+    $pdo->exec($sqlCreate);
+    Helpers::flash('msg', 'employer_reviews table has been created.');
+    Helpers::redirect('admin_employer_reviews.php');
+    exit;
+  } catch (Throwable $e) {
+    Helpers::flash('msg', 'Failed to create employer_reviews table: ' . $e->getMessage());
+    Helpers::redirect('admin_employer_reviews.php');
+    exit;
+  }
+}
 
 // Actions: approve/reject/delete (wrapped to avoid fatal if table missing)
 if ($hasTable && isset($_GET['action'], $_GET['id'])) {
@@ -116,6 +166,12 @@ include 'includes/header.php';
             <li>Run the SQL against your database <code><?= htmlspecialchars(DB_NAME); ?></code>.</li>
             <li>Refresh this page.</li>
           </ol>
+          <hr>
+          <form method="post" class="d-inline">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(Helpers::csrfToken()); ?>">
+            <input type="hidden" name="action" value="create_table">
+            <button class="btn btn-sm btn-primary"><i class="bi bi-hammer me-1"></i>Create table now</button>
+          </form>
         </div>
       </div>
     <?php endif; ?>
