@@ -131,7 +131,7 @@ include 'includes/header.php';
         </div>
 
         <style>
-            /* Reuse admin look from Employers page */
+            /* Header keeps existing admin style */
             .admin-page-header {
                 display: flex;
                 flex-wrap: wrap;
@@ -139,7 +139,7 @@ include 'includes/header.php';
                 justify-content: space-between;
                 gap: 1.25rem;
                 padding: 0 .25rem .2rem;
-                border-bottom: 1px solid rgba(255, 255, 255, .07);
+                border-bottom: 1px solid rgba(255, 255, 255, .07)
             }
 
             .admin-page-header .page-title {
@@ -150,14 +150,14 @@ include 'includes/header.php';
                 align-items: center;
                 gap: .65rem;
                 color: #f0f6ff;
-                letter-spacing: .5px;
+                letter-spacing: .5px
             }
 
             .admin-page-header .page-title i {
                 font-size: 1.55rem;
                 line-height: 1;
                 color: #6cb2ff;
-                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .4));
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .4))
             }
 
             .admin-page-header .page-sub {
@@ -166,160 +166,226 @@ include 'includes/header.php';
                 letter-spacing: .08em;
                 text-transform: uppercase;
                 font-weight: 600;
-                color: #6e829b;
+                color: #6e829b
             }
 
-            .chips {
+            /* Topbar, chips, filters adapted from job seekers */
+            .jm-topbar {
+                display: flex;
+                flex-direction: column;
+                gap: .85rem;
+                margin: 1rem 0 1.1rem
+            }
+
+            .jm-chips {
                 display: flex;
                 flex-wrap: wrap;
-                gap: .5rem;
-                margin: 1rem 0 .9rem
+                gap: .5rem
             }
 
-            .chip {
+            .jm-chip {
                 --bg: #162335;
                 --bd: rgba(255, 255, 255, .08);
                 display: inline-flex;
                 align-items: center;
-                gap: .4rem;
+                gap: .45rem;
                 font-size: .65rem;
                 font-weight: 600;
                 letter-spacing: .08em;
                 text-transform: uppercase;
-                padding: .55rem .7rem;
+                padding: .55rem .75rem;
                 border: 1px solid var(--bd);
                 background: var(--bg);
-                color: #c2d2e6;
-                border-radius: 8px;
-                line-height: 1;
-                text-decoration: none
+                color: #c4d2e4;
+                border-radius: 9px;
+                text-decoration: none;
+                transition: .25s
             }
 
-            .chip .count {
-                background: rgba(255, 255, 255, .08);
-                padding: .2rem .45rem;
-                border-radius: 5px;
-                font-weight: 700;
-                font-size: .65rem
+            .jm-chip:hover {
+                background: #203754;
+                color: #fff
             }
 
-            .chip.active {
-                background: linear-gradient(135deg, #224a88, #18355f);
+            .jm-chip .count {
+                background: rgba(255, 255, 255, .09);
+                padding: .2rem .5rem;
+                border-radius: 6px;
+                font-size: .62rem;
+                font-weight: 600
+            }
+
+            .jm-chip.active {
+                background: linear-gradient(135deg, #1f4d89, #163657);
                 color: #fff;
-                border-color: #4d7ed4;
+                border-color: #3e74c4;
                 box-shadow: 0 4px 12px -6px rgba(0, 0, 0, .6)
             }
 
-            .filter-bar {
+            .jm-filters {
                 display: flex;
                 flex-wrap: wrap;
                 gap: .6rem;
-                align-items: center;
-                margin-bottom: .9rem
+                align-items: center
             }
 
-            .filter-bar .search-box {
+            .jm-filters .search-box {
                 flex: 1 1 260px;
                 position: relative
             }
 
-            .filter-bar .search-box input {
+            .jm-filters .search-box input {
                 background: #101b2b;
                 border: 1px solid #233246;
                 color: #dbe6f5;
-                padding: .55rem .75rem .55rem 2rem;
-                font-size: .8rem;
-                border-radius: 8px;
+                padding: .6rem .75rem .6rem 2rem;
+                font-size: .78rem;
+                border-radius: 9px;
                 width: 100%
             }
 
-            .filter-bar .search-box i {
+            .jm-filters .search-box i {
                 position: absolute;
-                left: .6rem;
+                left: .65rem;
                 top: 50%;
                 transform: translateY(-50%);
-                color: #6a7b92;
+                color: #6c7c91;
                 font-size: .9rem
             }
 
-            .table-wrapper {
+            .jm-filters select {
+                background: #101b2b;
+                border: 1px solid #233246;
+                color: #dbe6f5;
+                font-size: .72rem;
+                padding: .55rem .65rem;
+                border-radius: 8px
+            }
+
+            .jm-filters .reset-btn {
+                background: #182739;
+                border: 1px solid #23384f;
+                color: #9fb4cc;
+                font-size: .7rem;
+                padding: .55rem .75rem;
+                border-radius: 8px;
+                font-weight: 600;
+                letter-spacing: .5px;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: .4rem
+            }
+
+            .jm-filters .reset-btn:hover {
+                background: #213249;
+                color: #fff
+            }
+
+            /* Wrapper and table */
+            .jm-wrapper {
                 position: relative;
                 border: 1px solid rgba(255, 255, 255, .06);
                 background: #0f1827;
                 border-radius: 16px;
                 overflow: hidden;
-                box-shadow: 0 6px 22px -12px rgba(0, 0, 0, .65)
+                box-shadow: 0 6px 22px -12px rgba(0, 0, 0, .65);
+                margin-left: -.5rem;
+                margin-right: -.5rem
             }
 
-            table.jobs-table {
+            @media (min-width:1200px) {
+                .jm-wrapper {
+                    margin-left: -1rem;
+                    margin-right: -1rem
+                }
+            }
+
+            table.jm-table {
                 margin: 0;
                 border-collapse: separate;
                 border-spacing: 0;
                 width: 100%
             }
 
-            table.jobs-table thead th {
+            table.jm-table thead th {
                 background: #142134;
                 color: #ced8e6;
-                font-size: .65rem;
+                font-size: .63rem;
                 font-weight: 600;
                 letter-spacing: .09em;
                 text-transform: uppercase;
-                padding: .75rem .9rem;
+                padding: .75rem .85rem;
                 border-bottom: 1px solid #1f2e45;
                 position: sticky;
                 top: 0;
                 z-index: 2
             }
 
-            table.jobs-table tbody td {
-                padding: .9rem .9rem;
+            table.jm-table tbody td {
+                padding: .85rem .9rem;
                 vertical-align: top;
-                font-size: .78rem;
+                font-size: .76rem;
                 color: #d2dbe7;
                 border-bottom: 1px solid #132031
             }
 
-            table.jobs-table tbody tr:last-child td {
+            table.jm-table tbody tr:last-child td {
                 border-bottom: none
             }
 
-            .badge-mod {
+            table.jm-table tbody tr {
+                transition: .2s
+            }
+
+            table.jm-table tbody tr:hover {
+                background: rgba(255, 255, 255, .04)
+            }
+
+            /* Status badges (match job seekers look) */
+            .status-badge {
                 display: inline-flex;
                 align-items: center;
                 gap: .35rem;
-                font-size: .62rem;
+                font-size: .6rem;
                 font-weight: 700;
                 letter-spacing: .05em;
-                padding: .35rem .55rem;
+                padding: .38rem .55rem;
                 border-radius: 6px;
                 text-transform: uppercase
             }
 
-            .badge-mod.pending {
+            .mod-Pending {
                 background: linear-gradient(135deg, #8a660c, #3f2f07);
                 color: #fff1c7;
                 border: 1px solid #5f460b
             }
 
-            .badge-mod.approved {
+            .mod-Approved {
                 background: linear-gradient(135deg, #1f7a46, #0f3d24);
                 color: #d8ffe9;
                 border: 1px solid #1c5b36
             }
 
-            .badge-mod.rejected {
+            .mod-Rejected {
                 background: linear-gradient(135deg, #8a1d1d, #470e0e);
                 color: #ffe1e1;
                 border: 1px solid #611414
             }
 
+            /* Decision form tweaks */
             .decision-form .btn {
-                font-size: .72rem
+                font-size: .7rem
             }
 
             .decision-form input[name=reason] {
                 min-width: 240px
+            }
+
+            .decision-form select {
+                background: #101b2b;
+                border: 1px solid #233246;
+                color: #dbe6f5
             }
 
             .tags {
@@ -340,35 +406,93 @@ include 'includes/header.php';
                 background: rgba(108, 178, 255, .12);
                 border: 1px solid rgba(108, 178, 255, .35)
             }
+
+            /* Responsive - card rows on small screens */
+            @media (max-width:900px) {
+                .jm-wrapper {
+                    border: none;
+                    background: transparent;
+                    box-shadow: none
+                }
+
+                table.jm-table,
+                table.jm-table thead,
+                table.jm-table tbody,
+                table.jm-table th,
+                table.jm-table td,
+                table.jm-table tr {
+                    display: block
+                }
+
+                table.jm-table thead {
+                    display: none
+                }
+
+                table.jm-table tbody tr {
+                    background: #132133;
+                    border: 1px solid #1f3147;
+                    border-radius: 12px;
+                    margin-bottom: .85rem;
+                    padding: .75rem .9rem
+                }
+
+                table.jm-table tbody td {
+                    border: none;
+                    padding: .4rem 0;
+                    font-size: .72rem
+                }
+
+                table.jm-table tbody td.decision {
+                    margin-top: .4rem
+                }
+            }
+
+            .fade-in {
+                animation: fadeIn .5s ease both
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(6px)
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0)
+                }
+            }
         </style>
 
-        <div class="chips">
-            <?php
-            $mk = function ($label, $count, $val) use ($statusFilter) {
-                $active = ($statusFilter === $val) ? 'active' : '';
-                $href = 'admin_jobs_moderation.php?status=' . urlencode($val);
-                return '<a class="chip ' . $active . '" href="' . $href . '">' . htmlspecialchars($label) . ' <span class="count">' . (int)$count . '</span></a>';
-            };
-            echo $mk('Total', $counts['total'], 'All');
-            echo $mk('Pending', $counts['Pending'], 'Pending');
-            echo $mk('Approved', $counts['Approved'], 'Approved');
-            echo $mk('Rejected', $counts['Rejected'], 'Rejected');
-            ?>
-        </div>
-
-        <form class="filter-bar" method="get" action="admin_jobs_moderation.php">
-            <div class="search-box">
-                <i class="bi bi-search"></i>
-                <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="Search job title or company">
+        <div class="jm-topbar fade-in">
+            <div class="jm-chips">
+                <?php
+                $mk = function ($label, $count, $val) use ($statusFilter) {
+                    $active = ($statusFilter === $val) ? 'active' : '';
+                    $href = 'admin_jobs_moderation.php?status=' . urlencode($val);
+                    return '<a class="jm-chip ' . $active . '" href="' . $href . '">' . htmlspecialchars($label) . ' <span class="count">' . (int)$count . '</span></a>';
+                };
+                echo $mk('Total', $counts['total'], 'All');
+                echo $mk('Pending', $counts['Pending'], 'Pending');
+                echo $mk('Approved', $counts['Approved'], 'Approved');
+                echo $mk('Rejected', $counts['Rejected'], 'Rejected');
+                ?>
             </div>
-            <select name="status" class="form-select form-select-sm" style="max-width:160px">
-                <?php foreach (['Pending', 'Approved', 'Rejected', 'All'] as $opt): ?>
-                    <option value="<?php echo $opt; ?>" <?php if ($opt === $statusFilter) echo 'selected'; ?>><?php echo $opt; ?></option>
-                <?php endforeach; ?>
-            </select>
-            <button class="btn btn-sm btn-secondary" type="submit">Apply</button>
-            <a class="btn btn-sm btn-outline-light" href="admin_jobs_moderation.php">Reset</a>
-        </form>
+
+            <form class="jm-filters" method="get" action="admin_jobs_moderation.php">
+                <div class="search-box">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="q" value="<?php echo htmlspecialchars($q); ?>" placeholder="Search job title or company">
+                </div>
+                <select name="status">
+                    <?php foreach (['Pending', 'Approved', 'Rejected', 'All'] as $opt): ?>
+                        <option value="<?php echo $opt; ?>" <?php if ($opt === $statusFilter) echo 'selected'; ?>><?php echo $opt; ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button class="btn btn-sm btn-secondary" type="submit">Apply</button>
+                <a class="reset-btn" href="admin_jobs_moderation.php"><i class="bi bi-arrow-counterclockwise"></i>Reset</a>
+            </form>
+        </div>
 
         <?php $___fl = Helpers::getFlashes();
         foreach ($___fl as $k => $msg): $type = ($k === 'error' || $k === 'danger') ? 'danger' : ((in_array($k, ['success', 'msg'], true)) ? 'success' : 'info'); ?>
@@ -386,8 +510,8 @@ include 'includes/header.php';
             <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-1"></i><?php echo htmlspecialchars($e); ?><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
         <?php endforeach; ?>
 
-        <div class="table-wrapper">
-            <table class="jobs-table">
+        <div class="jm-wrapper fade-in">
+            <table class="jm-table">
                 <thead>
                     <tr>
                         <th>Job</th>
@@ -425,12 +549,12 @@ include 'includes/header.php';
                                 <td><?php echo htmlspecialchars($j['company_name'] ?? ''); ?></td>
                                 <td class="text-nowrap"><?php echo htmlspecialchars(date('M j, Y', strtotime($j['created_at']))); ?></td>
                                 <td>
-                                    <span class="badge-mod <?php echo $badgeCls; ?>"><?php echo htmlspecialchars($mod); ?></span>
+                                    <span class="status-badge mod-<?php echo htmlspecialchars($mod); ?>"><?php echo htmlspecialchars($mod); ?></span>
                                     <?php if (($j['moderation_reason'] ?? '') !== ''): ?>
                                         <div class="small text-muted mt-1">Reason: <?php echo htmlspecialchars($j['moderation_reason']); ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="decision">
                                     <form method="post" class="decision-form d-flex gap-2 align-items-start flex-wrap">
                                         <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($j['job_id']); ?>">
                                         <input type="hidden" name="status" value="<?php echo htmlspecialchars($statusFilter); ?>">
