@@ -3681,13 +3681,7 @@ function fmt_salary($cur, $min, $max, $period)
         <div class="callouts-holder">
             <div class="row g-3 g-md-4 align-items-stretch">
                 <div class="col-md-6 d-flex">
-                    <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL, '/'); ?>/about" style="
-            display:flex; align-items:center; text-decoration:none; color:inherit;
-            min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
-                        background-color:var(--primary-blue); background-image:url('assets/images/hero/pwd_landingpage.jpg');
-            background-repeat:no-repeat; background-position:right 24px center; background-size:46% auto;
-            box-shadow:0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
-          ">
+                    <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL, '/'); ?>/about" style="background-image:url('assets/images/hero/pwd_landingpage.jpg');">
                         <div class="callout-body">
                             <h3 class="callout-title">All about our mission</h3>
                             <p class="callout-sub">Learn what we do and how we support inclusive hiring.</p>
@@ -3696,13 +3690,7 @@ function fmt_salary($cur, $min, $max, $period)
                     </a>
                 </div>
                 <div class="col-md-6 d-flex">
-                    <a class="callout-card card-right flex-fill" href="support_contact.php" style="
-            display:flex; align-items:center; text-decoration:none; color:inherit;
-            min-height:320px; padding:22px; padding-right:calc(46% + 28px); border-radius:24px; border:1px solid #e7ecf4;
-            background-color:#EEF3FA; background-image:url('assets/images/hero/pwd_landingbottom.jpg');
-            background-repeat:no-repeat; background-position:right 24px center; background-size:46% auto;
-            box-shadow:0 20px 44px -28px rgba(2,6,23,.16), 0 12px 30px -26px rgba(2,6,23,.10);
-          ">
+                    <a class="callout-card card-right flex-fill" href="support_contact.php" style="background-image:url('assets/images/hero/pwd_landingbottom.jpg');">
                         <div class="callout-body">
                             <h3 class="callout-title">Questions? We can help</h3>
                             <p class="callout-sub">Reach out and we’ll respond as soon as possible.</p>
