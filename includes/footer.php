@@ -120,7 +120,8 @@
             footer.footer-themed .divider {
                 height: 1px;
                 background: rgba(255, 255, 255, .14);
-                margin: 1rem 0;
+                /* Increased vertical spacing between sections */
+                margin: 2rem 0 1.5rem;
                 border-radius: 1rem;
             }
 
@@ -131,24 +132,6 @@
                 }
             }
         </style>
-
-        <!-- CTA above footer -->
-        <div class="footer-cta-wrap mt-4">
-            <div class="container">
-                <div class="footer-cta" role="region" aria-label="Get in touch">
-                    <div class="cta-text">
-                        <h3 class="h4 mb-0">Ready for your next step?</h3>
-                        <p class="mb-0">Let’s build inclusive teams together.</p>
-                    </div>
-                    <div class="cta-actions">
-                        <a class="btn btn-cta" href="support_contact.php">Contact us</a>
-                        <?php if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer'): ?>
-                            <a class="btn btn-cta-outline" href="jobs_create.php">Post a job</a>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <footer class="footer footer-themed py-5 mt-4 mt-md-5">
             <div class="container">
