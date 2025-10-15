@@ -161,7 +161,7 @@
                             <li class="mb-1"><a class="footer-link" href="employer_candidates.php">Find candidates</a></li>
                         </ul>
                     </div>
-                    <div class="col-6 col-md-2 ms-md-2">
+                    <div class="col-6 col-md-2 ps-md-2">
                         <div class="footer-title small mb-2">Company</div>
                         <ul class="list-unstyled small mb-0">
                             <li class="mb-1"><a class="footer-link" href="about.php">About us</a></li>
