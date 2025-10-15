@@ -46,7 +46,14 @@ function _table_exists(PDO $pdo, string $table): bool {
 
 $pdo = Database::getConnection();
 $tableError = null;
-$hasTable = _table_exists($pdo, 'employer_reviews');
+$loadError = null;
+$hasTable = false;
+try {
+  $pdo->query('SELECT 1 FROM `employer_reviews` LIMIT 1');
+  $hasTable = true;
+} catch (Throwable $e) {
+  $hasTable = false;
+}
 
 // Handle create table (self-heal) action
 if (!$hasTable && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_table') {
@@ -115,19 +122,23 @@ if ($filter !== 'All') { $where = 'WHERE r.status = ?'; $params[] = $filter; }
 
 // Load rows (catch missing table)
 $rows = [];
-try {
-  $sql = "SELECT r.*, u.company_name, u.name AS employer_name, ru.name AS reviewer_name, ru.email AS reviewer_email
-          FROM employer_reviews r
-          LEFT JOIN users u ON u.user_id = r.employer_id
-          LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id
-          $where
-          ORDER BY r.created_at DESC
-          LIMIT 300";
-  $st = $pdo->prepare($sql);
-  $st->execute($params);
-  $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-} catch (Throwable $e) {
+if (!$hasTable) {
   $tableError = 'Employer reviews table not found. Please apply migration file config/migrations/20251002_employer_reviews.sql to your database.';
+} else {
+  try {
+    $sql = "SELECT r.*, u.company_name, u.name AS employer_name, ru.name AS reviewer_name, ru.email AS reviewer_email
+            FROM employer_reviews r
+            LEFT JOIN users u ON u.user_id = r.employer_id
+            LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id
+            $where
+            ORDER BY r.created_at DESC
+            LIMIT 300";
+    $st = $pdo->prepare($sql);
+    $st->execute($params);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+  } catch (Throwable $e) {
+    $loadError = 'Failed to load reviews. Please retry or contact support.';
+  }
 }
 
 include 'includes/header.php';
@@ -159,7 +170,7 @@ include 'includes/header.php';
           <p class="mb-1">Quick fix:</p>
           <ol class="mb-0">
             <li>Open <code>config/migrations/20251002_employer_reviews.sql</code>.</li>
-            <li>Run the SQL against your database <code><?= htmlspecialchars(DB_NAME); ?></code>.</li>
+            <li>Run the SQL against your live site database (same DB used by this app).</li>
             <li>Refresh this page.</li>
           </ol>
           <hr>
@@ -170,6 +181,10 @@ include 'includes/header.php';
           </form>
         </div>
       </div>
+    <?php endif; ?>
+
+    <?php if (!$tableError && $loadError): ?>
+      <div class="alert alert-danger"><i class="bi bi-exclamation-octagon me-2"></i><?= htmlspecialchars($loadError); ?></div>
     <?php endif; ?>
 
     <?php if (!$tableError && !$rows): ?>
