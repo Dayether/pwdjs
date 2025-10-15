@@ -3223,23 +3223,43 @@ function fmt_salary($cur, $min, $max, $period)
         width: 100% !important;
         min-height: 320px !important;
         border-radius: 20px !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         text-decoration: none !important;
         color: inherit !important;
         padding: 2rem !important;
-        padding-right: calc(48% + 2rem) !important;
+        padding-right: 2rem !important;
         border: 1px solid rgba(30, 58, 138, 0.12) !important;
-        background-repeat: no-repeat !important;
-        background-position: right 1.5rem center !important;
-        background-size: 48% auto !important;
         box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.15), 0 4px 12px -8px rgba(20, 184, 166, 0.08) !important;
         transition: all .3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Circular image on the right side */
+    .callout-card::after {
+        content: "" !important;
+        position: absolute !important;
+        right: 2rem !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 180px !important;
+        height: 180px !important;
+        border-radius: 50% !important;
+        background-image: inherit !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
     .callout-card:hover {
         transform: translateY(-4px) !important;
         box-shadow: 0 20px 40px -16px rgba(30, 58, 138, 0.25), 0 8px 24px -12px rgba(20, 184, 166, 0.15) !important;
         border-color: rgba(20, 184, 166, 0.3) !important;
+    }
+
+    .callout-card:hover::after {
+        transform: translateY(-50%) scale(1.05) !important;
+        box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.3) !important;
     }
 
     /* Variants */
@@ -3349,9 +3369,13 @@ function fmt_salary($cur, $min, $max, $period)
         .callout-card {
             min-height: 360px !important;
             padding: 2.5rem !important;
-            padding-right: calc(48% + 2.5rem) !important;
-            background-position: right 2rem center !important;
-            background-size: 48% auto !important;
+            padding-right: 2.5rem !important;
+        }
+
+        .callout-card::after {
+            width: 220px !important;
+            height: 220px !important;
+            right: 2.5rem !important;
         }
 
         .callout-title {
@@ -3374,8 +3398,13 @@ function fmt_salary($cur, $min, $max, $period)
         .callout-card {
             min-height: 400px !important;
             padding: 3rem !important;
-            padding-right: calc(50% + 3rem) !important;
-            background-size: 50% auto !important;
+            padding-right: 3rem !important;
+        }
+
+        .callout-card::after {
+            width: 260px !important;
+            height: 260px !important;
+            right: 3rem !important;
         }
 
         .callout-title {
@@ -3391,8 +3420,13 @@ function fmt_salary($cur, $min, $max, $period)
         .callout-card {
             min-height: 280px !important;
             padding: 1.5rem !important;
-            padding-right: calc(45% + 1.5rem) !important;
-            background-size: 45% auto !important;
+            padding-right: 1.5rem !important;
+        }
+
+        .callout-card::after {
+            width: 140px !important;
+            height: 140px !important;
+            right: 1.5rem !important;
         }
 
         .callout-body {
