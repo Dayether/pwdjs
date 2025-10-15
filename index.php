@@ -1035,13 +1035,19 @@ function fmt_salary($cur, $min, $max, $period)
         .promo-auth-hero {
             position: relative;
             overflow: visible;
-            margin-top: .25rem;
-            margin-bottom: 2.25rem;
+            margin-top: 0;
+            margin-bottom: 4rem;
         }
 
         @media (min-width: 768px) {
             .promo-auth-hero {
-                margin-bottom: 3rem;
+                margin-bottom: 5rem;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .promo-auth-hero {
+                margin-bottom: 6rem;
             }
         }
 
@@ -3191,25 +3197,25 @@ function fmt_salary($cur, $min, $max, $period)
 
         /* Two-card callouts styling */
         .callouts-duo-section {
-            padding: 22px 0 80px;
-            margin-bottom: 24px;
+            padding: 4rem 0;
+            margin-bottom: 0;
         }
 
         @media (min-width: 768px) {
             .callouts-duo-section {
-                margin-bottom: 40px;
+                padding: 5rem 0;
             }
         }
 
-        /* Add bottom gap so the two cards don't feel stuck to the footer */
+        @media (min-width: 992px) {
+            .callouts-duo-section {
+                padding: 6rem 0;
+            }
+        }
+
+        /* Removed bottom margin on individual cards since section handles spacing */
         .callouts-duo-section .callout-card {
-            margin-bottom: 28px;
-        }
-
-        @media (min-width: 768px) {
-            .callouts-duo-section .callout-card {
-                margin-bottom: 32px;
-            }
+            margin-bottom: 0;
         }
 
         .callouts-holder {
@@ -3489,7 +3495,7 @@ function fmt_salary($cur, $min, $max, $period)
 </script>
 
 <!-- CALLOUTS DUO SECTION (replaces features/steps/testimonials) -->
-<section class="callouts-duo-section" style="margin-bottom: 64px;">
+<section class="callouts-duo-section">
     <div class="container">
         <div class="callouts-holder">
             <div class="row g-3 g-md-4 align-items-stretch">
