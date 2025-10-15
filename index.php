@@ -297,9 +297,10 @@ function fmt_salary($cur, $min, $max, $period)
     /* Compact filter bar adjustments */
     .compact-filters {
         background: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: none;
+        border-bottom: 1px solid #e2e8f0;
         border-radius: 0;
-        box-shadow: 0 4px 12px -4px rgba(0, 0, 0, .05);
+        box-shadow: none;
     }
 
     .filters-condensed label.filter-bold-label {
@@ -332,8 +333,8 @@ function fmt_salary($cur, $min, $max, $period)
         position: sticky;
         top: 0;
         z-index: 50;
-        background: linear-gradient(#ffffff, #ffffffcc);
-        backdrop-filter: saturate(140%) blur(4px);
+        background: #ffffff;
+        backdrop-filter: none;
     }
 
     /* Give more space to results by reducing margin below filters */
