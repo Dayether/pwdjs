@@ -145,7 +145,7 @@
 
         <footer class="footer footer-themed py-5 mt-4 mt-md-5">
             <div class="container">
-                <div class="row g-4">
+                <div class="row g-4 align-items-start">
                     <div class="col-12 col-md-4 footer-brand">
                         <div class="mb-2 footer-title">PWD Employment &amp; Skills Portal</div>
                         <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong><br>Connecting skilled individuals with inclusive employers to build a workforce that values diversity, accessibility, and equal opportunity.</div>
