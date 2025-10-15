@@ -37,7 +37,12 @@ try {
 $reviews = [];
 $avgRating = null;
 try {
-    $st = $pdo->prepare("SELECT rating, comment, created_at FROM employer_reviews WHERE employer_id=? AND status='Approved' ORDER BY created_at DESC LIMIT 100");
+    // Join to users to show reviewer name; coerce join to a common collation to avoid mix issues
+    $st = $pdo->prepare("SELECT r.rating, r.comment, r.created_at, ru.name AS reviewer_name
+                         FROM employer_reviews r
+                         LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id COLLATE utf8mb4_general_ci
+                         WHERE r.employer_id=? AND r.status='Approved'
+                         ORDER BY r.created_at DESC LIMIT 100");
     $st->execute([$employer->user_id]);
     $reviews = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
     $st2 = $pdo->prepare("SELECT AVG(rating) FROM employer_reviews WHERE employer_id=? AND status='Approved'");
@@ -201,7 +206,13 @@ function stars($n)
                                 <li class="mb-3">
                                     <div><?php echo stars((int)$r['rating']); ?></div>
                                     <?php if (!empty($r['comment'])): ?><div class="small"><?php echo htmlspecialchars($r['comment']); ?></div><?php endif; ?>
-                                    <div class="text-muted small"><?php echo htmlspecialchars(date('M j, Y', strtotime($r['created_at']))); ?></div>
+                                    <div class="text-muted small">
+                                        <?php if (!empty($r['reviewer_name'])): ?>
+                                            <span class="me-1 fw-semibold"><?php echo htmlspecialchars($r['reviewer_name']); ?></span>
+                                            <span aria-hidden="true">·</span>
+                                        <?php endif; ?>
+                                        <span><?php echo htmlspecialchars(date('M j, Y', strtotime($r['created_at']))); ?></span>
+                                    </div>
                                 </li>
                             <?php endforeach; ?>
                         </ul>

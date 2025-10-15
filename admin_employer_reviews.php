@@ -94,6 +94,7 @@ if (isset($_GET['action'], $_GET['id'])) {
   try {
     $id = (int)$_GET['id'];
     $a = strtolower(trim((string)$_GET['action']));
+    $backStatus = $_GET['status'] ?? 'All';
     if ($id > 0) {
       if ($a === 'approve' || $a === 'reject') {
         $status = $a === 'approve' ? 'Approved' : 'Rejected';
@@ -109,13 +110,13 @@ if (isset($_GET['action'], $_GET['id'])) {
   } catch (Throwable $e) {
     Helpers::flash('msg', 'Employer reviews table not found. Please run migration 20251002_employer_reviews.sql.');
   }
-  Helpers::redirect('admin_employer_reviews.php');
+  Helpers::redirect('admin_employer_reviews.php?status=' . urlencode($backStatus));
   exit;
 }
 
-$filter = $_GET['status'] ?? 'Pending';
+$filter = $_GET['status'] ?? 'All';
 $allowed = ['Pending','Approved','Rejected','All'];
-if (!in_array($filter, $allowed, true)) $filter = 'Pending';
+if (!in_array($filter, $allowed, true)) $filter = 'All';
 
 $where = '';$params=[];
 if ($filter !== 'All') { $where = 'WHERE r.status = ?'; $params[] = $filter; }
@@ -276,9 +277,9 @@ include 'includes/header.php';
               <td class="text-nowrap small"><?= htmlspecialchars(date('M d, Y H:i', strtotime($r['created_at']))); ?></td>
               <td class="text-nowrap">
                 <div class="btn-group btn-group-sm">
-                  <a class="btn btn-outline-success" href="admin_employer_reviews.php?action=approve&id=<?= (int)$r['id']; ?>">Approve</a>
-                  <a class="btn btn-outline-warning" href="admin_employer_reviews.php?action=reject&id=<?= (int)$r['id']; ?>">Reject</a>
-                  <a class="btn btn-outline-danger" href="admin_employer_reviews.php?action=delete&id=<?= (int)$r['id']; ?>" data-confirm-title="Delete Review" data-confirm="Delete this review?" data-confirm-yes="Delete" data-confirm-no="Cancel">Delete</a>
+                  <a class="btn btn-outline-success" href="admin_employer_reviews.php?action=approve&id=<?= (int)$r['id']; ?>&status=<?= urlencode($filter); ?>">Approve</a>
+                  <a class="btn btn-outline-warning" href="admin_employer_reviews.php?action=reject&id=<?= (int)$r['id']; ?>&status=<?= urlencode($filter); ?>"><?php echo ($r['status']==='Approved'?'Hide':'Reject'); ?></a>
+                  <a class="btn btn-outline-danger" href="admin_employer_reviews.php?action=delete&id=<?= (int)$r['id']; ?>&status=<?= urlencode($filter); ?>" data-confirm-title="Delete Review" data-confirm="Delete this review?" data-confirm-yes="Delete" data-confirm-no="Cancel">Delete</a>
                 </div>
               </td>
             </tr>
