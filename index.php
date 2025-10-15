@@ -1159,12 +1159,83 @@ function fmt_salary($cur, $min, $max, $period)
             box-shadow: 0 18px 40px -24px rgba(2, 6, 23, .22), 0 12px 26px -18px rgba(2, 6, 23, .14);
         }
 
+        /* Hero Badge */
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+            color: #ffffff;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+            animation: badge-pulse 2s ease-in-out infinite;
+        }
+
+        .hero-badge i {
+            color: #ffc107;
+            animation: star-twinkle 1.5s ease-in-out infinite;
+        }
+
+        @keyframes badge-pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.6);
+            }
+        }
+
+        @keyframes star-twinkle {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Stats Badges */
+        .stat-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.9rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #495057;
+            transition: all 0.2s ease;
+        }
+
+        .stat-badge:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-badge i {
+            color: #0d6efd;
+            font-size: 1rem;
+        }
+
         .promo-auth-hero .promo-title {
             font-weight: 800;
             letter-spacing: .2px;
             color: #0b132a;
             font-size: 1.45rem;
-            line-height: 1.22;
+            line-height: 1.28;
         }
 
         @media (min-width: 768px) {
@@ -1175,7 +1246,7 @@ function fmt_salary($cur, $min, $max, $period)
 
         @media (min-width: 992px) {
             .promo-auth-hero .promo-title {
-                font-size: 1.75rem;
+                font-size: 1.85rem;
             }
         }
 
@@ -1218,45 +1289,73 @@ function fmt_salary($cur, $min, $max, $period)
             font-size: .85rem;
         }
 
-        .promo-auth-hero .btn {
-            height: 48px;
+        .promo-auth-hero .btn-hero {
+            height: 52px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            font-size: 1rem;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         @media (min-width: 768px) {
-            .promo-auth-hero .btn {
-                height: 52px;
+            .promo-auth-hero .btn-hero {
+                height: 56px;
+                font-size: 1.05rem;
             }
         }
 
         @media (min-width: 992px) {
-            .promo-auth-hero .btn {
-                height: 54px;
+            .promo-auth-hero .btn-hero {
+                height: 58px;
             }
         }
 
-        .promo-auth-hero .btn:focus {
-            box-shadow: 0 0 0 .2rem rgba(var(--accent-yellow-rgb), .35);
+        .promo-auth-hero .btn-hero:focus {
+            box-shadow: 0 0 0 .25rem rgba(173, 216, 255, 0.5);
         }
 
-        .promo-auth-hero .btn.btn-primary {
-            background: linear-gradient(180deg, var(--primary-blue), var(--primary-purple));
-            border-color: var(--primary-blue);
+        .promo-auth-hero .btn-hero.btn-primary {
+            background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+            border: none;
+            box-shadow: 0 8px 20px -6px rgba(13, 110, 253, 0.5);
         }
 
-        .promo-auth-hero .btn.btn-primary:hover {
-            filter: brightness(1.03);
+        .promo-auth-hero .btn-hero.btn-primary:hover {
+            background: linear-gradient(135deg, #0b5ed7 0%, #5a0dd6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px -8px rgba(13, 110, 253, 0.6);
         }
 
-        .promo-auth-hero .btn.btn-outline-primary {
+        .promo-auth-hero .btn-hero.btn-primary i {
+            font-size: 1.2rem;
+        }
+
+        .promo-auth-hero .btn-hero.btn-outline-primary {
             background: #fff;
-            border-width: 2px;
+            border: 2px solid #0d6efd;
+            color: #0d6efd;
         }
 
-        .promo-auth-hero .btn.btn-outline-primary:hover {
+        .promo-auth-hero .btn-hero.btn-outline-primary:hover {
             background: #eff6ff;
+            border-color: #0b5ed7;
+            color: #0b5ed7;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -6px rgba(13, 110, 253, 0.3);
+        }
+
+        /* Trust indicator styling */
+        .promo-auth-hero .text-muted {
+            font-size: 0.82rem;
+        }
+
+        .promo-auth-hero .text-muted i {
+            color: #10b981;
+            font-size: 1rem;
         }
 
         .promo-auth-hero .promo-divider {
@@ -1428,17 +1527,53 @@ function fmt_salary($cur, $min, $max, $period)
                             <div class="promo-card-wrap">
                                 <div class="promo-card card" data-reveal>
                                     <div class="card-body p-3 p-md-4">
-                                        <h2 class="h4 promo-title mb-2">Find the right PWD job for you on PWD Portal</h2>
-                                        <p class="promo-sub small">Sign in to see jobs matched to your skills, location, and accessibility needs.</p>
+                                        <!-- Badge/Label -->
+                                        <div class="mb-3">
+                                            <span class="hero-badge">
+                                                <i class="bi bi-star-fill me-1"></i>
+                                                Trusted by <?php echo number_format($totalEmployers); ?>+ Employers
+                                            </span>
+                                        </div>
+
+                                        <h2 class="h4 promo-title mb-3">Find the right PWD job for you on PWD Portal</h2>
+                                        <p class="promo-sub mb-3">Sign in to see jobs matched to your skills, location, and accessibility needs.</p>
+
+                                        <!-- Stats Badges -->
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            <div class="stat-badge">
+                                                <i class="bi bi-briefcase-fill"></i>
+                                                <span><?php echo number_format($totalWFHJobs); ?>+ WFH Jobs</span>
+                                            </div>
+                                            <div class="stat-badge">
+                                                <i class="bi bi-geo-alt-fill"></i>
+                                                <span><?php echo number_format($totalLocations); ?>+ Locations</span>
+                                            </div>
+                                        </div>
+
                                         <ul class="promo-points">
                                             <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Verified, WFH-friendly employers</span></li>
                                             <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Jobs tagged by PWD accessibility types</span></li>
                                             <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Apply fast and track your progress</span></li>
                                         </ul>
+
                                         <div class="d-grid gap-2">
-                                            <a href="register.php" class="btn btn-primary fw-semibold"><i class="bi bi-person-plus me-1" aria-hidden="true"></i> Register</a>
+                                            <a href="register.php" class="btn btn-primary btn-hero fw-semibold">
+                                                <i class="bi bi-person-plus me-2" aria-hidden="true"></i>
+                                                <span>Get Started - It's Free</span>
+                                            </a>
                                             <div class="promo-divider"><span>or</span></div>
-                                            <a href="login.php" class="btn btn-outline-primary fw-semibold"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i> Sign in</a>
+                                            <a href="login.php" class="btn btn-outline-primary btn-hero fw-semibold">
+                                                <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>
+                                                <span>Sign in to Your Account</span>
+                                            </a>
+                                        </div>
+
+                                        <!-- Trust indicator -->
+                                        <div class="text-center mt-3">
+                                            <small class="text-muted d-flex align-items-center justify-content-center gap-1">
+                                                <i class="bi bi-shield-check"></i>
+                                                <span>100% Free. No credit card required.</span>
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
