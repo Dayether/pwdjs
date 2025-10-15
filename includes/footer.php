@@ -150,7 +150,7 @@
                         <div class="mb-2 footer-title">PWD Employment &amp; Skills Portal</div>
                         <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong><br>Connecting skilled individuals with inclusive employers to build a workforce that values diversity, accessibility, and equal opportunity.</div>
                     </div>
-                    <div class="col-6 col-md-2">
+                    <div class="col-6 col-md-2 offset-md-1">
                         <div class="footer-title small mb-2">For Employers</div>
                         <ul class="list-unstyled small mb-0">
                             <?php if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer'): ?>
@@ -161,14 +161,14 @@
                             <li class="mb-1"><a class="footer-link" href="employer_candidates.php">Find candidates</a></li>
                         </ul>
                     </div>
-                    <div class="col-6 col-md-2 offset-md-1">
+                    <div class="col-6 col-md-2 ms-md-2">
                         <div class="footer-title small mb-2">Company</div>
                         <ul class="list-unstyled small mb-0">
                             <li class="mb-1"><a class="footer-link" href="about.php">About us</a></li>
                             <li class="mb-1"><a class="footer-link" href="support_contact.php">Contact</a></li>
                         </ul>
                     </div>
-                    <div class="col-6 col-md-3">
+                    <div class="col-6 col-md-3 pe-0">
                         <div class="footer-title small mb-2">Further information</div>
                         <ul class="list-unstyled small mb-0">
                             <li class="mb-1"><a class="footer-link" href="terms.php">Terms &amp; Conditions</a></li>
