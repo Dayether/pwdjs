@@ -692,22 +692,65 @@ function fmt_salary($cur, $min, $max, $period)
 
     /* Buttons */
     .filters-condensed .btn.btn-primary {
-        transition: box-shadow .18s ease, transform .12s ease;
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+        transition: all .2s ease;
     }
 
     .filters-condensed .btn.btn-primary:hover {
-        box-shadow: var(--hover-shadow);
-        transform: translateY(-1px);
+        background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+        box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.5);
+        transform: translateY(-2px);
     }
 
     .filters-condensed .btn.btn-outline-secondary {
-        transition: background-color .15s ease, border-color .15s ease, transform .12s ease;
+        background: #ffffff;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        color: #6c757d;
+        font-weight: 600;
+        transition: all .2s ease;
     }
 
     .filters-condensed .btn.btn-outline-secondary:hover {
-        background: #f2f7ff;
-        border-color: #cfe1ff;
-        transform: translateY(-1px);
+        background: #f8f9fa;
+        border-color: #adb5bd;
+        color: #495057;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px -4px rgba(108, 117, 125, 0.2);
+    }
+
+    .filters-condensed .btn.btn-outline-secondary:active {
+        transform: translateY(0);
+    }
+
+    .filters-condensed .btn.btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Filter action buttons styling */
+    .filter-action-btn {
+        height: 3.1rem;
+        font-size: 1rem;
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.5rem;
+        white-space: nowrap;
+    }
+
+    .filter-action-btn i {
+        font-size: 1.1rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .filter-action-btn {
+            width: 100%;
+        }
     }
 
     /* Related search chips */
@@ -851,11 +894,11 @@ function fmt_salary($cur, $min, $max, $period)
                 </div>
             </div>
             <div class="col-12 col-md-4 col-lg-3 col-xl-3 order-4 d-flex align-items-end gap-2 action-bar-compressed">
-                <button class="btn btn-primary fw-semibold flex-grow-1 flex-lg-grow-0" style="height:3.1rem;font-size:1rem;display:flex;align-items:center;justify-content:center;">
-                    <i class="bi bi-search me-1" aria-hidden="true"></i><span>Search</span>
+                <button type="submit" class="btn btn-primary fw-semibold flex-grow-1 flex-lg-grow-0 filter-action-btn">
+                    <i class="bi bi-search" aria-hidden="true"></i><span>Search</span>
                 </button>
-                <a class="btn btn-outline-secondary flex-grow-1 flex-lg-grow-0" href="index.php" style="height:3.1rem;font-size:1rem;display:flex;align-items:center;justify-content:center;">
-                    <i class="bi bi-x-circle me-1" aria-hidden="true"></i><span>Clear</span>
+                <a class="btn btn-outline-secondary flex-grow-1 flex-lg-grow-0 filter-action-btn" href="index.php">
+                    <i class="bi bi-x-circle" aria-hidden="true"></i><span>Clear</span>
                 </a>
             </div>
             <!-- Sort row removed: merged into Related searches area -->
