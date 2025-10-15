@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS employer_reviews (
 }
 
 // Actions: approve/reject/delete (wrapped to avoid fatal if table missing)
-if ($hasTable && isset($_GET['action'], $_GET['id'])) {
+if (isset($_GET['action'], $_GET['id'])) {
   try {
     $id = (int)$_GET['id'];
     $a = strtolower(trim((string)$_GET['action']));
@@ -116,20 +116,16 @@ if ($filter !== 'All') { $where = 'WHERE r.status = ?'; $params[] = $filter; }
 // Load rows (catch missing table)
 $rows = [];
 try {
-  if ($hasTable) {
-    $sql = "SELECT r.*, u.company_name, u.name AS employer_name, ru.name AS reviewer_name, ru.email AS reviewer_email
-        FROM employer_reviews r
-        LEFT JOIN users u ON u.user_id = r.employer_id
-        LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id
-        $where
-        ORDER BY r.created_at DESC
-        LIMIT 300";
-    $st = $pdo->prepare($sql);
-    $st->execute($params);
-    $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
-  } else {
-    $tableError = 'Employer reviews table not found. Please apply migration file config/migrations/20251002_employer_reviews.sql to your database.';
-  }
+  $sql = "SELECT r.*, u.company_name, u.name AS employer_name, ru.name AS reviewer_name, ru.email AS reviewer_email
+          FROM employer_reviews r
+          LEFT JOIN users u ON u.user_id = r.employer_id
+          LEFT JOIN users ru ON ru.user_id = r.reviewer_user_id
+          $where
+          ORDER BY r.created_at DESC
+          LIMIT 300";
+  $st = $pdo->prepare($sql);
+  $st->execute($params);
+  $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
 } catch (Throwable $e) {
   $tableError = 'Employer reviews table not found. Please apply migration file config/migrations/20251002_employer_reviews.sql to your database.';
 }
@@ -174,6 +170,10 @@ include 'includes/header.php';
           </form>
         </div>
       </div>
+    <?php endif; ?>
+
+    <?php if (!$tableError && !$rows): ?>
+      <div class="alert alert-secondary py-2 px-3 mb-3"><i class="bi bi-info-circle me-2"></i>No <?= htmlspecialchars($filter === 'All' ? '' : $filter.' '); ?>reviews found.</div>
     <?php endif; ?>
 
     <div class="card shadow-sm">
