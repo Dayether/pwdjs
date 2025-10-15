@@ -116,6 +116,11 @@
                 }
             }
 
+            /* Space only between first and second footer rows */
+            footer.footer-themed .footer-row-1 {
+                margin-bottom: 2rem;
+            }
+
             footer.footer-themed .social a {
                 display: inline-flex;
                 align-items: center;
@@ -149,12 +154,17 @@
 
         <footer class="footer footer-themed py-5 mt-4 mt-md-5">
             <div class="container">
-                <div class="row g-4">
-                    <div class="col-12 col-md-4 footer-brand">
+                <!-- Row 1: Brand/description -->
+                <div class="row footer-row-1">
+                    <div class="col-12 footer-brand">
                         <div class="mb-2 footer-title">PWD Employment &amp; Skills Portal</div>
                         <div class="footer-sub small">&copy; <?php echo date('Y'); ?>. <strong>Inclusive opportunities for PWD professionals.</strong><br>Connecting skilled individuals with inclusive employers to build a workforce that values diversity, accessibility, and equal opportunity.</div>
                     </div>
-                    <div class="col-6 col-md-2">
+                </div>
+
+                <!-- Row 2: For Employers -->
+                <div class="row footer-row-2">
+                    <div class="col-12">
                         <div class="footer-title small mb-2">For Employers</div>
                         <ul class="list-unstyled small mb-0">
                             <?php if (!empty($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'employer'): ?>
@@ -165,21 +175,28 @@
                             <li class="mb-1"><a class="footer-link" href="employer_candidates.php">Find candidates</a></li>
                         </ul>
                     </div>
-                    <div class="col-6 col-md-2">
+                </div>
+
+                <!-- Row 3: Company -->
+                <div class="row footer-row-3">
+                    <div class="col-12">
                         <div class="footer-title small mb-2">Company</div>
                         <ul class="list-unstyled small mb-0">
                             <li class="mb-1"><a class="footer-link" href="about.php">About us</a></li>
                             <li class="mb-1"><a class="footer-link" href="support_contact.php">Contact</a></li>
                         </ul>
                     </div>
-                    <div class="col-6 col-md-2">
+                </div>
+
+                <!-- Row 4: Further information -->
+                <div class="row footer-row-4">
+                    <div class="col-12">
                         <div class="footer-title small mb-2">Further information</div>
                         <ul class="list-unstyled small mb-0">
                             <li class="mb-1"><a class="footer-link" href="terms.php">Terms &amp; Conditions</a></li>
                             <li class="mb-1"><a class="footer-link" href="security_privacy.php">Security &amp; Privacy</a></li>
                         </ul>
                     </div>
-
                 </div>
                 <div class="divider"></div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between small">
