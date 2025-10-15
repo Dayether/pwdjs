@@ -3243,7 +3243,6 @@ function fmt_salary($cur, $min, $max, $period)
         width: 180px !important;
         height: 180px !important;
         border-radius: 50% !important;
-        background-image: inherit !important;
         background-size: cover !important;
         background-position: center !important;
         background-repeat: no-repeat !important;
@@ -3269,6 +3268,11 @@ function fmt_salary($cur, $min, $max, $period)
         border-color: rgba(20, 184, 166, 0.2) !important;
     }
 
+    /* Set specific images for each card */
+    .callout-card.card-left::after {
+        background-image: url('assets/images/hero/pwd_landingpage.jpg') !important;
+    }
+
     .callout-card.card-left:hover {
         background: linear-gradient(135deg, #1E3A8A 0%, #0D9488 100%) !important;
         border-color: rgba(20, 184, 166, 0.4) !important;
@@ -3283,6 +3287,10 @@ function fmt_salary($cur, $min, $max, $period)
         background: linear-gradient(135deg, #F9FAFB 0%, #ffffff 100%) !important;
         color: #111827 !important;
         border-color: rgba(30, 58, 138, 0.12) !important;
+    }
+
+    .callout-card.card-right::after {
+        background-image: url('assets/images/hero/pwd_landingbottom.jpg') !important;
     }
 
     .callout-card.card-right:hover {
@@ -3719,7 +3727,7 @@ function fmt_salary($cur, $min, $max, $period)
         <div class="callouts-holder">
             <div class="row g-3 g-md-4 align-items-stretch">
                 <div class="col-md-6 d-flex">
-                    <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL, '/'); ?>/about" style="background-image:url('assets/images/hero/pwd_landingpage.jpg');">
+                    <a class="callout-card card-left flex-fill" href="<?php echo rtrim(BASE_URL, '/'); ?>/about">
                         <div class="callout-body">
                             <h3 class="callout-title">All about our mission</h3>
                             <p class="callout-sub">Learn what we do and how we support inclusive hiring.</p>
@@ -3728,7 +3736,7 @@ function fmt_salary($cur, $min, $max, $period)
                     </a>
                 </div>
                 <div class="col-md-6 d-flex">
-                    <a class="callout-card card-right flex-fill" href="support_contact.php" style="background-image:url('assets/images/hero/pwd_landingbottom.jpg');">
+                    <a class="callout-card card-right flex-fill" href="support_contact.php">
                         <div class="callout-body">
                             <h3 class="callout-title">Questions? We can help</h3>
                             <p class="callout-sub">Reach out and we’ll respond as soon as possible.</p>
