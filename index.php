@@ -1036,7 +1036,7 @@ function fmt_salary($cur, $min, $max, $period)
             position: relative !important;
             overflow: visible !important;
             margin-top: 0 !important;
-            margin-bottom: 5rem !important;
+            margin-bottom: 1rem !important;
             padding-bottom: 4rem !important;
         }
 
@@ -1067,7 +1067,7 @@ function fmt_salary($cur, $min, $max, $period)
 
         @media (min-width: 992px) {
             .promo-auth-hero {
-                margin-bottom: 7rem !important;
+                margin-bottom: 1rem !important;
                 padding-bottom: 6rem !important;
             }
 
@@ -2734,7 +2734,7 @@ function fmt_salary($cur, $min, $max, $period)
     <style>
         .trusted-employers-section {
             padding: 3.5rem 0 4rem !important;
-            margin-bottom: 50rem !important;
+            margin-bottom: 50px !important;
             background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%) !important;
             position: relative !important;
         }
