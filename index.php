@@ -3285,214 +3285,214 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .callouts-holder {
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 0;
-            box-shadow: none;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
         }
 
         @media (min-width: 768px) {
             .callouts-holder {
-                padding: 0;
+                padding: 0 !important;
             }
         }
 
         a.callout-card,
         .callout-card {
-            position: relative;
-            display: flex;
-            align-items: center;
-            width: 100%;
-            min-height: 320px;
-            border-radius: 20px;
-            overflow: hidden;
+            position: relative !important;
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+            min-height: 320px !important;
+            border-radius: 20px !important;
+            overflow: hidden !important;
             text-decoration: none !important;
             color: inherit !important;
-            padding: 2rem;
+            padding: 2rem !important;
             padding-right: calc(48% + 2rem) !important;
-            border: 1px solid rgba(30, 58, 138, 0.12);
-            background-repeat: no-repeat;
-            background-position: right 1.5rem center;
-            background-size: 48% auto;
-            box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.15), 0 4px 12px -8px rgba(20, 184, 166, 0.08);
-            transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(30, 58, 138, 0.12) !important;
+            background-repeat: no-repeat !important;
+            background-position: right 1.5rem center !important;
+            background-size: 48% auto !important;
+            box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.15), 0 4px 12px -8px rgba(20, 184, 166, 0.08) !important;
+            transition: all .3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
 
         .callout-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -16px rgba(30, 58, 138, 0.25), 0 8px 24px -12px rgba(20, 184, 166, 0.15);
-            border-color: rgba(20, 184, 166, 0.3);
+            transform: translateY(-4px) !important;
+            box-shadow: 0 20px 40px -16px rgba(30, 58, 138, 0.25), 0 8px 24px -12px rgba(20, 184, 166, 0.15) !important;
+            border-color: rgba(20, 184, 166, 0.3) !important;
         }
 
         /* Variants */
         .callout-card.card-left {
-            background: linear-gradient(135deg, #1E3A8A 0%, #14B8A6 100%);
-            color: #ffffff;
-            border-color: rgba(20, 184, 166, 0.2);
+            background: linear-gradient(135deg, #1E3A8A 0%, #14B8A6 100%) !important;
+            color: #ffffff !important;
+            border-color: rgba(20, 184, 166, 0.2) !important;
         }
 
         .callout-card.card-left:hover {
-            background: linear-gradient(135deg, #1E3A8A 0%, #0D9488 100%);
-            border-color: rgba(20, 184, 166, 0.4);
+            background: linear-gradient(135deg, #1E3A8A 0%, #0D9488 100%) !important;
+            border-color: rgba(20, 184, 166, 0.4) !important;
         }
 
         .callout-card.card-left .callout-title,
         .callout-card.card-left .callout-sub {
-            color: #ffffff;
+            color: #ffffff !important;
         }
 
         .callout-card.card-right {
-            background: linear-gradient(135deg, #F9FAFB 0%, #ffffff 100%);
-            color: #111827;
-            border-color: rgba(30, 58, 138, 0.12);
+            background: linear-gradient(135deg, #F9FAFB 0%, #ffffff 100%) !important;
+            color: #111827 !important;
+            border-color: rgba(30, 58, 138, 0.12) !important;
         }
 
         .callout-card.card-right:hover {
-            background: linear-gradient(135deg, #F9FAFB 0%, #F0F9FF 100%);
-            border-color: rgba(30, 58, 138, 0.2);
+            background: linear-gradient(135deg, #F9FAFB 0%, #F0F9FF 100%) !important;
+            border-color: rgba(30, 58, 138, 0.2) !important;
         }
 
         .callout-card.card-right .callout-title {
-            color: #111827;
+            color: #111827 !important;
         }
 
         .callout-card.card-right .callout-sub {
-            color: #111827;
-            opacity: 0.75;
+            color: #111827 !important;
+            opacity: 0.75 !important;
         }
 
         /* Body (left content) */
         .callout-body {
-            position: relative;
-            z-index: 2;
-            max-width: 52%;
+            position: relative !important;
+            z-index: 2 !important;
+            max-width: 52% !important;
         }
 
         .callout-title {
-            font-weight: 800;
-            letter-spacing: -.01em;
-            font-size: 1.4rem;
-            margin: 0 0 0.75rem;
-            line-height: 1.25;
+            font-weight: 800 !important;
+            letter-spacing: -.01em !important;
+            font-size: 1.4rem !important;
+            margin: 0 0 0.75rem !important;
+            line-height: 1.25 !important;
         }
 
         .callout-sub {
-            margin: 0 0 1.25rem;
-            font-size: 1rem;
-            line-height: 1.6;
+            margin: 0 0 1.25rem !important;
+            font-size: 1rem !important;
+            line-height: 1.6 !important;
         }
 
         .callout-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.75rem 1.75rem;
-            font-weight: 600;
-            font-size: 1rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
-            transition: all 0.25s ease;
-            border: none;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0.75rem 1.75rem !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25) !important;
+            transition: all 0.25s ease !important;
+            border: none !important;
         }
 
         .callout-card.card-left .callout-btn {
-            background: #ffffff;
-            color: #1E3A8A;
+            background: #ffffff !important;
+            color: #1E3A8A !important;
         }
 
         .callout-card.card-left .callout-btn:hover {
-            background: #F9FAFB;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35);
+            background: #F9FAFB !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.35) !important;
         }
 
         .callout-card.card-right .callout-btn {
-            background: linear-gradient(135deg, #1E3A8A, #14B8A6);
-            color: #ffffff;
+            background: linear-gradient(135deg, #1E3A8A, #14B8A6) !important;
+            color: #ffffff !important;
         }
 
         .callout-card.card-right .callout-btn:hover {
-            background: linear-gradient(135deg, #1E3A8A, #0D9488);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px -6px rgba(30, 58, 138, 0.5);
+            background: linear-gradient(135deg, #1E3A8A, #0D9488) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 20px -6px rgba(30, 58, 138, 0.5) !important;
         }
 
         /* Add icon animation */
         .callout-btn i {
-            transition: transform 0.25s ease;
-            margin-left: 0.5rem;
+            transition: transform 0.25s ease !important;
+            margin-left: 0.5rem !important;
         }
 
         .callout-card:hover .callout-btn i {
-            transform: translateX(4px);
+            transform: translateX(4px) !important;
         }
 
         @media (min-width: 768px) {
             .callout-card {
-                min-height: 360px;
-                padding: 2.5rem;
+                min-height: 360px !important;
+                padding: 2.5rem !important;
                 padding-right: calc(48% + 2.5rem) !important;
-                background-position: right 2rem center;
-                background-size: 48% auto;
+                background-position: right 2rem center !important;
+                background-size: 48% auto !important;
             }
 
             .callout-title {
-                font-size: 1.75rem;
-                margin-bottom: 1rem;
+                font-size: 1.75rem !important;
+                margin-bottom: 1rem !important;
             }
 
             .callout-sub {
-                font-size: 1.05rem;
-                margin-bottom: 1.5rem;
+                font-size: 1.05rem !important;
+                margin-bottom: 1.5rem !important;
             }
 
             .callout-btn {
-                padding: 0.85rem 2rem;
-                font-size: 1.05rem;
+                padding: 0.85rem 2rem !important;
+                font-size: 1.05rem !important;
             }
         }
 
         @media (min-width: 992px) {
             .callout-card {
-                min-height: 400px;
-                padding: 3rem;
+                min-height: 400px !important;
+                padding: 3rem !important;
                 padding-right: calc(50% + 3rem) !important;
-                background-size: 50% auto;
+                background-size: 50% auto !important;
             }
 
             .callout-title {
-                font-size: 2rem;
+                font-size: 2rem !important;
             }
 
             .callout-sub {
-                font-size: 1.1rem;
+                font-size: 1.1rem !important;
             }
         }
 
         @media (max-width: 767.98px) {
             .callout-card {
-                min-height: 280px;
-                padding: 1.5rem;
+                min-height: 280px !important;
+                padding: 1.5rem !important;
                 padding-right: calc(45% + 1.5rem) !important;
-                background-size: 45% auto;
+                background-size: 45% auto !important;
             }
 
             .callout-body {
-                max-width: 55%;
+                max-width: 55% !important;
             }
 
             .callout-title {
-                font-size: 1.2rem;
+                font-size: 1.2rem !important;
             }
 
             .callout-sub {
-                font-size: 0.9rem;
+                font-size: 0.9rem !important;
             }
 
             .callout-btn {
-                padding: 0.65rem 1.25rem;
-                font-size: 0.95rem;
+                padding: 0.65rem 1.25rem !important;
+                font-size: 0.95rem !important;
             }
         }
 
