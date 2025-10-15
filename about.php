@@ -535,37 +535,13 @@ try {
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
     }
 
-    /* Accessibility Section Enhancement */
-    .accessibility-grid {
-        display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
-        gap: 2.5rem !important;
-        margin-top: 2.5rem !important;
-    }
-
-    .accessibility-card {
-        background: var(--neutral-white) !important;
-        border-radius: 1.25rem !important;
-        padding: 2.5rem !important;
-        border-left: 5px solid var(--success-green) !important;
-        box-shadow: 0 6px 20px -6px rgba(0, 0, 0, 0.1) !important;
-        transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-    }
-
-    .accessibility-card:hover {
-        transform: translateY(-6px) !important;
-        box-shadow: 0 18px 42px -10px rgba(0, 0, 0, 0.15) !important;
-    }
-
     /* List Styling Improvements */
-    .feature-card ul,
-    .accessibility-card ul {
+    .feature-card ul {
         padding-left: 0 !important;
         list-style: none !important;
     }
 
-    .feature-card ul li,
-    .accessibility-card ul li {
+    .feature-card ul li {
         padding: 0.5rem 0 !important;
         line-height: 1.6 !important;
     }
@@ -936,30 +912,6 @@ try {
                         <p class="text-body mb-3">Only essential fields stored; optional uploads; future consent controls.</p>
                         <span class="badge badge-modern text-bg-dark">Privacy</span>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Accessibility -->
-        <section id="accessibility" class="mb-5 section-anchor">
-            <h2 class="h4 fw-semibold mb-3"><i class="bi bi-universal-access me-2 text-primary"></i>Accessibility Commitments</h2>
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <ul class="small mb-0 ps-3">
-                        <li>Keyboard navigable primary forms & buttons.</li>
-                        <li>Semantic HTML structure for assistive technologies.</li>
-                        <li>High‑contrast accent colors; consistent icon + text labeling.</li>
-                        <li>Descriptive links (e.g., “View profile” vs generic “Click”).</li>
-                        <li>Locking of job criteria to reduce mid‑process shifting (fairness).</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <ul class="small mb-0 ps-3">
-                        <li>Planned: WCAG contrast audit pass.</li>
-                        <li>Planned: User setting for larger base font size.</li>
-                        <li>Planned: Structured disability & accommodation preference fields.</li>
-                        <li>Planned: Alternative text enforcement for uploaded employer logos.</li>
-                    </ul>
                 </div>
             </div>
         </section>
