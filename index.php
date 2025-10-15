@@ -320,23 +320,55 @@ function fmt_salary($cur, $min, $max, $period)
 
     .filters-condensed .form-control,
     .filters-condensed .form-select {
-        padding-top: .55rem;
-        padding-bottom: .55rem;
+        padding: 0 1rem;
+        display: flex;
+        align-items: center;
+        line-height: 1;
     }
 
     .filters-condensed #filter-what {
-        height: 2.85rem !important;
+        height: 3.1rem !important;
+        padding-left: 2.5rem;
     }
 
     .filters-condensed #filter-where,
     .filters-condensed #filter-disability {
-        height: 2.85rem !important;
+        height: 3.1rem !important;
+    }
+
+    .filters-condensed #filter-where {
+        padding-left: 2.5rem;
+    }
+
+    .filters-condensed #filter-disability {
+        padding-left: 2.5rem;
     }
 
     .filters-condensed button.btn,
     .filters-condensed a.btn {
-        height: 2.85rem !important;
+        height: 3.1rem !important;
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+
+    /* Icon positioning for input fields */
+    .input-icon-group {
+        position: relative;
+    }
+
+    .input-icon-group .i-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .job-filters-card {
@@ -698,7 +730,11 @@ function fmt_salary($cur, $min, $max, $period)
         font-weight: 600;
         box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
         transition: all .2s ease;
-        height: 2.85rem !important;
+        height: 3.1rem !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     .filters-condensed .btn.btn-primary:hover {
@@ -714,6 +750,11 @@ function fmt_salary($cur, $min, $max, $period)
         color: #6c757d;
         font-weight: 600;
         transition: all .2s ease;
+        height: 3.1rem !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
     }
 
     .filters-condensed .btn.btn-outline-secondary:hover {
@@ -734,18 +775,20 @@ function fmt_salary($cur, $min, $max, $period)
 
     /* Filter action buttons styling */
     .filter-action-btn {
-        height: 3.1rem;
+        height: 3.1rem !important;
         font-size: 1rem;
         display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
+        align-items: center !important;
+        justify-content: center !important;
         gap: 0.5rem;
-        padding: 0.6rem 1.5rem;
+        padding: 0 1.5rem !important;
         white-space: nowrap;
+        line-height: 1 !important;
     }
 
     .filter-action-btn i {
         font-size: 1.1rem;
+        line-height: 1;
     }
 
     @media (max-width: 991.98px) {
