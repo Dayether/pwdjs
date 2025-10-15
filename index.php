@@ -2734,7 +2734,7 @@ function fmt_salary($cur, $min, $max, $period)
     <style>
         .trusted-employers-section {
             padding: 3.5rem 0 4rem !important;
-            margin-bottom: 0 !important;
+            margin-bottom: 50rem !important;
             background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%) !important;
             position: relative !important;
         }
