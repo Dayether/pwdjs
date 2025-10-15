@@ -1033,47 +1033,47 @@ function fmt_salary($cur, $min, $max, $period)
     <!-- Promotional hero below search: background image with CTA card -->
     <style>
         .promo-auth-hero {
-            position: relative;
-            overflow: visible;
-            margin-top: 0;
-            margin-bottom: 5rem;
-            padding-bottom: 4rem;
+            position: relative !important;
+            overflow: visible !important;
+            margin-top: 0 !important;
+            margin-bottom: 5rem !important;
+            padding-bottom: 4rem !important;
         }
 
         /* Decorative separator at bottom */
         .promo-auth-hero::after {
-            content: "";
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 60px;
-            background: radial-gradient(circle, rgba(30, 58, 138, 0.08) 0%, rgba(20, 184, 166, 0.08) 50%, transparent 70%);
-            border-radius: 50%;
+            content: "" !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 60px !important;
+            height: 60px !important;
+            background: radial-gradient(circle, rgba(30, 58, 138, 0.08) 0%, rgba(20, 184, 166, 0.08) 50%, transparent 70%) !important;
+            border-radius: 50% !important;
         }
 
         @media (min-width: 768px) {
             .promo-auth-hero {
-                margin-bottom: 6rem;
-                padding-bottom: 5rem;
+                margin-bottom: 6rem !important;
+                padding-bottom: 5rem !important;
             }
 
             .promo-auth-hero::after {
-                width: 80px;
-                height: 80px;
+                width: 80px !important;
+                height: 80px !important;
             }
         }
 
         @media (min-width: 992px) {
             .promo-auth-hero {
-                margin-bottom: 7rem;
-                padding-bottom: 6rem;
+                margin-bottom: 7rem !important;
+                padding-bottom: 6rem !important;
             }
 
             .promo-auth-hero::after {
-                width: 100px;
-                height: 100px;
+                width: 100px !important;
+                height: 100px !important;
             }
         }
 
@@ -2733,32 +2733,32 @@ function fmt_salary($cur, $min, $max, $period)
     <?php endif; ?>
     <style>
         .trusted-employers-section {
-            padding: 3.5rem 0 4rem;
-            margin-bottom: 0;
-            background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%);
-            position: relative;
+            padding: 3.5rem 0 4rem !important;
+            margin-bottom: 0 !important;
+            background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%) !important;
+            position: relative !important;
         }
 
         /* Decorative separator line at bottom */
         .trusted-employers-section::after {
-            content: "";
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 1200px;
-            height: 1px;
-            background: linear-gradient(90deg, transparent 0%, rgba(30, 58, 138, 0.15) 20%, rgba(30, 58, 138, 0.25) 50%, rgba(30, 58, 138, 0.15) 80%, transparent 100%);
+            content: "" !important;
+            position: absolute !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 90% !important;
+            max-width: 1200px !important;
+            height: 1px !important;
+            background: linear-gradient(90deg, transparent 0%, rgba(30, 58, 138, 0.15) 20%, rgba(30, 58, 138, 0.25) 50%, rgba(30, 58, 138, 0.15) 80%, transparent 100%) !important;
         }
 
         @media (max-width: 767.98px) {
             .trusted-employers-section {
-                padding: 2.5rem 0 3rem;
+                padding: 2.5rem 0 3rem !important;
             }
 
             .trusted-employers-section::after {
-                width: 95%;
+                width: 95% !important;
             }
         }
 
@@ -3242,43 +3242,43 @@ function fmt_salary($cur, $min, $max, $period)
 
         /* Two-card callouts styling */
         .callouts-duo-section {
-            padding: 5rem 0;
-            margin-bottom: 0;
-            background: #ffffff;
-            position: relative;
+            padding: 5rem 0 !important;
+            margin-bottom: 0 !important;
+            background: #ffffff !important;
+            position: relative !important;
         }
 
         /* Decorative accent at top */
         .callouts-duo-section::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: linear-gradient(90deg, #1E3A8A, #14B8A6);
-            border-radius: 4px;
+            content: "" !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 80px !important;
+            height: 4px !important;
+            background: linear-gradient(90deg, #1E3A8A, #14B8A6) !important;
+            border-radius: 4px !important;
         }
 
         @media (min-width: 768px) {
             .callouts-duo-section {
-                padding: 6rem 0;
+                padding: 6rem 0 !important;
             }
 
             .callouts-duo-section::before {
-                width: 100px;
+                width: 100px !important;
             }
         }
 
         @media (min-width: 992px) {
             .callouts-duo-section {
-                padding: 7rem 0;
+                padding: 7rem 0 !important;
             }
 
             .callouts-duo-section::before {
-                width: 120px;
-                height: 5px;
+                width: 120px !important;
+                height: 5px !important;
             }
         }
 
