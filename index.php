@@ -298,7 +298,7 @@ function fmt_salary($cur, $min, $max, $period)
     .compact-filters {
         background: #ffffff;
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
+        border-radius: 0;
         box-shadow: 0 4px 12px -4px rgba(0, 0, 0, .05);
     }
 
@@ -758,9 +758,10 @@ function fmt_salary($cur, $min, $max, $period)
 
     .job-filters-card {
         z-index: 50;
+        margin-top: 0 !important;
     }
 </style>
-<div class="job-filters-card mb-3" style="margin-top:.5rem;" data-reveal>
+<div class="job-filters-card mb-3" style="margin-top:0;" data-reveal>
     <div class="job-filters-inner p-2 p-md-3 compact-filters">
         <a id="job-filters"></a>
         <!-- Original heading kept for mobile only -->
