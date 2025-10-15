@@ -167,7 +167,7 @@ if ($loggedIn && $role === 'employer') {
 <style>
     /* Navbar redesign to blend with hero */
     .navbar-themed {
-        background: linear-gradient(90deg, rgba(13, 110, 253, .35), rgba(102, 16, 242, .35));
+        background: linear-gradient(90deg, rgba(30, 58, 138, .85), rgba(20, 184, 166, .85));
         backdrop-filter: blur(14px) saturate(160%);
         -webkit-backdrop-filter: blur(14px) saturate(160%);
         border-bottom: 1px solid rgba(255, 255, 255, .18);
@@ -179,7 +179,7 @@ if ($loggedIn && $role === 'employer') {
     }
 
     .navbar-themed.navbar-scrolled {
-        background: linear-gradient(90deg, #0d6efd, #6610f2);
+        background: linear-gradient(90deg, #1E3A8A, #14B8A6);
         box-shadow: 0 6px 24px -6px rgba(0, 0, 0, .35);
     }
 
@@ -243,7 +243,7 @@ if ($loggedIn && $role === 'employer') {
     .navbar-themed .btn:focus-visible,
     .navbar-themed .nav-link:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 0.25rem rgba(173, 216, 255, 0.5) !important;
+        box-shadow: 0 0 0 0.25rem rgba(250, 204, 21, 0.6) !important;
     }
 
     /* Login/Register buttons */

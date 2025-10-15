@@ -294,6 +294,19 @@ function fmt_salary($cur, $min, $max, $period)
 }
 ?>
 <style>
+    /* Accessible Color Palette */
+    :root {
+        --color-primary: #1E3A8A;
+        --color-secondary: #14B8A6;
+        --color-accent: #FACC15;
+        --color-bg: #F9FAFB;
+        --color-text: #111827;
+        --color-error: #DC2626;
+        --color-primary-rgb: 30, 58, 138;
+        --color-secondary-rgb: 20, 184, 166;
+        --color-accent-rgb: 250, 204, 21;
+    }
+
     /* Compact filter bar adjustments */
     .compact-filters {
         background: #ffffff;
@@ -506,7 +519,7 @@ function fmt_salary($cur, $min, $max, $period)
     }
 
     body.search-active {
-        background: #f8fafc;
+        background: #F9FAFB;
     }
 
     /* Scroll shadow indicators */
@@ -724,30 +737,31 @@ function fmt_salary($cur, $min, $max, $period)
 
     /* Buttons */
     .filters-condensed .btn.btn-primary {
-        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        background: linear-gradient(90deg, #1E3A8A, #14B8A6);
         border: none;
         border-radius: 8px;
         font-weight: 600;
-        box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+        box-shadow: 0 4px 12px -4px rgba(30, 58, 138, 0.4);
         transition: all .2s ease;
         height: 3.1rem !important;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         line-height: 1;
+        color: #ffffff;
     }
 
     .filters-condensed .btn.btn-primary:hover {
-        background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
-        box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.5);
+        background: linear-gradient(90deg, #1E3A8A, #0D9488);
+        box-shadow: 0 6px 20px -4px rgba(30, 58, 138, 0.5);
         transform: translateY(-2px);
     }
 
     .filters-condensed .btn.btn-outline-secondary {
         background: #ffffff;
-        border: 2px solid #dee2e6;
+        border: 2px solid #1E3A8A;
         border-radius: 8px;
-        color: #6c757d;
+        color: #1E3A8A;
         font-weight: 600;
         transition: all .2s ease;
         height: 3.1rem !important;
@@ -758,11 +772,11 @@ function fmt_salary($cur, $min, $max, $period)
     }
 
     .filters-condensed .btn.btn-outline-secondary:hover {
-        background: #f8f9fa;
-        border-color: #adb5bd;
-        color: #495057;
+        background: #F9FAFB;
+        border-color: #14B8A6;
+        color: #14B8A6;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px -4px rgba(108, 117, 125, 0.2);
+        box-shadow: 0 4px 12px -4px rgba(30, 58, 138, 0.2);
     }
 
     .filters-condensed .btn.btn-outline-secondary:active {
@@ -1164,17 +1178,17 @@ function fmt_salary($cur, $min, $max, $period)
             display: inline-flex;
             align-items: center;
             padding: 0.5rem 1rem;
-            background: linear-gradient(90deg, #0d6efd, #6610f2);
+            background: linear-gradient(90deg, #1E3A8A, #14B8A6);
             color: #ffffff;
             border-radius: 50px;
             font-size: 0.85rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.5);
+            box-shadow: 0 4px 12px -4px rgba(30, 58, 138, 0.5);
             animation: badge-pulse 2s ease-in-out infinite;
         }
 
         .hero-badge i {
-            color: #ffc107;
+            color: #FACC15;
             animation: star-twinkle 1.5s ease-in-out infinite;
         }
 
@@ -1182,11 +1196,11 @@ function fmt_salary($cur, $min, $max, $period)
 
             0%,
             100% {
-                box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.5);
+                box-shadow: 0 4px 12px -4px rgba(30, 58, 138, 0.5);
             }
 
             50% {
-                box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.7);
+                box-shadow: 0 6px 20px -4px rgba(30, 58, 138, 0.7);
             }
         }
 
@@ -1210,32 +1224,32 @@ function fmt_salary($cur, $min, $max, $period)
             align-items: center;
             gap: 0.5rem;
             padding: 0.5rem 0.9rem;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(13, 110, 253, 0.2);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(30, 58, 138, 0.2);
             border-radius: 8px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: #0d6efd;
+            color: #1E3A8A;
             transition: all 0.2s ease;
             backdrop-filter: blur(8px);
         }
 
         .stat-badge:hover {
             background: rgba(255, 255, 255, 1);
-            border-color: rgba(13, 110, 253, 0.4);
+            border-color: rgba(30, 58, 138, 0.4);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.3);
+            box-shadow: 0 4px 12px -4px rgba(30, 58, 138, 0.3);
         }
 
         .stat-badge i {
-            color: #6610f2;
+            color: #14B8A6;
             font-size: 1rem;
         }
 
         .promo-auth-hero .promo-title {
             font-weight: 800;
             letter-spacing: .2px;
-            color: #0b132a;
+            color: #111827;
             font-size: 1.45rem;
             line-height: 1.28;
         }
@@ -1253,9 +1267,10 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .promo-sub {
-            color: #475569;
+            color: #111827;
             margin-bottom: .75rem;
             font-size: .95rem;
+            opacity: 0.8;
         }
 
         @media (min-width: 768px) {
@@ -1274,7 +1289,7 @@ function fmt_salary($cur, $min, $max, $period)
             display: flex;
             align-items: flex-start;
             gap: .6rem;
-            color: #334155;
+            color: #111827;
             font-size: .95rem;
             margin-bottom: .3rem;
         }
@@ -1286,7 +1301,7 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .promo-points li i {
-            color: var(--primary-blue);
+            color: #14B8A6;
             margin-top: .2rem;
             font-size: .85rem;
         }
@@ -1321,15 +1336,15 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .promo-auth-hero .btn-hero.btn-primary {
-            background: linear-gradient(90deg, #0d6efd, #6610f2);
+            background: linear-gradient(90deg, #1E3A8A, #14B8A6);
             border: none;
-            box-shadow: 0 8px 20px -6px rgba(13, 110, 253, 0.5);
+            box-shadow: 0 8px 20px -6px rgba(30, 58, 138, 0.5);
         }
 
         .promo-auth-hero .btn-hero.btn-primary:hover {
-            background: linear-gradient(90deg, #0b5ed7, #5a0dd6);
+            background: linear-gradient(90deg, #1E3A8A, #0D9488);
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px -8px rgba(13, 110, 253, 0.6);
+            box-shadow: 0 12px 28px -8px rgba(30, 58, 138, 0.6);
         }
 
         .promo-auth-hero .btn-hero.btn-primary i {
@@ -1338,25 +1353,27 @@ function fmt_salary($cur, $min, $max, $period)
 
         .promo-auth-hero .btn-hero.btn-outline-primary {
             background: #fff;
-            border: 2px solid #0d6efd;
-            color: #0d6efd;
+            border: 2px solid #1E3A8A;
+            color: #1E3A8A;
         }
 
         .promo-auth-hero .btn-hero.btn-outline-primary:hover {
-            background: #eff6ff;
-            border-color: #0b5ed7;
-            color: #0b5ed7;
+            background: #F9FAFB;
+            border-color: #14B8A6;
+            color: #14B8A6;
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px -6px rgba(13, 110, 253, 0.3);
+            box-shadow: 0 8px 20px -6px rgba(30, 58, 138, 0.3);
         }
 
         /* Trust indicator styling */
         .promo-auth-hero .text-muted {
             font-size: 0.82rem;
+            color: #111827;
+            opacity: 0.7;
         }
 
         .promo-auth-hero .text-muted i {
-            color: #10b981;
+            color: #14B8A6;
             font-size: 1rem;
         }
 
@@ -1394,9 +1411,9 @@ function fmt_salary($cur, $min, $max, $period)
             content: none !important;
         }
 
-        /* Soft bluish-white background per spec (#F5F8FC → #EEF3FA) */
+        /* Neutral background for hero section */
         section.landing-hero.promo-auth-hero {
-            background: linear-gradient(135deg, #F5F8FC 0%, #EEF3FA 100%) !important;
+            background: #F9FAFB !important;
         }
 
         /* Variables for precise positioning */
@@ -1446,11 +1463,11 @@ function fmt_salary($cur, $min, $max, $period)
                 /* Position it to the right side */
                 left: 40% !important;
                 right: 0 !important;
-                top: 0 !important;
-                bottom: 0 !important;
-                width: 60% !important;
-                height: 100% !important;
-                border-radius: 0 !important;
+                top: var(--hero-pad) !important;
+                bottom: var(--hero-pad) !important;
+                width: calc(60% - var(--hero-pad)) !important;
+                height: calc(100% - calc(var(--hero-pad) * 2)) !important;
+                border-radius: 20px !important;
                 box-shadow: none !important;
                 /* Position image more to the right and center vertically */
                 background-position: 75% 50% !important;
@@ -1483,7 +1500,7 @@ function fmt_salary($cur, $min, $max, $period)
         @media (min-width: 992px) {
             .promo-auth-hero .hero-bg {
                 left: 45% !important;
-                width: 55% !important;
+                width: calc(55% - var(--hero-pad)) !important;
                 background-position: 70% 50% !important;
             }
         }
@@ -1491,7 +1508,7 @@ function fmt_salary($cur, $min, $max, $period)
         @media (min-width: 1200px) {
             .promo-auth-hero .hero-bg {
                 left: 48% !important;
-                width: 52% !important;
+                width: calc(52% - var(--hero-pad)) !important;
                 background-position: 65% 50% !important;
             }
         }
