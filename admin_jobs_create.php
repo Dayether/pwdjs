@@ -273,11 +273,103 @@ include 'includes/header.php';
 
         <form method="post" enctype="multipart/form-data" class="job-create-form" id="adminJobCreateForm">
             <style>
-                /* Make chips/tags clearly interactive */
+                /* Card + layout */
+                .job-create-form .card {
+                    background: #0f1827;
+                    border: 1px solid rgba(255, 255, 255, .08);
+                    border-radius: 14px
+                }
+
+                .job-create-form .card-body {
+                    padding: 1rem 1rem
+                }
+
+                /* Labels */
+                .job-create-form .form-label {
+                    color: #eaf2ff;
+                    font-weight: 600;
+                    font-size: .82rem
+                }
+
+                /* Dark inputs/selects */
+                .job-create-form .form-control,
+                .job-create-form .form-select,
+                .job-create-form textarea {
+                    background: #101b2b;
+                    border: 1px solid #233246;
+                    color: #dbe6f5;
+                    border-radius: 9px
+                }
+
+                .job-create-form .form-control::placeholder {
+                    color: #95a5bb;
+                    opacity: 1
+                }
+
+                .job-create-form .form-control:focus,
+                .job-create-form .form-select:focus,
+                .job-create-form textarea:focus {
+                    border-color: #2f4f77;
+                    outline: none;
+                    box-shadow: none
+                }
+
+                .job-create-form .form-check-input {
+                    background: #101b2b;
+                    border: 1px solid #233246
+                }
+
+                .job-create-form .form-check-input:checked {
+                    background-color: #1f4d89;
+                    border-color: #1f4d89
+                }
+
+                /* Helper text & validation */
+                .job-create-form .small,
+                .job-create-form .text-muted {
+                    color: #eaf2ff !important;
+                    opacity: .95
+                }
+
+                .job-create-form .form-hint {
+                    color: #9fb4cc
+                }
+
+                .job-create-form .invalid-msg {
+                    color: #ffd8d8;
+                    background: rgba(154, 32, 32, .2);
+                    border: 1px solid rgba(154, 32, 32, .35);
+                    border-radius: 8px;
+                    padding: .4rem .55rem;
+                    margin-top: .5rem;
+                    font-size: .75rem
+                }
+
+                /* Sections */
+                .section-title {
+                    margin: .4rem 0 .5rem;
+                    font-size: .78rem;
+                    letter-spacing: .08em;
+                    text-transform: uppercase;
+                    color: #9fb4cc;
+                    border-top: 1px solid #1f2e45;
+                    padding-top: .75rem
+                }
+
+                /* Chips/tags */
                 .skill-chip,
                 .acc-tag {
                     cursor: pointer;
                     user-select: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: .5rem;
+                    padding: .45rem .7rem;
+                    border-radius: 10px;
+                    border: 1px solid #30445f;
+                    background: #122033;
+                    color: #cfe3ff;
+                    font-size: .78rem;
                 }
 
                 .skill-chip input[type=checkbox],
@@ -286,8 +378,29 @@ include 'includes/header.php';
                 }
 
                 .acc-tag.selected {
-                    background: rgba(37, 99, 235, .10);
-                    border-color: rgba(37, 99, 235, .45);
+                    background: rgba(37, 99, 235, .15);
+                    border-color: #2c5db8;
+                    color: #e4f0ff;
+                }
+
+                .skill-chip.is-checked {
+                    background: rgba(37, 99, 235, .15);
+                    border-color: #2c5db8;
+                    color: #e4f0ff;
+                }
+
+                /* Image preview */
+                .preview-box {
+                    margin-top: .5rem;
+                    display: none
+                }
+
+                .preview-box img {
+                    max-width: 260px;
+                    height: auto;
+                    border-radius: 10px;
+                    border: 1px solid #1f2e45;
+                    box-shadow: 0 4px 12px -8px rgba(0, 0, 0, .6)
                 }
             </style>
             <?php if ($duplicatePending): ?><input type="hidden" name="confirm_duplicate" value="1"><?php endif; ?>
@@ -316,9 +429,13 @@ include 'includes/header.php';
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <div class="row g-3">
+                        <div class="col-12">
+                            <div class="section-title">Job Basics</div>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">Job Title *</label>
-                            <input name="title" required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" class="form-control">
+                            <input name="title" required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>" class="form-control" maxlength="100">
+                            <div class="form-hint small"><span id="titleCount">0</span>/100</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Employment Type *</label>
@@ -329,7 +446,9 @@ include 'includes/header.php';
                                 <?php endforeach; ?>
                             </select>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Location & Compensation</div>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">City *</label>
                             <input name="location_city" required value="<?php echo htmlspecialchars($_POST['location_city'] ?? ''); ?>" class="form-control">
@@ -360,7 +479,9 @@ include 'includes/header.php';
                                 <?php endforeach; ?>
                             </select>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Requirements</div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Experience (years) *</label>
                             <input name="required_experience" type="number" min="0" required value="<?php echo htmlspecialchars($_POST['required_experience'] ?? ''); ?>" class="form-control">
@@ -380,8 +501,11 @@ include 'includes/header.php';
                             <label class="form-label">Job Image (optional)</label>
                             <input type="file" name="job_image" accept="image/*" class="form-control">
                             <div class="small text-muted">PNG / JPG / GIF / WEBP up to 2MB</div>
+                            <div id="jobImagePreview" class="preview-box"></div>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Skills</div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Additional Skills (comma separated)</label>
                             <input name="additional_skills" value="<?php echo htmlspecialchars($_POST['additional_skills'] ?? ''); ?>" class="form-control">
@@ -401,7 +525,9 @@ include 'includes/header.php';
                             </div>
                             <div class="invalid-msg d-none" data-for-group="skills">Please select at least one skill or add skills.</div>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Applicable PWD Categories</div>
+                        </div>
                         <div class="col-12">
                             <div class="small text-muted mb-1">Applicable PWD Categories (at least 1 required)</div>
                             <div class="d-flex flex-wrap gap-2" data-required-group="pwdcats">
@@ -417,7 +543,9 @@ include 'includes/header.php';
                             <div class="form-hint small">Select at least one PWD category this job is intended for.</div>
                             <div class="invalid-msg d-none" data-for-group="pwdcats">Please select at least one Applicable PWD Category.</div>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Accessibility & Inclusion</div>
+                        </div>
                         <div class="col-12">
                             <div class="small text-muted mb-1">Accessibility & Inclusion (at least 1 required)</div>
                             <div class="d-flex flex-wrap gap-2" data-required-group="accesstags">
@@ -432,10 +560,13 @@ include 'includes/header.php';
                             </div>
                             <div class="invalid-msg d-none" data-for-group="accesstags">Please select at least one Accessibility & Inclusion tag.</div>
                         </div>
-
+                        <div class="col-12">
+                            <div class="section-title">Role Description</div>
+                        </div>
                         <div class="col-12">
                             <label class="form-label">Role Description *</label>
-                            <textarea name="description" required rows="8" class="form-control"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+                            <textarea name="description" required rows="8" class="form-control" maxlength="3000"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+                            <div class="form-hint small"><span id="descCount">0</span>/3000</div>
                         </div>
                     </div>
 
@@ -492,5 +623,47 @@ include 'includes/header.php';
             });
             if (!ok) e.preventDefault();
         });
+
+        // Title and description character counters
+        const titleInput = form.querySelector('input[name="title"]');
+        const titleCount = document.getElementById('titleCount');
+        const descInput = form.querySelector('textarea[name="description"]');
+        const descCount = document.getElementById('descCount');
+
+        function bindCounter(input, outEl, max) {
+            if (!input || !outEl) return;
+            const update = () => {
+                outEl.textContent = String((input.value || '').length);
+            };
+            input.addEventListener('input', update);
+            update();
+        }
+        bindCounter(titleInput, titleCount, 100);
+        bindCounter(descInput, descCount, 3000);
+
+        // Image preview
+        const fileInput = form.querySelector('input[name="job_image"]');
+        const previewBox = document.getElementById('jobImagePreview');
+        if (fileInput && previewBox) {
+            fileInput.addEventListener('change', function() {
+                const f = fileInput.files && fileInput.files[0];
+                if (!f) {
+                    previewBox.style.display = 'none';
+                    previewBox.innerHTML = '';
+                    return;
+                }
+                if (!/^image\//.test(f.type)) {
+                    previewBox.style.display = 'none';
+                    previewBox.innerHTML = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewBox.innerHTML = '<img alt="Preview" src="' + (e.target?.result || '') + '">';
+                    previewBox.style.display = 'block';
+                };
+                reader.readAsDataURL(f);
+            });
+        }
     })();
 </script>
