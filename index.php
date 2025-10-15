@@ -2672,7 +2672,7 @@ function fmt_salary($cur, $min, $max, $period)
                 <button class="emp-nav btn btn-light btn-sm emp-nav-next" type="button" aria-label="Scroll right"><i class="bi bi-chevron-right"></i></button>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-2">
+            <div class="d-flex justify-content-between align-items-center mt-4">
                 <?php
                 $hasMoreCompanies = ($companiesTotal > (is_array($companies) ? count($companies) : 0));
                 $nextCompaniesPage = max(1, (int)($page + 1));
@@ -2680,7 +2680,10 @@ function fmt_salary($cur, $min, $max, $period)
                 ?>
                 <div>
                     <?php if ($hasMoreCompanies): ?>
-                        <a class="btn btn-outline-secondary btn-sm" href="<?php echo htmlspecialchars($seeMoreUrl); ?>">See more</a>
+                        <a class="btn btn-outline-primary" href="<?php echo htmlspecialchars($seeMoreUrl); ?>" style="border-width: 2px; padding: 0.6rem 1.5rem; font-weight: 600; border-radius: 50px; transition: all 0.2s ease;">
+                            <i class="bi bi-arrow-right-circle me-2"></i>
+                            <span>See more employers</span>
+                        </a>
                     <?php endif; ?>
                 </div>
                 <?php if ($companiesTotal > 0): ?>
@@ -2698,20 +2701,29 @@ function fmt_salary($cur, $min, $max, $period)
     <?php endif; ?>
     <style>
         .trusted-employers-section {
-            padding: 22px 0 28px;
+            padding: 3.5rem 0 4rem;
+            background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%);
+        }
+
+        @media (max-width: 767.98px) {
+            .trusted-employers-section {
+                padding: 2.5rem 0 3rem;
+            }
         }
 
         /* Header layout: eyebrow + heading at left, description at right */
         .trusted-employers-section .section-head {
             display: grid;
-            grid-template-columns: minmax(260px, 420px) 1fr;
+            grid-template-columns: minmax(280px, 450px) 1fr;
             align-items: start;
-            gap: 8px 32px;
+            gap: 12px 40px;
+            margin-bottom: 2.5rem;
         }
 
         @media (max-width: 767.98px) {
             .trusted-employers-section .section-head {
                 grid-template-columns: 1fr;
+                margin-bottom: 2rem;
             }
         }
 
@@ -2719,99 +2731,159 @@ function fmt_salary($cur, $min, $max, $period)
             grid-column: 1;
             display: inline-flex;
             align-items: center;
-            gap: .4rem;
-            font-size: .72rem;
-            letter-spacing: .6px;
-            font-weight: 800;
-            color: #1d4ed8;
+            gap: .5rem;
+            font-size: .75rem;
+            letter-spacing: .8px;
+            font-weight: 700;
+            color: #1E3A8A;
             text-transform: uppercase;
-            background: #eaf2ff;
-            padding: .25rem .55rem;
-            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.08), rgba(20, 184, 166, 0.08));
+            padding: .4rem .85rem;
+            border-radius: 50px;
             width: max-content;
+            border: 1px solid rgba(30, 58, 138, 0.15);
+        }
+
+        .trusted-employers-section .section-eyebrow::before {
+            content: "★";
+            color: #14B8A6;
+            font-size: 1rem;
         }
 
         .trusted-employers-section .section-heading {
             grid-column: 1;
-            font-size: 1.55rem;
+            font-size: 1.85rem;
             font-weight: 800;
-            letter-spacing: .2px;
-            margin: .1rem 0 0;
-            color: #0b132a;
+            letter-spacing: -.02em;
+            margin: .5rem 0 0;
+            color: #111827;
             line-height: 1.2;
         }
 
         @media (min-width: 768px) {
             .trusted-employers-section .section-heading {
-                font-size: 1.75rem;
+                font-size: 2.25rem;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .trusted-employers-section .section-heading {
+                font-size: 2.5rem;
             }
         }
 
         .trusted-employers-section .section-sub {
             grid-column: 2;
-            margin: .35rem 0 .2rem;
-            max-width: 880px;
-            color: #5b6779;
-            line-height: 1.55;
+            margin: .85rem 0 0;
+            max-width: 580px;
+            color: #111827;
+            opacity: 0.75;
+            line-height: 1.65;
+            font-size: 1rem;
         }
 
         @media (max-width: 767.98px) {
             .trusted-employers-section .section-sub {
                 grid-column: 1;
+                margin-top: 1rem;
+                font-size: 0.95rem;
             }
         }
 
         .emp-carousel-wrap {
-            padding: 10px 36px;
+            padding: 16px 48px;
+            position: relative;
+        }
+
+        @media (max-width: 767.98px) {
+            .emp-carousel-wrap {
+                padding: 12px 40px;
+            }
         }
 
         .employer-carousel {
             display: flex;
-            gap: 16px;
+            gap: 20px;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
-            scroll-padding: 0 12px;
-            padding-bottom: 6px;
+            scroll-padding: 0 16px;
+            padding-bottom: 12px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(30, 58, 138, 0.2) transparent;
         }
 
         .employer-carousel::-webkit-scrollbar {
-            height: 8px;
+            height: 10px;
+        }
+
+        .employer-carousel::-webkit-scrollbar-track {
+            background: rgba(30, 58, 138, 0.05);
+            border-radius: 10px;
         }
 
         .employer-carousel::-webkit-scrollbar-thumb {
-            background: #d2d8e3;
-            border-radius: 8px;
+            background: rgba(30, 58, 138, 0.25);
+            border-radius: 10px;
+            transition: background 0.2s ease;
+        }
+
+        .employer-carousel::-webkit-scrollbar-thumb:hover {
+            background: rgba(30, 58, 138, 0.4);
         }
 
         .emp-card {
             flex: 0 0 auto;
-            width: 248px;
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
+            width: 260px;
+            background: #ffffff;
+            border: 1px solid rgba(30, 58, 138, 0.12);
+            border-radius: 18px;
             text-decoration: none;
             color: inherit;
-            box-shadow: 0 6px 18px -12px rgba(2, 6, 23, .18);
+            box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.15), 0 4px 12px -8px rgba(20, 184, 166, 0.08);
             scroll-snap-align: start;
-            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+            transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emp-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #1E3A8A, #14B8A6);
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
 
         .emp-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 32px -20px rgba(2, 6, 23, .25), 0 8px 20px -12px rgba(2, 6, 23, .12);
-            border-color: #d7deea;
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -16px rgba(30, 58, 138, 0.25), 0 8px 24px -12px rgba(20, 184, 166, 0.15);
+            border-color: rgba(20, 184, 166, 0.3);
+        }
+
+        .emp-card:hover::before {
+            opacity: 1;
         }
 
         .emp-card .logo-wrap {
             width: 100%;
             aspect-ratio: 1 / 1;
-            border-top-left-radius: 16px;
-            border-top-right-radius: 16px;
+            border-top-left-radius: 18px;
+            border-top-right-radius: 18px;
             overflow: hidden;
-            background: #f5f7fb;
+            background: linear-gradient(135deg, #F9FAFB 0%, #ffffff 100%);
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            transition: background 0.25s ease;
+        }
+
+        .emp-card:hover .logo-wrap {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.04) 0%, rgba(20, 184, 166, 0.04) 100%);
         }
 
         .emp-card .logo-wrap img {
@@ -2819,103 +2891,153 @@ function fmt_salary($cur, $min, $max, $period)
             height: 100%;
             object-fit: cover;
             display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .emp-card:hover .logo-wrap img {
+            transform: scale(1.05);
         }
 
         .emp-card .logo-wrap .emp-initial {
             font-weight: 800;
-            font-size: 2.1rem;
-            color: #334155;
+            font-size: 2.5rem;
+            color: #1E3A8A;
+            opacity: 0.8;
         }
 
         .emp-info {
-            padding: .85rem .9rem;
+            padding: 1.1rem 1.15rem;
+            background: #ffffff;
         }
 
         .emp-name {
-            font-weight: 600;
-            font-size: 1rem;
-            letter-spacing: .1px;
-            line-height: 1.2;
-            color: #0b132a;
+            font-weight: 700;
+            font-size: 1.05rem;
+            letter-spacing: -.01em;
+            line-height: 1.3;
+            color: #111827;
             display: block;
             max-width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            margin-bottom: 0.5rem;
         }
 
         .emp-jobs {
-            margin-top: .4rem;
+            margin-top: 0;
         }
 
         .emp-jobs .badge {
-            font-size: .72rem;
-            padding: .35rem .5rem;
-            border-radius: 999px;
-            background: #f1f5f9;
-            border-color: #e2e8f0;
+            font-size: .75rem;
+            font-weight: 600;
+            padding: .4rem .75rem;
+            border-radius: 50px;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.08), rgba(20, 184, 166, 0.08));
+            border: 1px solid rgba(30, 58, 138, 0.15);
+            color: #1E3A8A;
+            transition: all 0.2s ease;
+        }
+
+        .emp-card:hover .emp-jobs .badge {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.12), rgba(20, 184, 166, 0.12));
+            border-color: rgba(20, 184, 166, 0.3);
         }
 
         .emp-nav {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            z-index: 2;
-            border-radius: 999px;
-            width: 36px;
-            height: 36px;
+            z-index: 3;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 18px -12px rgba(2, 6, 23, .25);
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            color: #334155;
+            box-shadow: 0 8px 24px -12px rgba(30, 58, 138, 0.3), 0 4px 12px -8px rgba(20, 184, 166, 0.15);
+            background: #ffffff;
+            border: 1px solid rgba(30, 58, 138, 0.15);
+            color: #1E3A8A;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .emp-nav:hover {
-            background: #f8fafc;
+            background: linear-gradient(135deg, #1E3A8A, #14B8A6);
+            color: #ffffff;
+            border-color: transparent;
+            transform: translateY(-50%) scale(1.08);
+            box-shadow: 0 12px 32px -16px rgba(30, 58, 138, 0.4), 0 6px 16px -10px rgba(20, 184, 166, 0.25);
         }
 
         .emp-nav:focus-visible {
-            outline: 3px solid rgba(var(--accent-yellow-rgb), .35);
-            outline-offset: 2px;
+            outline: 3px solid rgba(250, 204, 21, 0.5);
+            outline-offset: 3px;
+        }
+
+        .emp-nav i {
+            font-size: 1.2rem;
         }
 
         .emp-nav-prev {
-            left: 0;
+            left: 4px;
         }
 
         .emp-nav-next {
-            right: 0;
+            right: 4px;
         }
 
         .emp-dots {
             display: flex;
-            gap: 6px;
+            gap: 8px;
+            align-items: center;
         }
 
         .emp-dots .dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            background: #d2d8e3;
+            background: rgba(30, 58, 138, 0.2);
             display: inline-block;
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+
+        .emp-dots .dot:hover {
+            background: rgba(20, 184, 166, 0.4);
+            transform: scale(1.2);
         }
 
         .emp-dots .dot.active {
-            background: var(--primary-blue);
+            background: linear-gradient(135deg, #1E3A8A, #14B8A6);
+            width: 28px;
+            border-radius: 10px;
         }
 
         @media (min-width: 768px) {
             .emp-card {
-                width: 264px;
+                width: 280px;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .emp-card {
+                width: 300px;
             }
         }
 
         @media (max-width: 576px) {
             .emp-carousel-wrap {
-                padding: 6px 10px;
+                padding: 10px 36px;
+            }
+
+            .emp-nav {
+                width: 38px;
+                height: 38px;
+            }
+
+            .emp-nav i {
+                font-size: 1.1rem;
             }
         }
     </style>
