@@ -379,7 +379,21 @@ include 'includes/header.php';
             }
 
             .decision-form input[name=reason] {
-                min-width: 240px
+                min-width: 240px;
+                background: #101b2b;
+                border: 1px solid #233246;
+                color: #dbe6f5
+            }
+
+            .decision-form input[name=reason]::placeholder {
+                color: #95a5bb;
+                opacity: 1
+            }
+
+            .decision-form input[name=reason]:focus {
+                border-color: #2f4f77;
+                outline: none;
+                box-shadow: none
             }
 
             .decision-form select {
@@ -449,6 +463,13 @@ include 'includes/header.php';
 
             .fade-in {
                 animation: fadeIn .5s ease both
+            }
+
+            /* Improve small/muted text visibility within table wrapper */
+            .jm-wrapper .small,
+            .jm-wrapper .text-muted {
+                color: #eaf2ff !important;
+                opacity: .95
             }
 
             @keyframes fadeIn {
