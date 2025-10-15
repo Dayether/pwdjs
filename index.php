@@ -2762,24 +2762,23 @@ function fmt_salary($cur, $min, $max, $period)
             }
         }
 
-        /* Header layout: eyebrow + heading at left, description at right */
+        /* Header layout: full-width stacked layout */
         .trusted-employers-section .section-head {
-            display: grid;
-            grid-template-columns: minmax(280px, 450px) 1fr;
-            align-items: start;
-            gap: 12px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
             margin-bottom: 2.5rem;
+            max-width: 100%;
         }
 
         @media (max-width: 767.98px) {
             .trusted-employers-section .section-head {
-                grid-template-columns: 1fr;
                 margin-bottom: 2rem;
             }
         }
 
         .trusted-employers-section .section-eyebrow {
-            grid-column: 1;
             display: inline-flex;
             align-items: center;
             gap: .5rem;
@@ -2802,13 +2801,13 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .trusted-employers-section .section-heading {
-            grid-column: 1;
             font-size: 1.85rem;
             font-weight: 800;
             letter-spacing: -.02em;
-            margin: .5rem 0 0;
+            margin: 0;
             color: #111827;
             line-height: 1.2;
+            width: 100%;
         }
 
         @media (min-width: 768px) {
@@ -2824,9 +2823,9 @@ function fmt_salary($cur, $min, $max, $period)
         }
 
         .trusted-employers-section .section-sub {
-            grid-column: 2;
-            margin: .85rem 0 0;
-            max-width: 580px;
+            margin: 0;
+            width: 100%;
+            max-width: 100%;
             color: #111827;
             opacity: 0.75;
             line-height: 1.65;
@@ -2835,8 +2834,6 @@ function fmt_salary($cur, $min, $max, $period)
 
         @media (max-width: 767.98px) {
             .trusted-employers-section .section-sub {
-                grid-column: 1;
-                margin-top: 1rem;
                 font-size: 0.95rem;
             }
         }
