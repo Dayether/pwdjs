@@ -694,40 +694,42 @@ function fmt_salary($cur, $min, $max, $period)
     .filters-condensed .btn.btn-primary {
         background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         border: none;
-        border-radius: 0;
+        border-radius: 8px;
         font-weight: 600;
-        box-shadow: none;
-        transition: background .2s ease, box-shadow .2s ease;
-        height: 3.1rem;
+        box-shadow: 0 4px 12px -4px rgba(13, 110, 253, 0.4);
+        transition: all .2s ease;
+        height: 2.85rem !important;
     }
 
     .filters-condensed .btn.btn-primary:hover {
         background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
-        box-shadow: none;
+        box-shadow: 0 6px 20px -4px rgba(13, 110, 253, 0.5);
+        transform: translateY(-2px);
     }
 
     .filters-condensed .btn.btn-outline-secondary {
         background: #ffffff;
         border: 2px solid #dee2e6;
-        border-radius: 0;
+        border-radius: 8px;
         color: #6c757d;
         font-weight: 600;
-        transition: background .2s ease, border-color .2s ease, color .2s ease;
-        height: 3.1rem;
+        transition: all .2s ease;
     }
 
     .filters-condensed .btn.btn-outline-secondary:hover {
         background: #f8f9fa;
         border-color: #adb5bd;
         color: #495057;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px -4px rgba(108, 117, 125, 0.2);
     }
 
     .filters-condensed .btn.btn-outline-secondary:active {
-        background: #e9ecef;
+        transform: translateY(0);
     }
 
     .filters-condensed .btn.btn-primary:active {
-        background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+        transform: translateY(0);
     }
 
     /* Filter action buttons styling */
@@ -738,9 +740,8 @@ function fmt_salary($cur, $min, $max, $period)
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        padding: 0 1.5rem;
+        padding: 0.6rem 1.5rem;
         white-space: nowrap;
-        line-height: 1;
     }
 
     .filter-action-btn i {
