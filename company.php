@@ -160,6 +160,39 @@ function stars($n)
                     <?php endif; ?>
                 </div>
                 <div id="tab-reviews" class="tab-pane fade <?php echo $defaultTab === 'reviews' ? 'show active' : ''; ?>" role="tabpanel">
+                    <?php
+                    $canReview = Helpers::isLoggedIn() && Helpers::isJobSeeker();
+                    if ($canReview): ?>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5 class="card-title h6 mb-3">Write a review</h5>
+                                <form id="reviewForm" class="row g-3" method="post">
+                                    <input type="hidden" name="csrf" value="<?php echo htmlspecialchars(Helpers::csrfToken()); ?>">
+                                    <input type="hidden" name="action" value="submit_review">
+                                    <input type="hidden" name="employer_id" value="<?php echo htmlspecialchars($employer->user_id); ?>">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Rating</label>
+                                        <select name="rating" class="form-select" required>
+                                            <option value="">Select…</option>
+                                            <?php for ($i=5; $i>=1; $i--): ?>
+                                                <option value="<?php echo $i; ?>"><?php echo $i; ?> star<?php echo $i>1?'s':''; ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">Comment <span class="text-muted small">(optional)</span></label>
+                                        <textarea name="comment" class="form-control" rows="4" maxlength="2000" placeholder="Share your experience working with this employer (max 2000 characters)"></textarea>
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-end gap-2">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-send me-1"></i>Submit review
+                                        </button>
+                                    </div>
+                                    <div id="reviewMsg" class="mt-2" role="status" aria-live="polite"></div>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <?php if (!$reviews): ?>
                         <div class="alert alert-secondary">No reviews yet.</div>
                     <?php else: ?>
@@ -241,5 +274,37 @@ function stars($n)
             showTab('#tab-reviews');
         });
     })();
+</script>
+<script>
+// Review form handler
+(function(){
+    const form = document.getElementById('reviewForm');
+    if (!form) return;
+    const msg = document.getElementById('reviewMsg');
+    form.addEventListener('submit', async function(e){
+        e.preventDefault();
+        msg.className = '';
+        msg.textContent = '';
+        const fd = new FormData(form);
+        try {
+            const res = await fetch('api_employer_reviews.php', {
+                method: 'POST',
+                body: fd
+            });
+            const data = await res.json().catch(()=>({ok:false,message:'Unexpected response'}));
+            if (data.ok) {
+                msg.className = 'alert alert-success py-2 px-3';
+                msg.textContent = data.message || 'Review submitted.';
+                form.reset();
+            } else {
+                msg.className = 'alert alert-warning py-2 px-3';
+                msg.textContent = data.message || 'Unable to submit review.';
+            }
+        } catch (err) {
+            msg.className = 'alert alert-danger py-2 px-3';
+            msg.textContent = 'Network error. Please try again.';
+        }
+    });
+})();
 </script>
 <?php include 'includes/footer.php'; ?>
