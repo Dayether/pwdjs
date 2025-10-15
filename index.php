@@ -1036,18 +1036,44 @@ function fmt_salary($cur, $min, $max, $period)
             position: relative;
             overflow: visible;
             margin-top: 0;
-            margin-bottom: 4rem;
+            margin-bottom: 5rem;
+            padding-bottom: 4rem;
+        }
+
+        /* Decorative separator at bottom */
+        .promo-auth-hero::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(30, 58, 138, 0.08) 0%, rgba(20, 184, 166, 0.08) 50%, transparent 70%);
+            border-radius: 50%;
         }
 
         @media (min-width: 768px) {
             .promo-auth-hero {
-                margin-bottom: 5rem;
+                margin-bottom: 6rem;
+                padding-bottom: 5rem;
+            }
+
+            .promo-auth-hero::after {
+                width: 80px;
+                height: 80px;
             }
         }
 
         @media (min-width: 992px) {
             .promo-auth-hero {
-                margin-bottom: 6rem;
+                margin-bottom: 7rem;
+                padding-bottom: 6rem;
+            }
+
+            .promo-auth-hero::after {
+                width: 100px;
+                height: 100px;
             }
         }
 
@@ -2708,12 +2734,31 @@ function fmt_salary($cur, $min, $max, $period)
     <style>
         .trusted-employers-section {
             padding: 3.5rem 0 4rem;
+            margin-bottom: 0;
             background: linear-gradient(180deg, #F9FAFB 0%, #ffffff 100%);
+            position: relative;
+        }
+
+        /* Decorative separator line at bottom */
+        .trusted-employers-section::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1200px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(30, 58, 138, 0.15) 20%, rgba(30, 58, 138, 0.25) 50%, rgba(30, 58, 138, 0.15) 80%, transparent 100%);
         }
 
         @media (max-width: 767.98px) {
             .trusted-employers-section {
                 padding: 2.5rem 0 3rem;
+            }
+
+            .trusted-employers-section::after {
+                width: 95%;
             }
         }
 
@@ -3197,19 +3242,43 @@ function fmt_salary($cur, $min, $max, $period)
 
         /* Two-card callouts styling */
         .callouts-duo-section {
-            padding: 4rem 0;
+            padding: 5rem 0;
             margin-bottom: 0;
+            background: #ffffff;
+            position: relative;
+        }
+
+        /* Decorative accent at top */
+        .callouts-duo-section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, #1E3A8A, #14B8A6);
+            border-radius: 4px;
         }
 
         @media (min-width: 768px) {
             .callouts-duo-section {
-                padding: 5rem 0;
+                padding: 6rem 0;
+            }
+
+            .callouts-duo-section::before {
+                width: 100px;
             }
         }
 
         @media (min-width: 992px) {
             .callouts-duo-section {
-                padding: 6rem 0;
+                padding: 7rem 0;
+            }
+
+            .callouts-duo-section::before {
+                width: 120px;
+                height: 5px;
             }
         }
 
