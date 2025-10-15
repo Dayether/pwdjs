@@ -338,33 +338,33 @@ try {
 
     /* About hero nav pills (improved contrast) */
     .about-hero .btn-modern {
-        background: rgba(255, 255, 255, .12);
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, .45);
-        backdrop-filter: saturate(160%) blur(4px);
+        background: rgba(255, 255, 255, .12) !important;
+        color: var(--neutral-white) !important;
+        border: 1px solid rgba(255, 255, 255, .45) !important;
+        backdrop-filter: saturate(160%) blur(4px) !important;
     }
 
     .about-hero .btn-modern:hover,
     .about-hero .btn-modern:focus {
-        background: #fff;
-        color: #10325a;
-        border-color: #fff;
-        box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .35), 0 0 0 3px rgba(255, 255, 255, .25);
+        background: var(--neutral-white) !important;
+        color: var(--primary-blue) !important;
+        border-color: var(--neutral-white) !important;
+        box-shadow: 0 6px 18px -6px rgba(0, 0, 0, .35), 0 0 0 3px rgba(255, 255, 255, .25) !important;
     }
 
     .about-hero .btn-modern.active {
-        background: #fff;
-        color: #0d46a2;
-        border-color: #fff;
-        font-weight: 700;
+        background: var(--neutral-white) !important;
+        color: var(--primary-blue) !important;
+        border-color: var(--neutral-white) !important;
+        font-weight: 700 !important;
     }
 
     .about-hero .btn-modern:not(.active) {
-        opacity: .9;
+        opacity: .9 !important;
     }
 
     .about-hero .btn-modern:not(.active):hover {
-        opacity: 1;
+        opacity: 1 !important;
     }
 
     /* Enhanced Buttons */
@@ -785,8 +785,8 @@ try {
                     </div>
                 </div>
                 <div class="col-lg-4">
-                    <div class="feature-card h-100 bg-gradient" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                        <div class="feature-icon bg-success">
+                    <div class="feature-card h-100 bg-gradient">
+                        <div class="feature-icon" style="background: linear-gradient(135deg, var(--secondary-teal), var(--success-green)) !important;">
                             <i class="bi bi-people-fill"></i>
                         </div>
                         <h4 class="h5 fw-semibold mb-3">Impact Focus</h4>
