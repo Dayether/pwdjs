@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // PWD ID (REQUIRED FOR JOB SEEKER)
     $pwd_id_number = trim($_POST['pwd_id_number'] ?? '');
 
-    // Phone (optional at registration)
+    // Phone (now required for both roles)
     $phone = trim($_POST['phone'] ?? '');
 
     // Email
@@ -85,6 +85,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($selectedDis === '' || $selectedDis === 'None') {
             $errors[] = 'Please select your disability (None is not allowed for Job Seeker accounts).';
         }
+    }
+
+    // Common validations (both roles)
+    if ($phone === '') {
+        $errors[] = 'Phone is required.';
+    } else if (!preg_match('/^[0-9 +().-]{6,30}$/', $phone)) {
+        $errors[] = 'Phone format invalid.';
     }
 
     // Employer validations
@@ -285,8 +292,8 @@ include 'includes/nav.php';
                         <input name="email" type="email" class="form-control" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6 input-floating-label">
-                        <label>Phone (optional)</label>
-                        <input name="phone" type="text" class="form-control" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                        <label>Phone</label>
+                        <input name="phone" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6 input-floating-label">
                         <label>Account Type</label>
@@ -313,14 +320,14 @@ include 'includes/nav.php';
 
                     <div class="col-md-6 input-floating-label" id="pwdIdContainer" style="display: <?php echo (($_POST['role'] ?? 'job_seeker') === 'job_seeker') ? 'block' : 'none'; ?>">
                         <label>Government PWD ID Number <span class="text-danger">*</span></label>
-                        <input type="text" name="pwd_id_number" class="form-control" placeholder="Enter your Government PWD ID" value="<?php echo htmlspecialchars($_POST['pwd_id_number'] ?? ''); ?>">
+                        <input type="text" name="pwd_id_number" class="form-control" required placeholder="Enter your Government PWD ID" value="<?php echo htmlspecialchars($_POST['pwd_id_number'] ?? ''); ?>">
                     </div>
 
                     <div id="employerSection" style="display: <?php echo (($_POST['role'] ?? '') === 'employer') ? 'block' : 'none'; ?>">
                         <div class="row g-3 mt-1">
                             <div class="col-md-6 input-floating-label">
                                 <label>Company Name</label>
-                                <input type="text" name="company_name" class="form-control" value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
+                                <input type="text" name="company_name" class="form-control" required value="<?php echo htmlspecialchars($_POST['company_name'] ?? ''); ?>">
                             </div>
                             <div class="col-md-6 input-floating-label">
                                 <label>Business Email</label>
@@ -402,6 +409,9 @@ include 'includes/nav.php';
     const companyPhoneInput = document.querySelector('input[name="company_phone"]');
     const contactPositionInput = document.querySelector('input[name="contact_person_position"]');
     const contactPhoneInput = document.querySelector('input[name="contact_person_phone"]');
+    const phoneInput = document.querySelector('input[name="phone"]');
+    const companyNameInput = document.querySelector('input[name="company_name"]');
+    const pwdIdInput = document.querySelector('input[name="pwd_id_number"]');
 
     function updateRoleSections() {
         if (roleSelect.value === 'employer') {
@@ -416,14 +426,17 @@ include 'includes/nav.php';
             if (ownerNameWrapper) ownerNameWrapper.style.display = 'block';
             // Required flags
             if (jsNameInput) jsNameInput.removeAttribute('required');
+            if (pwdIdInput) pwdIdInput.removeAttribute('required');
             if (ownerFirstInput) ownerFirstInput.setAttribute('required', 'required');
             if (ownerLastInput) ownerLastInput.setAttribute('required', 'required');
             if (ownerMiddleInput) ownerMiddleInput.setAttribute('required', 'required');
             if (businessEmailInput) businessEmailInput.setAttribute('required', 'required');
             if (companyWebsiteInput) companyWebsiteInput.setAttribute('required', 'required');
             if (companyPhoneInput) companyPhoneInput.setAttribute('required', 'required');
+            if (companyNameInput) companyNameInput.setAttribute('required', 'required');
             if (contactPositionInput) contactPositionInput.setAttribute('required', 'required');
             if (contactPhoneInput) contactPhoneInput.setAttribute('required', 'required');
+            if (phoneInput) phoneInput.setAttribute('required', 'required');
         } else {
             employerSection.style.display = 'none';
             pwdIdContainer.style.display = 'block';
@@ -437,14 +450,17 @@ include 'includes/nav.php';
             if (ownerNameWrapper) ownerNameWrapper.style.display = 'none';
             // Required flags
             if (jsNameInput) jsNameInput.setAttribute('required', 'required');
+            if (pwdIdInput) pwdIdInput.setAttribute('required', 'required');
             if (ownerFirstInput) ownerFirstInput.removeAttribute('required');
             if (ownerLastInput) ownerLastInput.removeAttribute('required');
             if (ownerMiddleInput) ownerMiddleInput.removeAttribute('required');
             if (businessEmailInput) businessEmailInput.removeAttribute('required');
             if (companyWebsiteInput) companyWebsiteInput.removeAttribute('required');
             if (companyPhoneInput) companyPhoneInput.removeAttribute('required');
+            if (companyNameInput) companyNameInput.removeAttribute('required');
             if (contactPositionInput) contactPositionInput.removeAttribute('required');
             if (contactPhoneInput) contactPhoneInput.removeAttribute('required');
+            if (phoneInput) phoneInput.setAttribute('required', 'required');
         }
     }
 
