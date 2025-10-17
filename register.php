@@ -57,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Name handling per role
     $displayName = '';
     if ($role === 'employer') {
-        // Require owner first and last name; middle is optional
-        if ($owner_first === '' || $owner_last === '') {
-            $errors[] = 'Company owner first and last name are required.';
+        // Require owner first, middle, and last name (align with UI required fields)
+        if ($owner_first === '' || $owner_middle === '' || $owner_last === '') {
+            $errors[] = 'Company owner first, middle, and last name are required.';
         }
-        $owner_full_raw = trim($owner_first . ' ' . ($owner_middle !== '' ? $owner_middle . ' ' : '') . $owner_last);
+        $owner_full_raw = trim($owner_first . ' ' . $owner_middle . ' ' . $owner_last);
         $displayName = Name::normalizeDisplayName($owner_full_raw);
         if ($displayName === '') {
             $errors[] = 'Please enter a valid company owner name.';
@@ -90,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Employer validations
     if ($role === 'employer') {
         if ($company_name === '') $errors[] = 'Company name is required for Employer accounts.';
-        if ($owner_first === '' || $owner_last === '') {
-            $errors[] = 'Company owner first and last name are required.';
+        if ($owner_first === '' || $owner_middle === '' || $owner_last === '') {
+            $errors[] = 'Company owner first, middle, and last name are required.';
         }
         if ($business_email === '') {
             $errors[] = 'Business email is required for Employer accounts.';
