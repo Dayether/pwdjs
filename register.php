@@ -90,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Common validations (both roles)
     if ($phone === '') {
         $errors[] = 'Phone is required.';
-    } else if (!preg_match('/^[0-9 +().-]{6,30}$/', $phone)) {
-        $errors[] = 'Phone format invalid.';
+    } else if (!preg_match('/^\d{11}$/', $phone)) {
+        $errors[] = 'Phone must be exactly 11 digits.';
     }
 
     // Employer validations
@@ -122,11 +122,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = 'Business Permit Number format invalid (letters, numbers, dash, slash; 4-40 chars).';
             }
         }
-        if (!preg_match('/^[0-9 +().-]{6,30}$/', $contact_person_phone)) {
-            $errors[] = 'Contact person phone format invalid.';
+        if (!preg_match('/^\d{11}$/', $contact_person_phone)) {
+            $errors[] = 'Contact person phone must be exactly 11 digits.';
         }
-        if (!preg_match('/^[0-9 +().-]{6,30}$/', $company_phone)) {
-            $errors[] = 'Company phone format invalid.';
+        if (!preg_match('/^\d{11}$/', $company_phone)) {
+            $errors[] = 'Company phone must be exactly 11 digits.';
         }
         if (!filter_var($business_email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Invalid company email.';
@@ -293,7 +293,7 @@ include 'includes/nav.php';
                     </div>
                     <div class="col-md-6 input-floating-label">
                         <label>Phone</label>
-                        <input name="phone" type="text" class="form-control" required value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                        <input name="phone" type="text" class="form-control" required inputmode="numeric" pattern="\\d{11}" maxlength="11" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                     </div>
                     <div class="col-md-6 input-floating-label">
                         <label>Account Type</label>
@@ -339,7 +339,7 @@ include 'includes/nav.php';
                             </div>
                             <div class="col-md-6 input-floating-label">
                                 <label>Company Phone</label>
-                                <input type="text" name="company_phone" class="form-control" required value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
+                                <input type="text" name="company_phone" class="form-control" required inputmode="numeric" pattern="\\d{11}" maxlength="11" value="<?php echo htmlspecialchars($_POST['company_phone'] ?? ''); ?>">
                             </div>
                             <div class="col-md-6 input-floating-label">
                                 <label>Contact Person Position</label>
@@ -347,7 +347,7 @@ include 'includes/nav.php';
                             </div>
                             <div class="col-md-6 input-floating-label">
                                 <label>Contact Person Phone</label>
-                                <input type="text" name="contact_person_phone" class="form-control" required value="<?php echo htmlspecialchars($_POST['contact_person_phone'] ?? ''); ?>" placeholder="e.g. +63 912 345 6789">
+                                <input type="text" name="contact_person_phone" class="form-control" required inputmode="numeric" pattern="\\d{11}" maxlength="11" value="<?php echo htmlspecialchars($_POST['contact_person_phone'] ?? ''); ?>" placeholder="11-digit mobile number">
                             </div>
                             <div class="col-md-6 input-floating-label">
                                 <label>Business Permit # <span class="text-danger">*</span></label>
@@ -412,6 +412,8 @@ include 'includes/nav.php';
     const phoneInput = document.querySelector('input[name="phone"]');
     const companyNameInput = document.querySelector('input[name="company_name"]');
     const pwdIdInput = document.querySelector('input[name="pwd_id_number"]');
+    const employerPhoneInput = document.querySelector('input[name="company_phone"]');
+    const contactPhoneInput2 = document.querySelector('input[name="contact_person_phone"]');
 
     function updateRoleSections() {
         if (roleSelect.value === 'employer') {
@@ -513,6 +515,22 @@ include 'includes/nav.php';
     });
 
     updateRoleSections();
+
+    // Enforce 11-digit-only inputs on phone fields
+    function enforceDigitsAndMax11(el) {
+        if (!el) return;
+        const handler = () => {
+            let v = el.value.replace(/\D+/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            el.value = v;
+        };
+        el.addEventListener('input', handler);
+        // Initial normalization on load
+        handler();
+    }
+    enforceDigitsAndMax11(phoneInput);
+    enforceDigitsAndMax11(employerPhoneInput);
+    enforceDigitsAndMax11(contactPhoneInput2);
 </script>
 <script>
     // Floating label activation
